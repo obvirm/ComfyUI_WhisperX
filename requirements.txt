@@ -4,7 +4,7 @@ whisperx==3.7.4
 
 # Untuk mengunduh model dari Hugging Face Hub.
 huggingface-hub
-
+hf-xet
 # Untuk decoding file audio. 'av' adalah dependensi whisperx untuk memuat audio.
 av
 
