@@ -1,4 +1,4 @@
-# ComfyUI-WhisperX
+# ComfyUI-WhisperXX
 
 A custom node for ComfyUI that provides advanced transcription, alignment, and diarization capabilities using the WhisperX library.
 
