@@ -1,7 +1,7 @@
 [project]
 name = "obvirm-whisperxx"
 description = "WhisperX integration for ComfyUI - Advanced speech-to-text with speaker diarization and word-level timestamps"
-version = "0.0.1"
+version = "2.0.0"
 license = {file = "LICENSE"} 
 # classifiers = [
 #     # For OS-independent nodes (works on all operating systems)
