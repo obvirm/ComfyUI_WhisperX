@@ -720,12 +720,11 @@ class WhisperXNode:
         # Determine the local path for the alignment model.
         # For HF/custom models, this ensures they are downloaded and returns the local path.
         # For default torchaudio models, it remains the model name.
-        align_model_path = align_model_name
         if (
             align_model_name is not None
             and align_model_name not in DEFAULT_ALIGN_MODELS_TORCH.values()
         ):
-            align_model_path = self._ensure_model_downloaded(
+            self._ensure_model_downloaded(
                 align_model_name,
                 ALIGN_MODELS_HF,
                 args["model_dir"],
@@ -735,7 +734,7 @@ class WhisperXNode:
             )
 
         # Log the path or name that will be used
-        logger.info(f"Loading alignment model from: {align_model_path or 'N/A'}")
+        logger.info(f"Loading alignment model from: {align_model_name or 'N/A'}")
 
         # Determine dynamic description for the progress bar
         tqdm_desc = "Loading Alignment Model"
@@ -748,7 +747,7 @@ class WhisperXNode:
                 if not os.path.exists(expected_local_path):
                     tqdm_desc = "Downloading Alignment Model"
 
-        # Load the model using its name
+        # Load the model using its name (pass repo ID, not local path)
         align_model_instance, align_metadata = (None, None)
         with tqdm(
             total=100,
@@ -760,7 +759,7 @@ class WhisperXNode:
                 align_model_instance, align_metadata = load_align_model(
                     align_language,
                     args["device"],
-                    model_name=align_model_path,
+                    model_name=align_model_name,
                     model_dir=args["model_dir"],
                 )
                 pbar.update(100 - pbar.n)
