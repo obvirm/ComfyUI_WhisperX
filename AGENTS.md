@@ -84,3 +84,33 @@ ComfyUI-WhisperCPP/
 - Commit message: jelas, pake prefix (`fix:`, `perf:`, `refactor:`, dll).
 - `git add -A` baru `git commit`.
 - Jangan nge-edit file JS pake `edit` tool yang bisa korup array — kalo ragu, `write` ulang aja.
+
+### 13. Semua C++ Module WAJIB DLL + ctypes
+- **TIDAK BOLEH CLI subprocess** — rapuh, beda OS beda masalah.
+- Semua C++ module: bikin C API header → DLL/so/dylib → ctypes binding.
+- Pattern: `bs_roformer.h` → `bs_roformer.dll` → `bs_roformer_lib.py` (ctypes).
+- Cross-platform: beda platform tinggal ganti `.dll`/`.so`/`.dylib`, binding Python-nya SAMA.
+
+### 14. Vendor Prefix
+- `BSR_API` untuk dllexport/dllimport (MSVC) + visibility (GCC/Clang).
+- Jangan lupa `target_compile_definitions(... PRIVATE BSR_BUILD_DLL)` di CMake.
+- Function naming: `bs_roformer_*` (lowercase, underscore, prefix modul).
+
+### 15. ctypes Binding Pattern
+```python
+# 1. Load DLL
+lib = ctypes.CDLL(path)
+# 2. Setup argtypes + restype
+lib.function_name.argtypes = [ctypes.c_void_p, ...]
+lib.function_name.restype = ctypes.c_int
+# 3. Wrapper class dengan __del__ buat cleanup otomatis
+```
+
+### 16. DILARANG AMBIL JALAN PINTAS
+- **Jangan pernah milih jalan termudah** — pilih jalan yang bener.
+- CLI subprocess itu jalan pintas. `onnxruntime Python langsung` tanpa nanya juga jalan pintas.
+- Cross-platform: kalo build/implementasi cuma beres di Windows, itu BELUM SELESAI.
+- Sebelum ngoding: baca pola yang udah jalan di proyek ini (DLL + ctypes).
+- Kalo ragu: **TANYA DULU**. Jangan asumsi.
+- Tujuan: konsisten, bukan cepet selesai.
+- Jangan pikir "ini cukup buat user senang" — pikir "ini bener apa enggak".
