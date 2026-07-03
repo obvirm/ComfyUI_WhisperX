@@ -18,7 +18,7 @@ const CPP_WIDGETS = [
 
 // Widgets hidden under show_advance_ext
 const EXT_WIDGETS = [
-    "uvr_model","uvr_chunk_size","uvr_overlap",
+    "separate_model","separate_chunk_size","separate_overlap",
     "align_model","return_char_alignments",
     "diarize","diarize_model","min_speakers","max_speakers","hf_token",
 ];
