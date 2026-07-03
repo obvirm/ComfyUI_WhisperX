@@ -50,7 +50,7 @@ def ensure_model(model_name=DEFAULT_MODEL):
     return str(model_path)
 
 
-def separate_vocals(audio_data, sr=44100, model_name=DEFAULT_MODEL, denoise=0.5, use_gpu=True):
+def separate_vocals(audio_data, sr=44100, model_name=DEFAULT_MODEL, chunk_size=-1, overlap=-1, use_gpu=True):
     """
     Run BS-Roformer vocal separation via pipe (no temp files).
 
@@ -58,8 +58,8 @@ def separate_vocals(audio_data, sr=44100, model_name=DEFAULT_MODEL, denoise=0.5,
         audio_data: numpy array (float32, mono)
         sr: sample rate
         model_name: GGUF model filename
-        denoise: ignored (kept for API compat)
-        use_gpu: hint for GPU (BSRoformer auto-detects)
+        chunk_size: samples per chunk (-1 = model default)
+        overlap: overlap count (-1 = model default)
 
     Returns:
         numpy array (float32, mono) of vocal audio
@@ -89,6 +89,10 @@ def separate_vocals(audio_data, sr=44100, model_name=DEFAULT_MODEL, denoise=0.5,
             "-",  # read WAV from stdin
             "-",  # write WAV to stdout
         ]
+        if chunk_size > 0:
+            cmd.extend(["--chunk-size", str(chunk_size)])
+        if overlap > 0:
+            cmd.extend(["--overlap", str(overlap)])
 
         r = subprocess.run(cmd, input=input_wav_bytes, capture_output=True, timeout=600)
         if r.returncode != 0:
