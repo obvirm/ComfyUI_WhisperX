@@ -1,6 +1,6 @@
 from .whispercpp_node import WhisperCPPNode
 
-WEB_DIRECTORY = "./js"
+WEB_DIRECTORY = "js"
 
 NODE_CLASS_MAPPINGS = {
     "WhisperCPPNode": WhisperCPPNode,
