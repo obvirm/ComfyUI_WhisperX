@@ -184,9 +184,9 @@ class WhisperCPPNode:
 
             # --- ADVANCE EXT (show_advance_ext): UVR + alignment + diarization ---
             "show_advance_ext": ("BOOLEAN", {"default": False}),
-            "uvr_model": (["voc_fv6-Q8_0.gguf","BSRoformer-anvuew-Q8_0.gguf","becruily_deux-Q8_0.gguf","voc_fv6-FP16.gguf"], {"default":"voc_fv6-Q8_0.gguf"}),
-            "uvr_chunk_size": ("INT", {"default":-1,"min":-1,"max":1000000,"step":1}),
-            "uvr_overlap": ("INT", {"default":-1,"min":-1,"max":20,"step":1}),
+            "separate_model": (["voc_fv6-Q8_0.gguf","BSRoformer-anvuew-Q8_0.gguf","becruily_deux-Q8_0.gguf","voc_fv6-FP16.gguf"], {"default":"voc_fv6-Q8_0.gguf"}),
+            "separate_chunk_size": ("INT", {"default":-1,"min":-1,"max":1000000,"step":1}),
+            "separate_overlap": ("INT", {"default":-1,"min":-1,"max":20,"step":1}),
             "align_model": (["auto","dolphin-base-ctc-multi-lang"], {"default":"auto"}),
             "return_char_alignments": ("BOOLEAN", {"default":False}),
             "diarize": ("BOOLEAN", {"default":False}),
@@ -247,15 +247,15 @@ class WhisperCPPNode:
         
         # --- Optional UVR vocal separation ---
         if self._get(kwargs,"separate_vocals",False):
-            uvr_model = self._get(kwargs,"uvr_model","voc_fv6-Q8_0.gguf")
-            uvr_chunk_size = self._get(kwargs,"uvr_chunk_size",-1)
-            uvr_overlap = self._get(kwargs,"uvr_overlap",-1)
+            separate_model = self._get(kwargs,"separate_model","voc_fv6-Q8_0.gguf")
+            separate_chunk_size = self._get(kwargs,"separate_chunk_size",-1)
+            separate_overlap = self._get(kwargs,"separate_overlap",-1)
             try:
                 # Audio is 16kHz from process_comfy_audio; resample to 44.1kHz for BSRoformer
                 t = torch.from_numpy(audio_data).float().unsqueeze(0)
                 audio_44k = torchaudio.transforms.Resample(WHISPER_SAMPLE_RATE, 44100)(t).squeeze().numpy().astype(np.float32)
                 audio_44k = separate_vocals(audio_44k, sr=44100,
-                    model_name=uvr_model, chunk_size=uvr_chunk_size, overlap=uvr_overlap)
+                    model_name=separate_model, chunk_size=separate_chunk_size, overlap=separate_overlap)
                 # UVR outputs 44.1kHz; resample back to 16kHz for whisper
                 t2 = torch.from_numpy(audio_44k).float().unsqueeze(0)
                 audio_data = torchaudio.transforms.Resample(44100, WHISPER_SAMPLE_RATE)(t2).squeeze().numpy().astype(np.float32)
