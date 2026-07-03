@@ -54,20 +54,13 @@ WHISPER_LANGUAGES = {
 LANGUAGES = WHISPER_LANGUAGES
 TO_LANGUAGE_CODE = {v:k for k,v in WHISPER_LANGUAGES.items()}
 
-# Standalone alignment — torchaudio wav2vec2 (no whisperx)
-WAV2VEC2_AVAILABLE_ALIGN = False
-ALIGN_MODELS_AVAILABLE = []
-HAVE_TRANSFORMERS = False
-STANDALONE_ALIGN_IMPORTED = False
+# Standalone alignment — sherpa-onnx CTC (no wav2vec2, no whisperx)
+SHERPA_ALIGN_AVAILABLE = False
 try:
-    from .whispercpp.ext.alignment import (
-        load_align_model, align, WAV2VEC2_AVAILABLE, ALIGN_MODELS_AVAILABLE as _AMA,
-        HAVE_TRANSFORMERS as _HT, HF_ALIGN_MODELS as _HFM
+    from .whispercpp.ext.alignment_sherpa import (
+        load_align_model, align, SHERPA_AVAILABLE
     )
-    WAV2VEC2_AVAILABLE_ALIGN = WAV2VEC2_AVAILABLE or _HT
-    ALIGN_MODELS_AVAILABLE = _AMA if _AMA else list(_HFM.values())
-    HAVE_TRANSFORMERS = _HT
-    STANDALONE_ALIGN_IMPORTED = True
+    SHERPA_ALIGN_AVAILABLE = SHERPA_AVAILABLE
 except ImportError:
     pass
 
@@ -190,7 +183,7 @@ class WhisperCPPNode:
             "uvr_model": (["voc_fv6-Q8_0.gguf","BSRoformer-anvuew-Q8_0.gguf","becruily_deux-Q8_0.gguf","voc_fv6-FP16.gguf"], {"default":"voc_fv6-Q8_0.gguf"}),
             "uvr_chunk_size": ("INT", {"default":-1,"min":-1,"max":1000000,"step":1}),
             "uvr_overlap": ("INT", {"default":-1,"min":-1,"max":20,"step":1}),
-            "align_model": (["auto","WAV2VEC2_ASR_LARGE_LV60K_960H","facebook/wav2vec2-large-lv60","facebook/wav2vec2-base-960h","facebook/wav2vec2-xlsr-53-56k"], {"default":"auto"}),
+            "align_model": (["auto","dolphin-base-ctc-multi-lang"], {"default":"auto"}),
             "return_char_alignments": ("BOOLEAN", {"default":False}),
             "diarize": ("BOOLEAN", {"default":False}),
             "diarize_model": (["pyannote/speaker-diarization-3.1","pyannote/speaker-diarization-2.1"], {"default":"pyannote/speaker-diarization-3.1"}),
@@ -297,21 +290,22 @@ class WhisperCPPNode:
         except Exception as e: logger.error(f"Failed: {e}"); import traceback; traceback.print_exc(); return ("","","","","","","")
         pbar.update(1)
         
-        # --- Optional alignment (torchaudio wav2vec2) — default off ---
+        # --- Optional alignment (sherpa-onnx CTC) — default off ---
         if not self._get(kwargs,"no_align",True):
-            try:
-                logger.info("Running wav2vec2 alignment...")
-                align_lang = result.get("language","en")
-                align_model_name = self._get(kwargs,"align_model","auto")
-                from .whispercpp.ext.alignment import load_align_model, align
-                am, _ = load_align_model(align_lang, device, model_name=align_model_name)
-                result["segments"] = align(
-                    result["segments"], audio_data, am, align_lang, device,
-                    return_char_alignments=self._get(kwargs,"return_char_alignments",False)
-                )
-                logger.success("Alignment done")
-            except Exception as e:
-                logger.warning(f"Alignment skipped: {e}")
+            if SHERPA_ALIGN_AVAILABLE:
+                try:
+                    logger.info("Running sherpa-onnx CTC alignment...")
+                    from .whispercpp.ext.alignment_sherpa import load_align_model, align
+                    am = load_align_model(device)
+                    result["segments"] = align(
+                        result["segments"], audio_data, am,
+                        language=result.get("language","en"),
+                    )
+                    logger.info("Alignment done")
+                except Exception as e:
+                    logger.warning(f"Alignment failed: {e}")
+            else:
+                logger.warning("sherpa-onnx not installed, alignment unavailable")
         pbar.update(1)
         
         # --- Optional diarization (pyannote.audio) — default off ---
