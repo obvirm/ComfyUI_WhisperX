@@ -1,5 +1,4 @@
 import gc, io, json, logging, os, sys, time
-from contextlib import contextmanager
 from typing import Optional
 import comfy.utils, folder_paths
 import numpy as np
@@ -51,9 +50,39 @@ WHISPER_LANGUAGES = {
     "jw":"javanese", "su":"sundanese", "yue":"cantonese", "nb":"bokmal", "mn":"mongolian",
 }
 
-# No whisperx dependency — all alignment/diarization via whisper.cpp native features
+# whisper.cpp native languages — always available
 LANGUAGES = WHISPER_LANGUAGES
 TO_LANGUAGE_CODE = {v:k for k,v in WHISPER_LANGUAGES.items()}
+
+# Standalone alignment — torchaudio wav2vec2 (no whisperx)
+WAV2VEC2_AVAILABLE_ALIGN = False
+ALIGN_MODELS_AVAILABLE = []
+HAVE_TRANSFORMERS = False
+STANDALONE_ALIGN_IMPORTED = False
+try:
+    from .whispercpp.alignment import (
+        load_align_model, align, WAV2VEC2_AVAILABLE, ALIGN_MODELS_AVAILABLE as _AMA,
+        HAVE_TRANSFORMERS as _HT, HF_ALIGN_MODELS as _HFM
+    )
+    WAV2VEC2_AVAILABLE_ALIGN = WAV2VEC2_AVAILABLE or _HT
+    ALIGN_MODELS_AVAILABLE = _AMA if _AMA else list(_HFM.values())
+    HAVE_TRANSFORMERS = _HT
+    STANDALONE_ALIGN_IMPORTED = True
+except ImportError:
+    pass
+
+# Standalone diarization — pyannote.audio langsung (no whisperx)
+DIARIZATION_AVAILABLE = False
+DIARIZATION_MODELS_LIST = ["pyannote/speaker-diarization-3.1", "pyannote/speaker-diarization-2.1"]
+try:
+    from .whispercpp.diarization import (
+        load_diarization_pipeline, diarize, assign_speakers_to_segments,
+        DIARIZATION_AVAILABLE as _DA, DIARIZATION_MODELS as _DM
+    )
+    DIARIZATION_AVAILABLE = _DA
+    DIARIZATION_MODELS_LIST = _DM
+except ImportError:
+    pass
 
 NODE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(NODE_DIR, "whispercpp.json")
@@ -139,6 +168,24 @@ class WhisperCPPNode:
             "flash_attn": ("BOOLEAN", {"default":False}),
             "gpu_device": ("INT", {"default":0,"min":0,"max":8}),
         }
+        # Standalone alignment (torchaudio wav2vec2) — muncul kalo tersedia
+        wx_optional = {}
+        if WAV2VEC2_AVAILABLE_ALIGN:
+            wx_optional.update({
+                "no_align": ("BOOLEAN", {"default":False}),
+                "align_model": (["auto"] + ALIGN_MODELS_AVAILABLE, {"default":"auto"}),
+                "return_char_alignments": ("BOOLEAN", {"default":False}),
+            })
+        # Standalone diarization (pyannote.audio langsung)
+        if DIARIZATION_AVAILABLE:
+            wx_optional.update({
+                "diarize": ("BOOLEAN", {"default":False}),
+                "diarize_model": (DIARIZATION_MODELS_LIST, {"default":"pyannote/speaker-diarization-3.1"}),
+                "min_speakers": ("INT", {"default":1,"min":1,"max":10}),
+                "max_speakers": ("INT", {"default":2,"min":1,"max":10}),
+                "hf_token": ("STRING", {"default":""}),
+            })
+        optional.update(wx_optional)
         return {"required": required, "optional": optional}
 
     RETURN_TYPES = ("STRING","STRING","STRING","STRING","STRING","STRING","STRING")
@@ -163,7 +210,7 @@ class WhisperCPPNode:
 
     def transcribe(self, **kwargs):
         logger.info("="*60); logger.info("  WhisperCPP Node starting"); logger.info("="*60)
-        pbar = comfy.utils.ProgressBar(5)
+        pbar = comfy.utils.ProgressBar(7)
 
         hf_cache = os.path.join(folder_paths.models_dir, "whispercpp")
         os.makedirs(hf_cache, exist_ok=True)
@@ -220,7 +267,41 @@ class WhisperCPPNode:
         try: result = wcpp.transcribe(audio_data, **tp)
         except Exception as e: logger.error(f"Failed: {e}"); import traceback; traceback.print_exc(); return ("","","","","","","")
         pbar.update(1)
-
+        
+        # --- Optional standalone alignment (torchaudio wav2vec2) ---
+        if WAV2VEC2_AVAILABLE_ALIGN and not self._get(kwargs,"no_align",False):
+            try:
+                logger.info("Running wav2vec2 alignment...")
+                align_lang = result.get("language","en")
+                align_model_name = self._get(kwargs,"align_model","auto")
+                am, _ = load_align_model(align_lang, device, model_name=align_model_name)
+                result["segments"] = align(
+                    result["segments"], audio_data, am, align_lang, device,
+                    return_char_alignments=self._get(kwargs,"return_char_alignments",False)
+                )
+                logger.success("Alignment done")
+            except Exception as e:
+                logger.warning(f"Alignment skipped: {e}")
+        pbar.update(1)
+        
+        # --- Optional standalone diarization (pyannote.audio) ---
+        if DIARIZATION_AVAILABLE and self._get(kwargs,"diarize",False):
+            try:
+                logger.info("Running speaker diarization...")
+                hf_token = self._get(kwargs,"hf_token","") or None
+                diar_model_name = self._get(kwargs,"diarize_model","pyannote/speaker-diarization-3.1")
+                pipe = load_diarization_pipeline(diar_model_name, device, hf_token)
+                turns = diarize(
+                    audio_data, pipe,
+                    min_speakers=self._get(kwargs,"min_speakers",None),
+                    max_speakers=self._get(kwargs,"max_speakers",None),
+                )
+                result["segments"] = assign_speakers_to_segments(result["segments"], turns)
+                logger.success("Diarization done")
+            except Exception as e:
+                logger.warning(f"Diarization skipped: {e}")
+        pbar.update(1)
+        
         return self._write_outputs(result, audio_base, out_dir, kwargs)
 
     def _write_outputs(self, result, audio_base, out_dir, kwargs):
