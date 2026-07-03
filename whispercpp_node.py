@@ -4,7 +4,6 @@ from typing import Optional
 import comfy.utils, folder_paths
 import numpy as np
 import torch, torchaudio
-from tqdm.auto import tqdm
 
 from .whispercpp.whisper_lib import WhisperCPP
 from .whispercpp.audio import AudioProcessor
@@ -21,7 +20,6 @@ except ImportError:
         def ensure_custom_config(self, *args): pass
         def get_model_path(self, key): return None
         def download_model(self, key):
-            import os, sys
             logger = logging.getLogger("WhisperCPP")
             logger.error(f"Cannot download {key}: install tqdm & requests: pip install tqdm requests huggingface-hub")
             return None
@@ -30,7 +28,7 @@ except ImportError:
     def get_model_keys(): return GGML_FALLBACK_KEYS
     def load_custom_models(*args, **kwargs): pass
 
-# Full language codes for whisper (100 languages)
+# Full language codes for whisper (100 languages) — whisper.cpp native only
 WHISPER_LANGUAGES = {
     "en":"english", "zh":"chinese", "de":"german", "es":"spanish", "ru":"russian", "ko":"korean", "fr":"french",
     "ja":"japanese", "pt":"portuguese", "tr":"turkish", "pl":"polish", "ca":"catalan", "nl":"dutch",
@@ -53,44 +51,15 @@ WHISPER_LANGUAGES = {
     "jw":"javanese", "su":"sundanese", "yue":"cantonese", "nb":"bokmal", "mn":"mongolian",
 }
 
-WHISPERX_AVAILABLE = False
-try:
-    from whisperx.alignment import align, load_align_model, DEFAULT_ALIGN_MODELS_TORCH, DEFAULT_ALIGN_MODELS_HF
-    from whisperx.diarize import DiarizationPipeline, assign_word_speakers
-    from whisperx.utils import LANGUAGES as WX_LANGUAGES, TO_LANGUAGE_CODE as WX_TOLANG, get_writer
-    WHISPERX_AVAILABLE = True
-    # Merge whisperx languages with our full list
-    if WX_LANGUAGES: WHISPER_LANGUAGES.update(WX_LANGUAGES)
-    LANGUAGES = WHISPER_LANGUAGES
-    TO_LANGUAGE_CODE = {v:k for k,v in WHISPER_LANGUAGES.items()}
-    if WX_TOLANG: TO_LANGUAGE_CODE.update(WX_TOLANG)
-except ImportError:
-    DEFAULT_ALIGN_MODELS_TORCH, DEFAULT_ALIGN_MODELS_HF = {}, {}
-    LANGUAGES = WHISPER_LANGUAGES
-    TO_LANGUAGE_CODE = {v:k for k,v in WHISPER_LANGUAGES.items()}
+# No whisperx dependency — all alignment/diarization via whisper.cpp native features
+LANGUAGES = WHISPER_LANGUAGES
+TO_LANGUAGE_CODE = {v:k for k,v in WHISPER_LANGUAGES.items()}
 
 NODE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(NODE_DIR, "whispercpp.json")
 
 load_custom_models(CONFIG_PATH)
 GGML_MODEL_KEYS = get_model_keys()
-
-align_models_list = sorted(list(set(list(DEFAULT_ALIGN_MODELS_TORCH.values()) + list(DEFAULT_ALIGN_MODELS_HF.values()))))
-diarization_models_list = ["pyannote/speaker-diarization-3.1", "pyannote/speaker-diarization-2.1"]
-CUSTOM_ALIGN_MODELS_MAP = {}
-try:
-    if os.path.exists(CONFIG_PATH):
-        with open(CONFIG_PATH) as f:
-            cfg = json.load(f)
-        ca = cfg.get("custom_align_models", {})
-        if isinstance(ca, dict):
-            CUSTOM_ALIGN_MODELS_MAP = ca
-            for v in ca.values():
-                if v not in align_models_list: align_models_list.append(v)
-            align_models_list.sort()
-        dm = cfg.get("diarization_models", [])
-        if dm: diarization_models_list = dm
-except: pass
 
 class ColoredLogger:
     def __init__(self, name="WhisperCPPNode"):
@@ -103,18 +72,6 @@ class ColoredLogger:
     def error(self, m): self._log(m, "error")
 
 logger = ColoredLogger()
-
-@contextmanager
-def _capture_progress(pbar):
-    orig_out, orig_err = sys.stdout, sys.stderr
-    class R(io.StringIO):
-        def __init__(self, p, o):
-            super().__init__(); self.pbar = p; self.orig = o
-        def write(self, s): tqdm.write(s.rstrip(), file=self.orig)
-        def flush(self): self.orig.flush()
-    sys.stdout, sys.stderr = R(pbar, orig_out), R(pbar, orig_err)
-    try: yield
-    finally: sys.stdout, sys.stderr = orig_out, orig_err
 
 class WhisperCPPNode:
     PBAR_FORMAT = "\033[96m{l_bar}\033[0m\033[92m{bar:15}\033[0m\033[93m{r_bar}\033[0m"
@@ -179,15 +136,6 @@ class WhisperCPPNode:
             "vad_speech_pad_ms": ("INT", {"default":400,"min":0,"max":2000}),
             "filename_prefix": ("STRING", {"default":"whispercpp/output"}),
             "output_format": (["all","srt","vtt","txt","tsv","json","aud"],),
-            "align_model": (["auto"]+align_models_list, {"default":"auto"}),
-            "no_align": ("BOOLEAN", {"default":False}),
-            "interpolate_method": (["nearest","linear","ignore"], {"default":"nearest"}),
-            "return_char_alignments": ("BOOLEAN", {"default":False}),
-            "diarize": ("BOOLEAN", {"default":False}),
-            "diarize_model": (diarization_models_list, {"default":diarization_models_list[0]}),
-            "min_speakers": ("INT", {"default":-1,"min":-1,"max":20}),
-            "max_speakers": ("INT", {"default":-1,"min":-1,"max":20}),
-            "hf_token": ("STRING", {"default":""}),
             "flash_attn": ("BOOLEAN", {"default":False}),
             "gpu_device": ("INT", {"default":0,"min":0,"max":8}),
         }
@@ -215,15 +163,13 @@ class WhisperCPPNode:
 
     def transcribe(self, **kwargs):
         logger.info("="*60); logger.info("  WhisperCPP Node starting"); logger.info("="*60)
-        pbar = comfy.utils.ProgressBar(6)
+        pbar = comfy.utils.ProgressBar(5)
 
         hf_cache = os.path.join(folder_paths.models_dir, "whispercpp")
         os.makedirs(hf_cache, exist_ok=True)
         out_dir = os.path.join(folder_paths.get_output_directory(), os.path.dirname(self._get(kwargs,"filename_prefix","whispercpp/output")))
         os.makedirs(out_dir, exist_ok=True)
         audio_base = os.path.basename(self._get(kwargs,"filename_prefix","whispercpp_output"))
-        os.environ.update({"TORCH_HOME":hf_cache,"PYANNOTE_CACHE":hf_cache,"HF_HOME":hf_cache,"HF_HUB_CACHE":hf_cache,"HF_HUB_DISABLE_SYMLINKS_WARNING":"1"})
-        hf_token = self._get(kwargs,"hf_token","") or None
         pbar.update(1)
 
         model_key = self._get(kwargs,"model","large-v3-turbo")
@@ -245,7 +191,7 @@ class WhisperCPPNode:
         audio_data = AudioProcessor.process_comfy_audio(kwargs.get("audio"))
         pbar.update(1)
 
-        lang = self._get(kwargs,"language","None")
+        lang = self._get(kwargs,"language","en")
         if lang == "None": lang = None
         strat_str = self._get(kwargs,"sampling_strategy","greedy")
         strategy = 0 if strat_str == "greedy" else 1
@@ -253,6 +199,9 @@ class WhisperCPPNode:
         vad_params = {}
         if self._get(kwargs,"vad",False):
             vad_params = {"vad":True,"vad_threshold":self._get(kwargs,"vad_threshold",0.5),"vad_min_speech_duration_ms":self._get(kwargs,"vad_min_speech_ms",250),"vad_min_silence_duration_ms":self._get(kwargs,"vad_min_silence_ms",100),"vad_max_speech_duration_s":self._get(kwargs,"vad_max_speech_s",30.0),"vad_speech_pad_ms":self._get(kwargs,"vad_speech_pad_ms",400)}
+
+        # whisper.cpp native alignment = token_timestamps + split_on_word
+        native_align = self._get(kwargs,"token_timestamps",False) or self._get(kwargs,"split_on_word",False)
 
         tp = { "strategy":strategy, "n_threads":self._get(kwargs,"n_threads",4), "language":lang, "detect_language":bool(lang is None), "task":self._get(kwargs,"task","transcribe"),
             "temperature":self._get(kwargs,"temperature",0.0), "temperature_inc":self._get(kwargs,"temperature_inc",0.2), "max_initial_ts":self._get(kwargs,"max_initial_ts",1.0), "length_penalty":self._get(kwargs,"length_penalty",1.0),
@@ -272,51 +221,7 @@ class WhisperCPPNode:
         except Exception as e: logger.error(f"Failed: {e}"); import traceback; traceback.print_exc(); return ("","","","","","","")
         pbar.update(1)
 
-        result = self._run_alignment(result, audio_data, kwargs, hf_cache, hf_token)
-        pbar.update(1)
-        result = self._run_diarization(result, audio_data, kwargs, hf_token)
-        pbar.update(1)
-
         return self._write_outputs(result, audio_base, out_dir, kwargs)
-
-    def _run_alignment(self, result, audio_data, kwargs, model_dir, hf_token):
-        if self._get(kwargs,"no_align",False) or self._get(kwargs,"task","transcribe") != "transcribe" or not WHISPERX_AVAILABLE: return result
-        logger.info("Starting alignment...")
-        align_lang = result.get("language","en")
-        align_val = self._get(kwargs,"align_model","auto")
-        if align_val == "auto":
-            if align_lang in CUSTOM_ALIGN_MODELS_MAP: align_val = CUSTOM_ALIGN_MODELS_MAP[align_lang]
-            elif align_lang in DEFAULT_ALIGN_MODELS_TORCH: align_val = DEFAULT_ALIGN_MODELS_TORCH[align_lang]
-            elif align_lang in DEFAULT_ALIGN_MODELS_HF: align_val = DEFAULT_ALIGN_MODELS_HF[align_lang]
-            else: return result
-        try:
-            segs = [{"start":s["start"],"end":s["end"],"text":s["text"],"words":s.get("words",[])} for s in result["segments"]]
-            device = "cuda" if torch.cuda.is_available() else "cpu"
-            with tqdm(total=100,desc="Loading Align Model",bar_format=self.PBAR_FORMAT) as pb:
-                with _capture_progress(pb):
-                    am, ameta = load_align_model(align_lang, device, model_name=align_val, model_dir=model_dir)
-            with tqdm(total=100,desc="Alignment",bar_format=self.PBAR_FORMAT) as pb:
-                with _capture_progress(pb):
-                    aligned = align(segs, am, ameta, audio_data, device, interpolate_method=self._get(kwargs,"interpolate_method","nearest"), return_char_alignments=self._get(kwargs,"return_char_alignments",False))
-            result["segments"] = aligned; logger.success("Alignment done")
-        except Exception as e: logger.warning(f"Align failed: {e}")
-        return result
-
-    def _run_diarization(self, result, audio_data, kwargs, hf_token):
-        if not self._get(kwargs,"diarize",False) or not WHISPERX_AVAILABLE: return result
-        logger.info("Starting diarization...")
-        dm = self._get(kwargs,"diarize_model","pyannote/speaker-diarization-3.1")
-        ms = self._get(kwargs,"min_speakers",-1); xs = self._get(kwargs,"max_speakers",-1)
-        try:
-            device = "cuda" if torch.cuda.is_available() else "cpu"
-            with tqdm(total=100,desc="Loading Diarize Model",bar_format=self.PBAR_FORMAT) as pb:
-                with _capture_progress(pb): dp = DiarizationPipeline(model_name=dm, use_auth_token=hf_token, device=device)
-            with tqdm(total=1,desc="Diarization",bar_format=self.PBAR_FORMAT) as pb:
-                dr = dp(audio_data, min_speakers=ms if ms>0 else None, max_speakers=xs if xs>0 else None)
-            fr = assign_word_speakers(dr, result)
-            result["segments"] = fr.get("segments", result["segments"]); logger.success("Diarization done")
-        except Exception as e: logger.warning(f"Diarize failed: {e}")
-        return result
 
     def _write_outputs(self, result, audio_base, out_dir, kwargs):
         os.makedirs(out_dir, exist_ok=True)
