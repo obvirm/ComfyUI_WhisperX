@@ -19,7 +19,6 @@ const CPP_WIDGETS = [
 
 const EXT_WIDGETS = [
     "no_align","align_model","return_char_alignments",
-];
     "diarize","diarize_model","min_speakers","max_speakers","hf_token",
 ];
 
@@ -31,33 +30,25 @@ app.registerExtension({
             nodeType.prototype.onNodeCreated = function () {
                 onCreated?.apply(this, arguments);
 
-                const cppToggle = this.widgets.find(w => w.name === "show_advance_cpp");
-                const extToggle = this.widgets.find(w => w.name === "show_advance_ext");
-
-                // Grab widget REFERENCES once (before they get removed from .widgets)
-                const cppWidgets = CPP_WIDGETS.map(n => this.widgets.find(w => w.name === n)).filter(Boolean);
-                const extWidgets = EXT_WIDGETS.map(n => this.widgets.find(w => w.name === n)).filter(Boolean);
-
-                const makeToggle = (toggle, refWidgets) => {
-                    const fn = (show) => {
-                        if (!show) {
-                            this.widgets = this.widgets.filter(w => !refWidgets.includes(w));
-                        } else {
-                            const toAdd = refWidgets.filter(w => !this.widgets.includes(w));
-                            if (toAdd.length) {
-                                const idx = this.widgets.indexOf(toggle);
-                                this.widgets.splice(idx + 1, 0, ...toAdd);
-                            }
-                        }
-                        this.size = this.computeSize();
-                        this.setDirtyCanvas(true, true);
-                    };
-                    toggle.callback = (v) => fn(v);
-                    setTimeout(() => fn(toggle.value), 10);
+                const setVis = (names, show) => {
+                    for (const n of names) {
+                        const w = this.widgets?.find(w => w.name === n);
+                        if (w) w.hidden = !show;
+                    }
                 };
 
-                if (cppToggle) makeToggle(cppToggle, cppWidgets);
-                if (extToggle) makeToggle(extToggle, extWidgets);
+                // Apply initial state after a short delay to ensure all widgets exist
+                const applyInitial = () => {
+                    const cppToggle = this.widgets?.find(w => w.name === "show_advance_cpp");
+                    const extToggle = this.widgets?.find(w => w.name === "show_advance_ext");
+                    if (cppToggle) cppToggle.callback = (v) => setVis(CPP_WIDGETS, v);
+                    if (extToggle) extToggle.callback = (v) => setVis(EXT_WIDGETS, v);
+                    if (cppToggle) setVis(CPP_WIDGETS, cppToggle.value);
+                    if (extToggle) setVis(EXT_WIDGETS, extToggle.value);
+                };
+
+                // Give ComfyUI a tick to finish populating widgets
+                setTimeout(applyInitial, 0);
             };
         }
     },
