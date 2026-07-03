@@ -187,8 +187,9 @@ class WhisperCPPNode:
 
             # --- ADVANCE EXT (show_advance_ext): UVR + alignment + diarization ---
             "show_advance_ext": ("BOOLEAN", {"default": False}),
-            "uvr_model": ("STRING", {"default": "UVR-MDX-NET-Inst_HQ_3"}),
-            "uvr_denoise": ("FLOAT", {"default":0.5,"min":0.0,"max":1.0,"step":0.01}),
+            "uvr_model": (["voc_fv6-Q8_0.gguf","BSRoformer-anvuew-Q8_0.gguf","becruily_deux-Q8_0.gguf","voc_fv6-FP16.gguf"], {"default":"voc_fv6-Q8_0.gguf"}),
+            "uvr_chunk_size": ("INT", {"default":-1,"min":-1,"max":1000000,"step":1}),
+            "uvr_overlap": ("INT", {"default":-1,"min":-1,"max":20,"step":1}),
             "align_model": (["auto","WAV2VEC2_ASR_LARGE_LV60K_960H","facebook/wav2vec2-large-lv60","facebook/wav2vec2-base-960h","facebook/wav2vec2-xlsr-53-56k"], {"default":"auto"}),
             "return_char_alignments": ("BOOLEAN", {"default":False}),
             "diarize": ("BOOLEAN", {"default":False}),
@@ -249,11 +250,12 @@ class WhisperCPPNode:
         
         # --- Optional UVR vocal separation ---
         if self._get(kwargs,"separate_vocals",False):
-            uvr_model = self._get(kwargs,"uvr_model","UVR-MDX-NET-Inst_HQ_3")
-            uvr_denoise = self._get(kwargs,"uvr_denoise",0.5)
+            uvr_model = self._get(kwargs,"uvr_model","voc_fv6-Q8_0.gguf")
+            uvr_chunk_size = self._get(kwargs,"uvr_chunk_size",-1)
+            uvr_overlap = self._get(kwargs,"uvr_overlap",-1)
             try:
                 audio_data = separate_vocals(audio_data, sr=sr if 'sr' in dir() else 44100,
-                    model_name=uvr_model, denoise=uvr_denoise, use_gpu=use_gpu)
+                    model_name=uvr_model, chunk_size=uvr_chunk_size, overlap=uvr_overlap)
                 sr = 44100  # UVR outputs at 44.1kHz
                 logger.info(f"UVR done: {len(audio_data)} samples")
             except Exception as e:
