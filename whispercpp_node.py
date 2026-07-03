@@ -104,6 +104,16 @@ try:
 except Exception as e:
     logger.debug(f"UVR import: {e}")
 
+# cpp-annote VAD/Diarization (DLL)
+CPPANNOTE_AVAILABLE = False
+try:
+    from .whispercpp.ext.cppannote import segment as _vad_seg, CPPANNOTE_AVAILABLE as _ca
+    CPPANNOTE_AVAILABLE = _ca
+    if CPPANNOTE_AVAILABLE:
+        logger.info("cpp-annote VAD available")
+except Exception as e:
+    logger.debug(f"cpp-annote import: {e}")
+
 class WhisperCPPNode:
     PBAR_FORMAT = "\033[96m{l_bar}\033[0m\033[92m{bar:15}\033[0m\033[93m{r_bar}\033[0m"
     _whisper = None
@@ -166,12 +176,6 @@ class WhisperCPPNode:
             "print_special": ("BOOLEAN", {"default":False}),
             "print_progress": ("BOOLEAN", {"default":True}),
             "tdrz_enable": ("BOOLEAN", {"default":False}),
-            "vad_model_path": ("STRING", {"default":""}),
-            "vad_threshold": ("FLOAT", {"default":0.5,"min":0.0,"max":1.0,"step":0.01}),
-            "vad_min_speech_ms": ("INT", {"default":250,"min":0,"max":5000}),
-            "vad_min_silence_ms": ("INT", {"default":100,"min":0,"max":5000}),
-            "vad_max_speech_s": ("FLOAT", {"default":30.0,"min":1.0,"max":300.0,"step":0.5}),
-            "vad_speech_pad_ms": ("INT", {"default":400,"min":0,"max":2000}),
             "flash_attn": ("BOOLEAN", {"default":False}),
             "gpu_device": ("INT", {"default":0,"min":0,"max":8}),
             "dtw_aheads_preset": (["none","n_top_most","custom","tiny_en","tiny","base_en","base","small_en","small","medium_en","medium","large_v1","large_v2","large_v3","large_v3_turbo"], {"default":"large_v3_turbo"}),
@@ -265,23 +269,13 @@ class WhisperCPPNode:
         strat_str = self._get(kwargs,"sampling_strategy","greedy")
         strategy = 0 if strat_str == "greedy" else 1
 
-        vad_params = {}
-        if self._get(kwargs,"vad",False):
-            vmp = self._get(kwargs,"vad_model_path","")
-            if not vmp:
-                logger.warning("VAD enabled but vad_model_path not set — disabling VAD. Download VAD model from https://huggingface.co/ggerganov/whisper.cpp")
-            else:
-                vad_params = {"vad":True,"vad_model_path":vmp,"vad_threshold":self._get(kwargs,"vad_threshold",0.5),"vad_min_speech_duration_ms":self._get(kwargs,"vad_min_speech_ms",250),"vad_min_silence_duration_ms":self._get(kwargs,"vad_min_silence_ms",100),"vad_max_speech_duration_s":self._get(kwargs,"vad_max_speech_s",30.0),"vad_speech_pad_ms":self._get(kwargs,"vad_speech_pad_ms",400)}
-
-        # whisper.cpp native alignment = token_timestamps + split_on_word
-        native_align = self._get(kwargs,"token_timestamps",False) or self._get(kwargs,"split_on_word",False)
-
-        tp = { "strategy":strategy, "n_threads":self._get(kwargs,"n_threads",4), "language":lang, "detect_language":bool(lang is None), "task":self._get(kwargs,"task","transcribe"),
+        # Common transcribe params (nggak include offset/duration biar bisa per-segment)
+        tp_base = { "strategy":strategy, "n_threads":self._get(kwargs,"n_threads",4), "language":lang, "detect_language":bool(lang is None), "task":self._get(kwargs,"task","transcribe"),
             "temperature":self._get(kwargs,"temperature",0.0), "temperature_inc":self._get(kwargs,"temperature_inc",0.2), "max_initial_ts":self._get(kwargs,"max_initial_ts",1.0), "length_penalty":self._get(kwargs,"length_penalty",-1.0),
             "best_of":self._get(kwargs,"best_of",5), "beam_size":self._get(kwargs,"beam_size",5), "patience":self._get(kwargs,"patience",-1.0),
             "entropy_thold":self._get(kwargs,"entropy_thold",2.4), "logprob_thold":self._get(kwargs,"logprob_thold",-1.0), "no_speech_thold":self._get(kwargs,"no_speech_thold",0.6),
-            "n_max_text_ctx":self._get(kwargs,"n_max_text_ctx",16384), "offset_ms":self._get(kwargs,"offset_ms",0), "duration_ms":self._get(kwargs,"duration_ms",0),
-            "no_context":self._get(kwargs,"no_context",True), "single_segment":self._get(kwargs,"single_segment",False), "no_timestamps":self._get(kwargs,"no_timestamps",False),
+            "n_max_text_ctx":self._get(kwargs,"n_max_text_ctx",16384), "no_context":self._get(kwargs,"no_context",True),
+            "no_timestamps":self._get(kwargs,"no_timestamps",False),
             "max_tokens":self._get(kwargs,"max_tokens",0), "max_len":self._get(kwargs,"max_len",0), "split_on_word":self._get(kwargs,"split_on_word",False),
             "token_timestamps":self._get(kwargs,"token_timestamps",False), "thold_pt":self._get(kwargs,"thold_pt",0.01), "thold_ptsum":self._get(kwargs,"thold_ptsum",0.01),
             "suppress_blank":self._get(kwargs,"suppress_blank",True), "suppress_nst":self._get(kwargs,"suppress_nst",False), "suppress_regex":self._get(kwargs,"suppress_regex","") or None,
@@ -289,10 +283,63 @@ class WhisperCPPNode:
             "audio_ctx":self._get(kwargs,"audio_ctx",0), "debug_mode":self._get(kwargs,"debug_mode",False),
             "print_special":self._get(kwargs,"print_special",False), "print_progress":self._get(kwargs,"print_progress",True),
             "tdrz_enable":self._get(kwargs,"tdrz_enable",False),
-            "grammar_penalty":self._get(kwargs,"grammar_penalty",100.0), **vad_params }
+            "grammar_penalty":self._get(kwargs,"grammar_penalty",100.0), "vad":False }
 
-        try: result = wcpp.transcribe(audio_data, **tp)
-        except Exception as e: logger.error(f"Failed: {e}"); import traceback; traceback.print_exc(); return ("","","","","","","")
+        # ── VAD: cpp-annote (DLL) untuk speech segmentation ──
+        do_vad = self._get(kwargs,"vad",False)
+
+        if do_vad and CPPANNOTE_AVAILABLE:
+            try:
+                from .whispercpp.ext.cppannote import segment as vad_segment
+                speech_segs = vad_segment(audio_data, sr=16000)
+                logger.info(f"VAD: {len(speech_segs)} speech segment(s)")
+                for s, e in speech_segs:
+                    logger.info(f"  {s:.2f}s -> {e:.2f}s")
+            except Exception as e:
+                logger.warning(f"VAD failed, fallback full audio: {e}")
+                speech_segs = [(0.0, len(audio_data)/16000)]
+                do_vad = False
+        elif do_vad:
+            logger.warning("cpp-annote not available, VAD disabled")
+            do_vad = False
+
+        # ── Transcribe ──
+        if do_vad:
+            # Per-segment transcription with context carry-over
+            all_segments = []
+            full_texts = []
+            prev_text = ""
+            for seg_i, (seg_start, seg_end) in enumerate(speech_segs):
+                offset_ms = int(seg_start * 1000)
+                dur_ms = int((seg_end - seg_start) * 1000)
+                if dur_ms < 100:  # skip <100ms segments
+                    continue
+                # Carry context from previous segment for continuity
+                carry = {"initial_prompt": prev_text or None}
+                seg_tp = {**tp_base, "offset_ms": offset_ms, "duration_ms": dur_ms, **carry}
+                try:
+                    seg_result = wcpp.transcribe(audio_data, **seg_tp)
+                    seg_text = seg_result.get("text","").strip()
+                    if seg_text:
+                        full_texts.append(seg_text)
+                        prev_text = (prev_text + " " + seg_text).strip()[-500:]  # keep last 500 chars
+                    for seg in seg_result.get("segments",[]):
+                        all_segments.append(seg)
+                    logger.info(f"  [{seg_i+1}/{len(speech_segs)}] {seg_start:.1f}s-{seg_end:.1f}s: {seg_text[:60]}...")
+                except Exception as e:
+                    logger.warning(f"VAD segment {seg_i} failed: {e}")
+            result = {
+                "text": ". ".join(full_texts).strip(),
+                "segments": all_segments,
+                "language": "en",
+                "n_segments": len(all_segments),
+                "vad_segments": [(s,e) for s,e in speech_segs],
+                "model_type": wcpp._lib.whisper_model_type_readable(wcpp._ctx).decode() if wcpp._ctx else "unknown",
+            }
+        else:
+            tp = {**tp_base, "offset_ms":0, "duration_ms":0}
+            try: result = wcpp.transcribe(audio_data, **tp)
+            except Exception as e: logger.error(f"Failed: {e}"); import traceback; traceback.print_exc(); return ("","","","","","","")
         pbar.update(1)
         
         # --- Optional alignment (sherpa-onnx CTC) — default ON ---
