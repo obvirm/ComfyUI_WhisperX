@@ -17,11 +17,20 @@ elif IS_LINUX: LIB_NAMES = ["libwhisper.so"]
 elif IS_MACOS: LIB_NAMES = ["libwhisper.dylib"]
 else: LIB_NAMES = ["libwhisper.so"]
 
+class WhisperAhead(ctypes.Structure):
+    """whisper_ahead: {n_head, n_layer}"""
+    _fields_ = [("n_head", ctypes.c_int), ("n_layer", ctypes.c_int)]
+
+class WhisperAheads(ctypes.Structure):
+    """whisper_aheads: {n_heads, heads}"""
+    _fields_ = [("n_heads", ctypes.c_int), ("heads", ctypes.POINTER(WhisperAhead))]
+
 class WhisperContextParams(ctypes.Structure):
     _fields_ = [
         ("use_gpu", ctypes.c_bool), ("flash_attn", ctypes.c_bool), ("gpu_device", ctypes.c_int),
         ("dtw_token_timestamps", ctypes.c_bool), ("dtw_aheads_preset", ctypes.c_int), ("dtw_n_top", ctypes.c_int),
-        ("_dtw_aheads_ptr", ctypes.c_void_p), ("_dtw_aheads_n", ctypes.c_size_t), ("dtw_mem_size", ctypes.c_size_t),
+        ("dtw_aheads", WhisperAheads),
+        ("dtw_mem_size", ctypes.c_size_t),
     ]
 
 class WhisperTokenData(ctypes.Structure):
@@ -117,12 +126,13 @@ class WhisperCPP:
         L.whisper_print_timings.argtypes = [ctypes.c_void_p]; L.whisper_print_timings.restype = None
         L.whisper_model_type_readable.argtypes = [ctypes.c_void_p]; L.whisper_model_type_readable.restype = ctypes.c_char_p
 
-    def load_model(self, model_path, use_gpu=True, gpu_device=0, flash_attn=False):
+    def load_model(self, model_path, use_gpu=True, gpu_device=0, flash_attn=False, dtw_token_timestamps=False, dtw_aheads_preset=0, dtw_n_top=-1):
         if self._lib is None: self.load_library()
         self.free_model()
         if not os.path.isfile(model_path): raise FileNotFoundError(f"Model not found: {model_path}")
         cparams = self._lib.whisper_context_default_params()
         cparams.use_gpu = use_gpu; cparams.gpu_device = gpu_device; cparams.flash_attn = flash_attn
+        cparams.dtw_token_timestamps = dtw_token_timestamps; cparams.dtw_aheads_preset = dtw_aheads_preset; cparams.dtw_n_top = dtw_n_top
         ctx = self._lib.whisper_init_from_file_with_params(model_path.encode("utf-8"), cparams)
         if not ctx: raise RuntimeError(f"Failed to init whisper from {model_path}")
         self._ctx = ctx; self._model_path = model_path
@@ -165,9 +175,6 @@ class WhisperCPP:
             "vad_min_silence_duration_ms": ("vad_min_silence_duration_ms", int), "vad_max_speech_duration_s": ("vad_max_speech_duration_s", float),
             "vad_speech_pad_ms": ("vad_speech_pad_ms", int), "vad_samples_overlap": ("vad_samples_overlap", float),
             "grammar_penalty": ("grammar_penalty", float),
-            "dtw_token_timestamps": ("dtw_token_timestamps", bool),
-            "dtw_aheads_preset": ("dtw_aheads_preset", int),
-            "dtw_n_top": ("dtw_n_top", int),
         }
         for kw, (field, conv) in field_map.items():
             if kw in kwargs and kwargs[kw] is not None:
