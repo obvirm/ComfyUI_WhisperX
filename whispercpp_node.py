@@ -158,6 +158,7 @@ class WhisperCPPNode:
             "print_progress": ("BOOLEAN", {"default":False}),
             "tdrz_enable": ("BOOLEAN", {"default":False}),
             "vad": ("BOOLEAN", {"default":False}),
+            "vad_model_path": ("STRING", {"default":""}),
             "vad_threshold": ("FLOAT", {"default":0.5,"min":0.0,"max":1.0,"step":0.01}),
             "vad_min_speech_ms": ("INT", {"default":250,"min":0,"max":5000}),
             "vad_min_silence_ms": ("INT", {"default":100,"min":0,"max":5000}),
@@ -245,7 +246,11 @@ class WhisperCPPNode:
 
         vad_params = {}
         if self._get(kwargs,"vad",False):
-            vad_params = {"vad":True,"vad_threshold":self._get(kwargs,"vad_threshold",0.5),"vad_min_speech_duration_ms":self._get(kwargs,"vad_min_speech_ms",250),"vad_min_silence_duration_ms":self._get(kwargs,"vad_min_silence_ms",100),"vad_max_speech_duration_s":self._get(kwargs,"vad_max_speech_s",30.0),"vad_speech_pad_ms":self._get(kwargs,"vad_speech_pad_ms",400)}
+            vmp = self._get(kwargs,"vad_model_path","")
+            if not vmp:
+                logger.warning("VAD enabled but vad_model_path not set — disabling VAD. Download VAD model from https://huggingface.co/ggerganov/whisper.cpp")
+            else:
+                vad_params = {"vad":True,"vad_model_path":vmp,"vad_threshold":self._get(kwargs,"vad_threshold",0.5),"vad_min_speech_duration_ms":self._get(kwargs,"vad_min_speech_ms",250),"vad_min_silence_duration_ms":self._get(kwargs,"vad_min_silence_ms",100),"vad_max_speech_duration_s":self._get(kwargs,"vad_max_speech_s",30.0),"vad_speech_pad_ms":self._get(kwargs,"vad_speech_pad_ms",400)}
 
         # whisper.cpp native alignment = token_timestamps + split_on_word
         native_align = self._get(kwargs,"token_timestamps",False) or self._get(kwargs,"split_on_word",False)
