@@ -144,13 +144,25 @@ def print_report(info):
 
 
 def find_lib(build_dir, lib_name):
-    candidates = [build_dir / "bin" / lib_name, build_dir / "src" / lib_name, build_dir / "lib" / lib_name]
+    candidates = [
+        build_dir / "bin" / lib_name,
+        build_dir / "src" / lib_name,
+        build_dir / "lib" / lib_name,
+        build_dir / lib_name,
+    ]
     if IS_LINUX:
         for v in ["libwhisper.so.1", "libwhisper.so.1.9.1"]:
             candidates.append(build_dir / "bin" / v)
+            candidates.append(build_dir / "src" / v)
+            candidates.append(build_dir / "lib" / v)
+    if IS_MACOS:
+        for v in ["libwhisper.1.dylib", "libwhisper.1.9.1.dylib"]:
+            candidates.append(build_dir / "bin" / v)
+            candidates.append(build_dir / "src" / v)
+            candidates.append(build_dir / "lib" / v)
     if IS_WIN:
-        for cfg in ["Release", "Debug", ""]:
-            for base in [build_dir / "bin", build_dir / "src"]:
+        for cfg in ["Release", "Debug", "RelWithDebInfo", "MinSizeRel", ""]:
+            for base in [build_dir / "bin", build_dir / "src", build_dir / "lib"]:
                 candidates.append(base / cfg / lib_name if cfg else base / lib_name)
     return next((p for p in candidates if p.is_file()), None)
 
@@ -256,7 +268,9 @@ def main():
         "blas":   ("GGML_BLAS", "BLAS"),
     }
 
-    cuda_arch = "-DCMAKE_CUDA_ARCHITECTURES=89"  # RTX 4070 SUPER
+    # CUDA arch: auto-detect dari GPU atau fallback ke env var
+    cuda_arch_opt = os.environ.get("CMAKE_CUDA_ARCHITECTURES", "89")  # RTX 4070 SUPER default
+    cuda_arch = f"-DCMAKE_CUDA_ARCHITECTURES={cuda_arch_opt}"
     cmake_args = [
         "cmake", "-B", str(BUILD_DIR), "-S", str(WHISPER_DIR),
         f"-DCMAKE_BUILD_TYPE={args.build_type}",
@@ -270,12 +284,30 @@ def main():
     # CUDA-specific flags
     if backends.get("cuda"):
         cmake_args.append(cuda_arch)
-        cmake_args.append("-DCMAKE_CUDA_COMPILER:FILEPATH=C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v13.2/bin/nvcc.exe")
-        cmake_args.append("-DCMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES=C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v13.2/include")
-    # OpenCL paths (from CUDA toolkit)
+        if IS_WIN and "CUDA_PATH" in os.environ:
+            cuda_root = os.environ["CUDA_PATH"]
+            cmake_args.append(f"-DCMAKE_CUDA_COMPILER:FILEPATH={cuda_root}/bin/nvcc.exe")
+            cmake_args.append(f"-DCMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES={cuda_root}/include")
+        elif IS_LINUX and os.path.isfile("/usr/local/cuda/bin/nvcc"):
+            cmake_args.append("-DCMAKE_CUDA_COMPILER:FILEPATH=/usr/local/cuda/bin/nvcc")
+            cmake_args.append("-DCMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES=/usr/local/cuda/include")
+        elif "CUDA_HOME" in os.environ:
+            cuda_root = os.environ["CUDA_HOME"]
+            cmake_args.append(f"-DCMAKE_CUDA_COMPILER:FILEPATH={cuda_root}/bin/nvcc")
+            cmake_args.append(f"-DCMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES={cuda_root}/include")
+    # OpenCL paths
     if backends.get("opencl"):
-        cmake_args.append("-DOpenCL_INCLUDE_DIR=C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v13.2/include")
-        cmake_args.append("-DOpenCL_LIBRARY=C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v13.2/lib/x64/OpenCL.lib")
+        if IS_WIN and "CUDA_PATH" in os.environ:
+            cuda_root = os.environ["CUDA_PATH"]
+            cmake_args.append(f"-DOpenCL_INCLUDE_DIR={cuda_root}/include")
+            cmake_args.append(f"-DOpenCL_LIBRARY={cuda_root}/lib/x64/OpenCL.lib")
+        elif IS_LINUX:
+            # OpenCL usually via system package: libOpenCL.so
+            cmake_args.append("-DOpenCL_INCLUDE_DIR=/usr/include/CL")
+            cmake_args.append("-DOpenCL_LIBRARY=/usr/lib/x86_64-linux-gnu/libOpenCL.so")
+        elif "OpenCL_INCLUDE_DIR" in os.environ and "OpenCL_LIBRARY" in os.environ:
+            cmake_args.append(f"-DOpenCL_INCLUDE_DIR={os.environ['OpenCL_INCLUDE_DIR']}")
+            cmake_args.append(f"-DOpenCL_LIBRARY={os.environ['OpenCL_LIBRARY']}")
 
     any_gpu = False
     for bk, enabled in backends.items():
