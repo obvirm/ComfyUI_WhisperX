@@ -12,8 +12,6 @@ const CPP_WIDGETS = [
     "initial_prompt","carry_initial_prompt",
     "audio_ctx","debug_mode","print_special","print_progress",
     "tdrz_enable","grammar_penalty",
-    "vad_model_path","vad_threshold","vad_min_speech_ms",
-    "vad_min_silence_ms","vad_max_speech_s","vad_speech_pad_ms",
     "flash_attn","gpu_device",
     "dtw_aheads_preset","dtw_n_top",
 ];
