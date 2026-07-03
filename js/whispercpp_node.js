@@ -19,6 +19,7 @@ const CPP_WIDGETS = [
 
 const EXT_WIDGETS = [
     "no_align","align_model","return_char_alignments",
+];
     "diarize","diarize_model","min_speakers","max_speakers","hf_token",
 ];
 

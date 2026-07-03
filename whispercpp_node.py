@@ -164,8 +164,6 @@ class WhisperCPPNode:
             "vad_min_silence_ms": ("INT", {"default":100,"min":0,"max":5000}),
             "vad_max_speech_s": ("FLOAT", {"default":30.0,"min":1.0,"max":300.0,"step":0.5}),
             "vad_speech_pad_ms": ("INT", {"default":400,"min":0,"max":2000}),
-            "filename_prefix": ("STRING", {"default":"whispercpp/output"}),
-            "output_format": (["all","srt","vtt","txt","tsv","json","aud"],),
             "flash_attn": ("BOOLEAN", {"default":False}),
             "gpu_device": ("INT", {"default":0,"min":0,"max":8}),
             "dtw_token_timestamps": ("BOOLEAN", {"default":False}),
@@ -214,9 +212,6 @@ class WhisperCPPNode:
 
         hf_cache = os.path.join(folder_paths.models_dir, "whispercpp")
         os.makedirs(hf_cache, exist_ok=True)
-        out_dir = os.path.join(folder_paths.get_output_directory(), os.path.dirname(self._get(kwargs,"filename_prefix","whispercpp/output")))
-        os.makedirs(out_dir, exist_ok=True)
-        audio_base = os.path.basename(self._get(kwargs,"filename_prefix","whispercpp_output"))
         pbar.update(1)
 
         model_key = self._get(kwargs,"model","large-v3-turbo")
@@ -311,31 +306,18 @@ class WhisperCPPNode:
                 logger.warning(f"Diarization skipped: {e}")
         pbar.update(1)
         
-        return self._write_outputs(result, audio_base, out_dir, kwargs)
+        return self._make_outputs(result)
 
-    def _write_outputs(self, result, audio_base, out_dir, kwargs):
-        os.makedirs(out_dir, exist_ok=True)
+    def _make_outputs(self, result):
         full_text = " ".join([s.get("text","").strip() for s in result.get("segments",[])])
         seg_json = json.dumps(result.get("segments",[]), indent=2, ensure_ascii=False)
-        fmt = self._get(kwargs,"output_format","all")
-        fmts = ["srt","vtt","tsv","aud","json","txt"] if fmt=="all" else [fmt]
-        out = {f:"" for f in ["srt","vtt","tsv","aud","json","txt"]}
-        for f in fmts:
-            path = os.path.join(out_dir, f"{audio_base}.{f}")
-            if f == "json":
-                jr = json.dumps(result, indent=2, ensure_ascii=False); out[f]=jr
-                with open(path,"w",encoding="utf-8") as fp: fp.write(jr)
-            elif f == "txt":
-                out[f]=full_text; open(path,"w",encoding="utf-8").write(full_text)
-            elif f == "srt":
-                c = self._segs_to_srt(result.get("segments",[])); out[f]=c; open(path,"w",encoding="utf-8").write(c)
-            elif f == "vtt":
-                c = self._segs_to_vtt(result.get("segments",[])); out[f]=c; open(path,"w",encoding="utf-8").write(c)
-            elif f == "tsv":
-                c = self._segs_to_tsv(result.get("segments",[])); out[f]=c; open(path,"w",encoding="utf-8").write(c)
-            elif f == "aud":
-                c = self._segs_to_aud(result.get("segments",[])); out[f]=c; open(path,"w",encoding="utf-8").write(c)
-        return (full_text, seg_json, out.get("srt",""), out.get("vtt",""), out.get("tsv",""), out.get("aud",""), out.get("json",""))
+        segs = result.get("segments",[])
+        srt = self._segs_to_srt(segs)
+        vtt = self._segs_to_vtt(segs)
+        tsv = self._segs_to_tsv(segs)
+        aud = self._segs_to_aud(segs)
+        jr = json.dumps(result, indent=2, ensure_ascii=False)
+        return (full_text, seg_json, srt, vtt, tsv, aud, jr)
 
     @staticmethod
     def _ts(sec, fmt="srt"):
