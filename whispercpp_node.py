@@ -229,7 +229,9 @@ class WhisperCPPNode:
         device = self._get(kwargs,"device","auto")
         use_gpu = device in ("auto","cuda","vulkan","metal")
         wcpp = self._ensure_whisper()
-        try: wcpp.load_model(model_path, use_gpu=use_gpu, gpu_device=self._get(kwargs,"gpu_device",0), flash_attn=self._get(kwargs,"flash_attn",False))
+        dtw_preset = {"none":0,"n_top_most":1,"custom":2,"tiny_en":3,"tiny":4,"base_en":5,"base":6,"small_en":7,"small":8,"medium_en":9,"medium":10,"large_v1":11,"large_v2":12,"large_v3":13,"large_v3_turbo":14}.get(self._get(kwargs,"dtw_aheads_preset","large_v3_turbo"),13)
+        try: wcpp.load_model(model_path, use_gpu=use_gpu, gpu_device=self._get(kwargs,"gpu_device",0), flash_attn=self._get(kwargs,"flash_attn",False),
+            dtw_token_timestamps=self._get(kwargs,"dtw_token_timestamps",False), dtw_aheads_preset=dtw_preset, dtw_n_top=self._get(kwargs,"dtw_n_top",-1))
         except RuntimeError as e: logger.error(f"Load failed: {e}"); return ("","","","","","","")
         pbar.update(1)
 
@@ -261,10 +263,7 @@ class WhisperCPPNode:
             "audio_ctx":self._get(kwargs,"audio_ctx",0), "debug_mode":self._get(kwargs,"debug_mode",False),
             "print_special":self._get(kwargs,"print_special",False), "print_progress":self._get(kwargs,"print_progress",False),
             "tdrz_enable":self._get(kwargs,"tdrz_enable",False),
-            "grammar_penalty":self._get(kwargs,"grammar_penalty",0.0),
-            "dtw_token_timestamps":self._get(kwargs,"dtw_token_timestamps",False),
-            "dtw_aheads_preset":{"none":0,"n_top_most":1,"custom":2,"tiny_en":3,"tiny":4,"base_en":5,"base":6,"small_en":7,"small":8,"medium_en":9,"medium":10,"large_v1":11,"large_v2":12,"large_v3":13,"large_v3_turbo":14}.get(self._get(kwargs,"dtw_aheads_preset","large_v3_turbo"),13),
-            "dtw_n_top":self._get(kwargs,"dtw_n_top",-1), **vad_params }
+            "grammar_penalty":self._get(kwargs,"grammar_penalty",0.0), **vad_params }
 
         try: result = wcpp.transcribe(audio_data, **tp)
         except Exception as e: logger.error(f"Failed: {e}"); import traceback; traceback.print_exc(); return ("","","","","","","")
