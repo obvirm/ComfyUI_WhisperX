@@ -1,6 +1,6 @@
 import { app } from "/scripts/app.js";
 
-const OPTIONAL_WIDGETS_NAMES = [
+const CPP_WIDGETS = [
     "sampling_strategy","best_of","beam_size","patience",
     "temperature","temperature_inc","max_initial_ts","length_penalty",
     "n_max_text_ctx","offset_ms","duration_ms",
@@ -11,13 +11,31 @@ const OPTIONAL_WIDGETS_NAMES = [
     "initial_prompt","carry_initial_prompt",
     "audio_ctx","debug_mode","print_special","print_progress",
     "tdrz_enable","grammar_penalty",
-    "vad","vad_threshold","vad_min_speech_ms","vad_min_silence_ms","vad_max_speech_s","vad_speech_pad_ms",
-    "filename_prefix","output_format",
+    "vad","vad_model_path","vad_threshold","vad_min_speech_ms",
+    "vad_min_silence_ms","vad_max_speech_s","vad_speech_pad_ms",
     "flash_attn","gpu_device",
     "dtw_token_timestamps","dtw_aheads_preset","dtw_n_top",
+];
+
+const EXT_WIDGETS = [
     "no_align","align_model","return_char_alignments",
     "diarize","diarize_model","min_speakers","max_speakers","hf_token",
 ];
+
+function toggleWidgets(node, toggleWidget, widgetNames, show) {
+    const widgets = widgetNames.map(n => node.widgets.find(w => w.name === n)).filter(Boolean);
+    if (!show) {
+        node.widgets = node.widgets.filter(w => !widgets.includes(w));
+    } else {
+        const toAdd = widgets.filter(w => !node.widgets.includes(w));
+        if (toAdd.length) {
+            const idx = node.widgets.indexOf(toggleWidget);
+            node.widgets.splice(idx + 1, 0, ...toAdd);
+        }
+    }
+    node.size = node.computeSize();
+    node.setDirtyCanvas(true, true);
+}
 
 app.registerExtension({
     name: "WhisperCPP.AdvancedSettings",
@@ -26,18 +44,16 @@ app.registerExtension({
             const onCreated = nodeType.prototype.onNodeCreated;
             nodeType.prototype.onNodeCreated = function () {
                 onCreated?.apply(this, arguments);
-                const toggle = this.widgets.find(w => w.name === "show_advance_settings");
-                const optWidgets = OPTIONAL_WIDGETS_NAMES.map(n => this.widgets.find(w => w.name === n)).filter(Boolean);
-                const update = (show) => {
-                    if (!show) { this.widgets = this.widgets.filter(w => !optWidgets.includes(w)); }
-                    else {
-                        const toAdd = optWidgets.filter(w => !this.widgets.includes(w));
-                        if (toAdd.length) this.widgets.splice(this.widgets.indexOf(toggle)+1, 0, ...toAdd);
-                    }
-                    this.size = this.computeSize(); this.setDirtyCanvas(true, true);
-                };
-                toggle.callback = (v) => update(v);
-                setTimeout(() => update(toggle.value), 10);
+                const cppToggle = this.widgets.find(w => w.name === "show_advance_cpp");
+                const extToggle = this.widgets.find(w => w.name === "show_advance_ext");
+                if (cppToggle) {
+                    cppToggle.callback = (v) => toggleWidgets(this, cppToggle, CPP_WIDGETS, v);
+                    setTimeout(() => toggleWidgets(this, cppToggle, CPP_WIDGETS, cppToggle.value), 10);
+                }
+                if (extToggle) {
+                    extToggle.callback = (v) => toggleWidgets(this, extToggle, EXT_WIDGETS, v);
+                    setTimeout(() => toggleWidgets(this, extToggle, EXT_WIDGETS, extToggle.value), 10);
+                }
             };
         }
     },

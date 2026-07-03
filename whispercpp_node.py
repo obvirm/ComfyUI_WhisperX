@@ -123,7 +123,7 @@ class WhisperCPPNode:
             "device": (["auto", "cuda", "cpu", "vulkan", "metal", "opencl", "hip"], {"default": "auto"}),
         }
         optional = {
-            "show_advance_settings": ("BOOLEAN", {"default": False}),
+            "show_advance_cpp": ("BOOLEAN", {"default": False}),
             "sampling_strategy": (["greedy","beam_search"], {"default":"greedy"}),
             "best_of": ("INT", {"default":5,"min":1,"max":20}),
             "beam_size": ("INT", {"default":5,"min":1,"max":20}),
@@ -172,6 +172,7 @@ class WhisperCPPNode:
             "dtw_aheads_preset": (["none","n_top_most","custom","tiny_en","tiny","base_en","base","small_en","small","medium_en","medium","large_v1","large_v2","large_v3","large_v3_turbo"], {"default":"large_v3_turbo"}),
             "dtw_n_top": ("INT", {"default":-1,"min":-1,"max":64}),
             "grammar_penalty": ("FLOAT", {"default":0.0,"min":0.0,"max":10.0,"step":0.1}),
+            "show_advance_ext": ("BOOLEAN", {"default": False}),
         }
         # Alignment (torchaudio wav2vec2) — always visible, default off
         ext_optional = {
