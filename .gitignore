@@ -11,4 +11,4 @@ whisper.cpp/build/
 models/
 .DS_Store
 Thumbs.db
-nwhisper.dlln*.pdbn*.dll
+nwhisper.dlln*.pdbn*.dllcpp-annote/onnxruntime-win-x64-1.27.0/
