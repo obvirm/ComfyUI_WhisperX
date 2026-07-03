@@ -1,63 +1,119 @@
 #!/usr/bin/env python3
-"""Build bs_roformer.cpp with VS toolchain."""
-import os, subprocess, sys, shutil
+"""Build BSRoformer.cpp sebagai shared library (DLL/so/dylib).
+Cross-platform: Windows (MSVC), Linux (GCC/Clang), macOS (Clang).
+"""
+
+import argparse, os, platform, shutil, subprocess, sys
 from pathlib import Path
 
 NODE_DIR = Path(__file__).resolve().parent
-BUILD_DIR = NODE_DIR / "bs_roformer.cpp" / "build"
-GGML_DIR  = NODE_DIR / "whisper.cpp" / "ggml"
+BSR_DIR  = NODE_DIR / "bs_roformer.cpp"
+BUILD_DIR = BSR_DIR / "build"
+IS_WIN   = platform.system() == "Windows"
+IS_MAC   = platform.system() == "Darwin"
+GGML_DIR = NODE_DIR / "whisper.cpp" / "ggml"
 
-VCVARS = r"C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvarsall.bat"
-CMAKE  = r"C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe"
-MSBUILD = r"C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\MSBuild\Current\Bin\MSBuild.exe"
+if IS_WIN: LIB_EXT = "dll"
+elif IS_MAC: LIB_EXT = "dylib"
+else: LIB_EXT = "so"
+LIB_NAME = f"bs_roformer.{LIB_EXT}"
 
-def run(cmd_list):
-    cmake_dir = os.path.dirname(CMAKE)
-    msbuild_dir = os.path.dirname(MSBUILD)
-    chain = " && ".join(cmd_list)
-    # Build a clean PATH without depot_tools
-    clean_path = f"{cmake_dir};{msbuild_dir};C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem"
-    full = f'call "{VCVARS}" x64 >nul 2>&1 && set "PATH={clean_path}" && {chain}'
-    r = subprocess.run(full, shell=True, cwd=NODE_DIR)
-    return r.returncode == 0
+
+def find_lib():
+    """Cari hasil build library."""
+    candidates = [
+        BUILD_DIR / LIB_NAME,
+        BUILD_DIR / "bin" / LIB_NAME,
+        BUILD_DIR / "src" / LIB_NAME,
+        BUILD_DIR / "lib" / LIB_NAME,
+    ]
+    if IS_WIN:
+        for cfg in ["Release", "Debug", ""]:
+            candidates.append(BUILD_DIR / cfg / LIB_NAME)
+            candidates.append(BUILD_DIR / "bin" / cfg / LIB_NAME)
+            candidates.append(BUILD_DIR / "src" / cfg / LIB_NAME)
+    if not IS_WIN:
+        import glob
+        for p in ["build/*.so*", "build/src/*.so*", "build/lib/*.so*",
+                   "build/*.dylib", "build/src/*.dylib", "build/lib/*.dylib"]:
+            for f in glob.glob(str(NODE_DIR / "bs_roformer.cpp" / p)):
+                candidates.append(Path(f))
+    return next((p for p in candidates if p.is_file()), None)
+
 
 def main():
-    cmake_args = ["-DCMAKE_BUILD_TYPE=Release", "-DBSR_BUILD_TESTS=OFF", "-DGGML_CUDA=OFF"]
-    if GGML_DIR.exists():
-        cmake_args.append(f"-DGGML_DIR={GGML_DIR}")
+    parser = argparse.ArgumentParser(description="Build BSRoformer shared library")
+    parser.add_argument("--clean", action="store_true", help="Clean build dir")
+    parser.add_argument("--build-type", choices=["Release","Debug"], default="Release")
+    parser.add_argument("--no-copy", action="store_true", help="Jangan copy ke root")
+    parser.add_argument("--cuda", action="store_true", help="Enable CUDA")
+    args = parser.parse_args()
 
-    # Clean stale build
-    shutil.rmtree(BUILD_DIR, ignore_errors=True)
+    if not BSR_DIR.is_dir() or not (BSR_DIR / "CMakeLists.txt").is_file():
+        print("ERROR: bs_roformer.cpp submodule not found.")
+        sys.exit(1)
+
+    if args.clean and BUILD_DIR.is_dir():
+        shutil.rmtree(BUILD_DIR)
+        print("Cleaned build dir")
+
     BUILD_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Figure out VS generator name
-    print("Detecting VS generator...")
-    gen = "Visual Studio 18 2026"
-    toolset_option = []
-
-    print(f"Configuring with generator={gen}...")
-    if not run([
-        f'cd /d "{BUILD_DIR}"',
-        f'"{CMAKE}" .. -G "{gen}" {" ".join(cmake_args)}',
-    ]):
-        print("Config FAILED"); return 1
-
-    print("Building...")
-    if not run([
-        f'cd /d "{BUILD_DIR}"',
-        f'"{CMAKE}" --build . --config Release -- /m',
-    ]):
-        print("Build FAILED"); return 1
-
-    bin_found = list(BUILD_DIR.rglob("bs_roformer-cli.exe"))
-    if bin_found:
-        shutil.copy2(bin_found[0], NODE_DIR / "bs_roformer-cli.exe")
-        print("Copied bs_roformer-cli.exe")
+    # Generator
+    if IS_WIN:
+        generator = '"Visual Studio 18 2026"'
+    elif IS_MAC:
+        generator = "Unix Makefiles"
     else:
-        print("Binary not found"); return 1
+        generator = "Unix Makefiles"
 
-    print("Build OK!")
-    return 0
+    # CUDA
+    cuda_on = "ON" if args.cuda else "OFF"
+
+    # Configure
+    print(f"Configuring ({args.build_type})...")
+    cmd = [
+        "cmake", "-B", str(BUILD_DIR), "-S", str(BSR_DIR),
+        f"-DCMAKE_BUILD_TYPE={args.build_type}",
+        f"-G", generator,
+        f"-DGGML_CUDA={cuda_on}",
+        f"-DBSR_BUILD_CLI=OFF",
+        f"-DBSR_BUILD_SHARED=ON",
+        f"-DBSR_BUILD_TESTS=OFF",
+        f"-DGGML_DIR={GGML_DIR}",
+    ]
+    print(f"  {' '.join(str(c) for c in cmd)}")
+    if subprocess.run(cmd).returncode != 0:
+        print("CONFIGURATION FAILED")
+        sys.exit(1)
+
+    # Build
+    print(f"Building ({args.build_type})...")
+    build_cmd = ["cmake", "--build", str(BUILD_DIR), "--config", args.build_type,
+                 "--target", "bs_roformer_shared"]
+    if IS_WIN:
+        build_cmd.append("--")
+        build_cmd.append("/m")
+    else:
+        build_cmd.extend(["-j", str(os.cpu_count() or 4)])
+    if subprocess.run(build_cmd).returncode != 0:
+        print("BUILD FAILED")
+        sys.exit(1)
+
+    # Copy
+    src = find_lib()
+    if not src:
+        print(f"Build done but {LIB_NAME} not found in {BUILD_DIR}")
+        sys.exit(1)
+
+    if not args.no_copy:
+        dst = NODE_DIR / LIB_NAME
+        shutil.copy2(str(src), str(dst))
+        mb = dst.stat().st_size / (1024*1024)
+        print(f"Copied {LIB_NAME} ({mb:.2f} MB)")
+
+    print("BUILD COMPLETE")
+
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()

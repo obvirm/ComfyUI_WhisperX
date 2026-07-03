@@ -81,15 +81,38 @@ class WhisperCPP:
         search = []
         if self._lib_path: search.append(self._lib_path)
         for n in LIB_NAMES:
-            search.extend([str(base_dir / n),
-                          str(base_dir / "whisper.cpp" / "build" / "bin" / n),
-                          str(base_dir / "whisper.cpp" / "build" / "bin" / "Release" / n),
-                          str(base_dir / "whisper.cpp" / "build" / "src" / n),
-                          str(base_dir / "whisper.cpp" / n)])
-            f = ctypes.util.find_library(n.replace(".dll","").replace(".so","").replace(".dylib",""))
-            if f: search.append(str(base_dir / f))
+            # Root
+            search.append(str(base_dir / n))
+            # whisper.cpp build output (all platforms)
+            search.append(str(base_dir / "whisper.cpp" / n))
+            search.append(str(base_dir / "whisper.cpp" / "build" / n))
+            search.append(str(base_dir / "whisper.cpp" / "build" / "src" / n))
+            search.append(str(base_dir / "whisper.cpp" / "build" / "lib" / n))
+            search.append(str(base_dir / "whisper.cpp" / "build" / "bin" / n))
+            # Windows: build/bin/Release/
+            search.append(str(base_dir / "whisper.cpp" / "build" / "bin" / "Release" / n))
+            search.append(str(base_dir / "whisper.cpp" / "build" / "src" / "Release" / n))
+            # macOS: .dylib with version suffix
+            if IS_MACOS:
+                import glob
+                for p in ["build/bin/*.dylib", "build/src/*.dylib", "build/lib/*.dylib"]:
+                    for f in glob.glob(str(base_dir / "whisper.cpp" / p)):
+                        search.append(f)
+            # Linux: .so with version suffix
+            if IS_LINUX:
+                import glob
+                for p in ["build/bin/libwhisper.so.*", "build/src/libwhisper.so.*", "build/lib/libwhisper.so.*"]:
+                    for f in glob.glob(str(base_dir / "whisper.cpp" / p)):
+                        search.append(f)
+            # ctypes.util fallback
+            stem = n.replace(".dll","").replace(".so","").replace(".dylib","")
+            f = ctypes.util.find_library(stem)
+            if f: search.append(str(f))
+        seen = set()
         for p in search:
-            if p and os.path.isfile(p): return p
+            if p and os.path.isfile(p) and p not in seen:
+                return p
+            seen.add(p)
         raise RuntimeError(f"Cannot find whisper lib. Build first: python build_whisper_cpp.py")
 
     def load_library(self, lib_path=None):
