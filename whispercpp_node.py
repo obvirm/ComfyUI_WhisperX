@@ -136,6 +136,7 @@ class WhisperCPPNode:
             "separate_vocals": ("BOOLEAN", {"default": False}),
             "dtw_token_timestamps": ("BOOLEAN", {"default": False}),
             "vad": ("BOOLEAN", {"default": False}),
+            "no_align": ("BOOLEAN", {"default":True}),
 
             # --- ADVANCE CPP (show_advance_cpp) ---
             "show_advance_cpp": ("BOOLEAN", {"default": False}),
@@ -188,7 +189,6 @@ class WhisperCPPNode:
             "show_advance_ext": ("BOOLEAN", {"default": False}),
             "uvr_model": ("STRING", {"default": "UVR-MDX-NET-Inst_HQ_3"}),
             "uvr_denoise": ("FLOAT", {"default":0.5,"min":0.0,"max":1.0,"step":0.01}),
-            "no_align": ("BOOLEAN", {"default":True}),
             "align_model": (["auto","WAV2VEC2_ASR_LARGE_LV60K_960H","facebook/wav2vec2-large-lv60","facebook/wav2vec2-base-960h","facebook/wav2vec2-xlsr-53-56k"], {"default":"auto"}),
             "return_char_alignments": ("BOOLEAN", {"default":False}),
             "diarize": ("BOOLEAN", {"default":False}),
