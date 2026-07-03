@@ -1,10 +1,6 @@
-import ctypes
-import ctypes.util
-import logging
-import os
-import platform
+import ctypes, ctypes.util, logging, os, platform
 from pathlib import Path
-from typing import Optional, List, Dict, Any, Tuple
+from typing import Optional, Dict, Any
 
 logger = logging.getLogger("WhisperCPP")
 
@@ -16,16 +12,11 @@ WHISPER_SAMPLE_RATE = 16000
 WHISPER_SAMPLING_GREEDY = 0
 WHISPER_SAMPLING_BEAM_SEARCH = 1
 
-if IS_WINDOWS:
-    LIB_NAMES = ["whisper.dll", "libwhisper.dll"]
-elif IS_LINUX:
-    LIB_NAMES = ["libwhisper.so"]
-elif IS_MACOS:
-    LIB_NAMES = ["libwhisper.dylib"]
-else:
-    LIB_NAMES = ["libwhisper.so"]
+if IS_WINDOWS: LIB_NAMES = ["whisper.dll", "libwhisper.dll"]
+elif IS_LINUX: LIB_NAMES = ["libwhisper.so"]
+elif IS_MACOS: LIB_NAMES = ["libwhisper.dylib"]
+else: LIB_NAMES = ["libwhisper.so"]
 
-# ctypes struct definitions
 class WhisperContextParams(ctypes.Structure):
     _fields_ = [
         ("use_gpu", ctypes.c_bool), ("flash_attn", ctypes.c_bool), ("gpu_device", ctypes.c_int),
@@ -42,8 +33,8 @@ class WhisperTokenData(ctypes.Structure):
 
 class WhisperFullParams(ctypes.Structure):
     _fields_ = [
-        ("strategy", ctypes.c_int), ("n_threads", ctypes.c_int32), ("n_max_text_ctx", ctypes.c_int32),
-        ("offset_ms", ctypes.c_int32), ("duration_ms", ctypes.c_int32),
+        ("strategy", ctypes.c_int),
+        ("n_threads", ctypes.c_int32), ("n_max_text_ctx", ctypes.c_int32), ("offset_ms", ctypes.c_int32), ("duration_ms", ctypes.c_int32),
         ("translate", ctypes.c_bool), ("no_context", ctypes.c_bool), ("no_timestamps", ctypes.c_bool),
         ("single_segment", ctypes.c_bool), ("print_special", ctypes.c_bool), ("print_progress", ctypes.c_bool),
         ("print_realtime", ctypes.c_bool), ("print_timestamps", ctypes.c_bool),
@@ -58,8 +49,7 @@ class WhisperFullParams(ctypes.Structure):
         ("temperature", ctypes.c_float), ("max_initial_ts", ctypes.c_float), ("length_penalty", ctypes.c_float),
         ("temperature_inc", ctypes.c_float), ("entropy_thold", ctypes.c_float), ("logprob_thold", ctypes.c_float),
         ("no_speech_thold", ctypes.c_float),
-        ("best_of", ctypes.c_int32),  # greedy
-        ("beam_size", ctypes.c_int32), ("patience", ctypes.c_float),  # beam_search
+        ("best_of", ctypes.c_int32), ("beam_size", ctypes.c_int32), ("patience", ctypes.c_float),
         ("new_segment_callback", ctypes.c_void_p), ("new_segment_callback_user_data", ctypes.c_void_p),
         ("progress_callback", ctypes.c_void_p), ("progress_callback_user_data", ctypes.c_void_p),
         ("encoder_begin_callback", ctypes.c_void_p), ("encoder_begin_callback_user_data", ctypes.c_void_p),
@@ -72,39 +62,28 @@ class WhisperFullParams(ctypes.Structure):
     ]
 
 class WhisperCPP:
-    def __init__(self, lib_path: Optional[str] = None):
-        self._lib = None
-        self._ctx = None
-        self._lib_path = lib_path
-        self._model_path: Optional[str] = None
+    def __init__(self, lib_path=None):
+        self._lib = None; self._ctx = None; self._lib_path = lib_path; self._model_path = None
 
-    def _find_library(self) -> str:
+    def _find_library(self):
         if self._lib_path and os.path.isfile(self._lib_path):
             return self._lib_path
         base_dir = Path(__file__).resolve().parent.parent
-        search_paths = []
-        if self._lib_path:
-            search_paths.append(self._lib_path)
-        for name in LIB_NAMES:
-            search_paths.extend([
-                str(base_dir / name),
-                str(base_dir / "whisper.cpp" / "build" / "src" / name),
-                str(base_dir / "whisper.cpp" / name),
-            ])
-        for name in LIB_NAMES:
-            found = ctypes.util.find_library(name.replace(".dll","").replace(".so","").replace(".dylib",""))
-            if found:
-                search_paths.insert(0, found)
-        for path in search_paths:
-            if path and os.path.isfile(path):
-                return path
-        raise RuntimeError(f"Cannot find whisper library ({', '.join(LIB_NAMES)}).\nBuild whisper.cpp first:\n  python build_whisper_cpp.py")
+        search = []
+        if self._lib_path: search.append(self._lib_path)
+        for n in LIB_NAMES:
+            search.extend([str(base_dir / n), str(base_dir / "whisper.cpp" / "build" / "bin" / n),
+                          str(base_dir / "whisper.cpp" / "build" / "src" / n), str(base_dir / "whisper.cpp" / n)])
+            f = ctypes.util.find_library(n.replace(".dll","").replace(".so","").replace(".dylib",""))
+            if f: search.insert(0, f)
+        for p in search:
+            if p and os.path.isfile(p): return p
+        raise RuntimeError(f"Cannot find whisper lib. Build first: python build_whisper_cpp.py")
 
-    def load_library(self, lib_path: Optional[str] = None) -> None:
+    def load_library(self, lib_path=None):
         if self._lib is not None: return
         if lib_path: self._lib_path = lib_path
-        path = self._find_library()
-        self._lib = ctypes.cdll.LoadLibrary(path)
+        self._lib = ctypes.cdll.LoadLibrary(self._find_library())
         self._setup_functions()
 
     def _setup_functions(self):
@@ -113,58 +92,36 @@ class WhisperCPP:
         L.whisper_init_from_file_with_params.argtypes = [ctypes.c_char_p, WhisperContextParams]
         L.whisper_init_from_file_with_params.restype = ctypes.c_void_p
         L.whisper_free.argtypes = [ctypes.c_void_p]; L.whisper_free.restype = None
-        L.whisper_init_state.argtypes = [ctypes.c_void_p]; L.whisper_init_state.restype = ctypes.c_void_p
-        L.whisper_free_state.argtypes = [ctypes.c_void_p]; L.whisper_free_state.restype = None
         L.whisper_context_default_params.restype = WhisperContextParams
         L.whisper_full_default_params.argtypes = [ctypes.c_int]
         L.whisper_full_default_params.restype = WhisperFullParams
         L.whisper_full.argtypes = [ctypes.c_void_p, WhisperFullParams, ctypes.POINTER(ctypes.c_float), ctypes.c_int]
         L.whisper_full.restype = ctypes.c_int
-        L.whisper_full_parallel.argtypes = [ctypes.c_void_p, WhisperFullParams, ctypes.POINTER(ctypes.c_float), ctypes.c_int, ctypes.c_int]
-        L.whisper_full_parallel.restype = ctypes.c_int
         L.whisper_full_n_segments.argtypes = [ctypes.c_void_p]; L.whisper_full_n_segments.restype = ctypes.c_int
         L.whisper_full_lang_id.argtypes = [ctypes.c_void_p]; L.whisper_full_lang_id.restype = ctypes.c_int
-        L.whisper_full_get_segment_t0.argtypes = [ctypes.c_void_p, ctypes.c_int]; L.whisper_full_get_segment_t0.restype = ctypes.c_int64
-        L.whisper_full_get_segment_t1.argtypes = [ctypes.c_void_p, ctypes.c_int]; L.whisper_full_get_segment_t1.restype = ctypes.c_int64
         L.whisper_full_get_segment_text.argtypes = [ctypes.c_void_p, ctypes.c_int]; L.whisper_full_get_segment_text.restype = ctypes.c_char_p
+        for f in ["whisper_full_get_segment_t0","whisper_full_get_segment_t1"]:
+            getattr(L, f).argtypes = [ctypes.c_void_p, ctypes.c_int]; getattr(L, f).restype = ctypes.c_int64
         L.whisper_full_get_segment_speaker_turn_next.argtypes = [ctypes.c_void_p, ctypes.c_int]; L.whisper_full_get_segment_speaker_turn_next.restype = ctypes.c_bool
         L.whisper_full_n_tokens.argtypes = [ctypes.c_void_p, ctypes.c_int]; L.whisper_full_n_tokens.restype = ctypes.c_int
-        L.whisper_full_get_token_text.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]; L.whisper_full_get_token_text.restype = ctypes.c_char_p
-        L.whisper_full_get_token_id.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]; L.whisper_full_get_token_id.restype = ctypes.c_int32
+        for f in ["whisper_full_get_token_text","whisper_full_get_token_id","whisper_full_get_token_p","whisper_full_get_token_t0","whisper_full_get_token_t1"]:
+            getattr(L, f).argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]; getattr(L, f).restype = ctypes.c_char_p if "text" in f else ctypes.c_float if "p" in f else ctypes.c_int64 if "t" in f else ctypes.c_int32
         L.whisper_full_get_token_data.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]; L.whisper_full_get_token_data.restype = WhisperTokenData
-        L.whisper_full_get_token_p.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]; L.whisper_full_get_token_p.restype = ctypes.c_float
-        L.whisper_full_get_token_t0.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]; L.whisper_full_get_token_t0.restype = ctypes.c_int64
-        L.whisper_full_get_token_t1.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]; L.whisper_full_get_token_t1.restype = ctypes.c_int64
         L.whisper_full_get_segment_no_speech_prob.argtypes = [ctypes.c_void_p, ctypes.c_int]; L.whisper_full_get_segment_no_speech_prob.restype = ctypes.c_float
-        L.whisper_full_n_vad_segments.argtypes = [ctypes.c_void_p]; L.whisper_full_n_vad_segments.restype = ctypes.c_int
-        L.whisper_full_get_vad_segment_t0.argtypes = [ctypes.c_void_p, ctypes.c_int]; L.whisper_full_get_vad_segment_t0.restype = ctypes.c_int64
-        L.whisper_full_get_vad_segment_t1.argtypes = [ctypes.c_void_p, ctypes.c_int]; L.whisper_full_get_vad_segment_t1.restype = ctypes.c_int64
         L.whisper_lang_id.argtypes = [ctypes.c_char_p]; L.whisper_lang_id.restype = ctypes.c_int
         L.whisper_lang_str.argtypes = [ctypes.c_int]; L.whisper_lang_str.restype = ctypes.c_char_p
-        L.whisper_lang_max_id.restype = ctypes.c_int
-        L.whisper_is_multilingual.argtypes = [ctypes.c_void_p]; L.whisper_is_multilingual.restype = ctypes.c_int
-        L.whisper_model_type_readable.argtypes = [ctypes.c_void_p]; L.whisper_model_type_readable.restype = ctypes.c_char_p
-        L.whisper_n_text_ctx.argtypes = [ctypes.c_void_p]; L.whisper_n_text_ctx.restype = ctypes.c_int
         L.whisper_print_system_info.restype = ctypes.c_char_p
         L.whisper_print_timings.argtypes = [ctypes.c_void_p]; L.whisper_print_timings.restype = None
-        L.whisper_reset_timings.argtypes = [ctypes.c_void_p]; L.whisper_reset_timings.restype = None
-        L.whisper_tokenize.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.POINTER(ctypes.c_int32), ctypes.c_int]
-        L.whisper_tokenize.restype = ctypes.c_int
-        L.whisper_lang_auto_detect.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.POINTER(ctypes.c_float)]
-        L.whisper_lang_auto_detect.restype = ctypes.c_int
-        L.whisper_pcm_to_mel.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_float), ctypes.c_int, ctypes.c_int]
-        L.whisper_pcm_to_mel.restype = ctypes.c_int
+        L.whisper_model_type_readable.argtypes = [ctypes.c_void_p]; L.whisper_model_type_readable.restype = ctypes.c_char_p
 
-    def load_model(self, model_path: str, use_gpu: bool = True, gpu_device: int = 0, flash_attn: bool = False):
+    def load_model(self, model_path, use_gpu=True, gpu_device=0, flash_attn=False):
         if self._lib is None: self.load_library()
         self.free_model()
-        if not os.path.isfile(model_path):
-            raise FileNotFoundError(f"Model not found: {model_path}")
+        if not os.path.isfile(model_path): raise FileNotFoundError(f"Model not found: {model_path}")
         cparams = self._lib.whisper_context_default_params()
         cparams.use_gpu = use_gpu; cparams.gpu_device = gpu_device; cparams.flash_attn = flash_attn
         ctx = self._lib.whisper_init_from_file_with_params(model_path.encode("utf-8"), cparams)
-        if not ctx:
-            raise RuntimeError(f"Failed to init whisper from {model_path}")
+        if not ctx: raise RuntimeError(f"Failed to init whisper from {model_path}")
         self._ctx = ctx; self._model_path = model_path
 
     def free_model(self):
@@ -173,15 +130,9 @@ class WhisperCPP:
 
     def __del__(self): self.free_model()
 
-    def is_loaded(self) -> bool: return self._ctx is not None
-    def model_type(self) -> str:
-        if not self._ctx: return "none"
-        v = self._lib.whisper_model_type_readable(self._ctx); return v.decode() if v else "unknown"
-    def is_multilingual(self) -> bool: return bool(self._lib.whisper_is_multilingual(self._ctx)) if self._ctx else False
-    def lang_id(self, lang: str) -> int: return self._lib.whisper_lang_id(lang.encode())
-    def lang_str(self, lid: int) -> str: v = self._lib.whisper_lang_str(lid); return v.decode() if v else "unknown"
+    def is_loaded(self): return self._ctx is not None
 
-    def _build_full_params(self, **kwargs) -> WhisperFullParams:
+    def _build_full_params(self, **kwargs):
         strategy = kwargs.get("strategy", WHISPER_SAMPLING_GREEDY)
         params = self._lib.whisper_full_default_params(strategy)
         field_map = {
@@ -214,32 +165,29 @@ class WhisperCPP:
         for kw, (field, conv) in field_map.items():
             if kw in kwargs and kwargs[kw] is not None:
                 try: setattr(params, field, conv(kwargs[kw]))
-                except Exception: pass
+                except: pass
         return params
 
-    def transcribe(self, audio_data: "np.ndarray", **kwargs) -> Dict[str, Any]:
+    def transcribe(self, audio_data, **kwargs):
         import numpy as np
         if self._lib is None: self.load_library()
-        if self._ctx is None: raise RuntimeError("No model loaded.")
+        if self._ctx is None: raise RuntimeError("No model loaded")
         audio = np.asarray(audio_data, dtype=np.float32).ravel()
-        n_samples = len(audio)
         task = kwargs.pop("task", None)
         if task == "translate": kwargs["translate"] = True
         elif task == "transcribe": kwargs["translate"] = False
-        wt = kwargs.pop("word_timestamps", None)
-        if wt is True: kwargs["token_timestamps"] = True; kwargs["split_on_word"] = True
-        if "n_threads" not in kwargs or kwargs["n_threads"] is None:
-            kwargs["n_threads"] = max(1, os.cpu_count() or 4)
+        if kwargs.pop("word_timestamps", None): kwargs["token_timestamps"] = True; kwargs["split_on_word"] = True
+        if "n_threads" not in kwargs or kwargs["n_threads"] is None: kwargs["n_threads"] = max(1, os.cpu_count() or 4)
         params = self._build_full_params(**kwargs)
         audio_ptr = audio.ctypes.data_as(ctypes.POINTER(ctypes.c_float))
-        ret = self._lib.whisper_full(self._ctx, params, audio_ptr, n_samples)
+        ret = self._lib.whisper_full(self._ctx, params, audio_ptr, len(audio))
         if ret != 0: raise RuntimeError(f"whisper_full failed: {ret}")
         n_seg = self._lib.whisper_full_n_segments(self._ctx)
         lang_id = self._lib.whisper_full_lang_id(self._ctx)
-        detected_lang = self.lang_str(lang_id) if lang_id >= 0 else "unknown"
+        detected_lang = (self._lib.whisper_lang_str(lang_id) or b"").decode() if lang_id >= 0 else "unknown"
         segments, full_text = [], []
         for i in range(n_seg):
-            text = (self._lib.whisper_full_get_segment_text(self._ctx, i) or b"").decode()
+            text = (self._lib.whisper_full_get_segment_text(self._ctx, i) or b"").decode(errors="replace")
             t0 = self._lib.whisper_full_get_segment_t0(self._ctx, i) / 100.0
             t1 = self._lib.whisper_full_get_segment_t1(self._ctx, i) / 100.0
             st = bool(self._lib.whisper_full_get_segment_speaker_turn_next(self._ctx, i))
@@ -247,7 +195,7 @@ class WhisperCPP:
             n_tok = self._lib.whisper_full_n_tokens(self._ctx, i)
             tokens, words = [], []
             for j in range(n_tok):
-                tt = (self._lib.whisper_full_get_token_text(self._ctx, i, j) or b"").decode()
+                tt = (self._lib.whisper_full_get_token_text(self._ctx, i, j) or b"").decode(errors="replace")
                 tp = float(self._lib.whisper_full_get_token_p(self._ctx, i, j))
                 tt0 = self._lib.whisper_full_get_token_t0(self._ctx, i, j) / 100.0
                 tt1 = self._lib.whisper_full_get_token_t1(self._ctx, i, j) / 100.0
@@ -258,15 +206,13 @@ class WhisperCPP:
             segments.append({"start": t0, "end": t1, "text": text, "tokens": tokens, "words": words, "speaker_turn_next": st, "no_speech_prob": nsp})
             full_text.append(text)
         vad_segs = []
-        if kwargs.get("vad", False):
+        if hasattr(self._lib, "whisper_full_n_vad_segments") and kwargs.get("vad", False):
             n_vad = self._lib.whisper_full_n_vad_segments(self._ctx)
             for i in range(n_vad):
                 vt0 = self._lib.whisper_full_get_vad_segment_t0(self._ctx, i) / 100.0
                 vt1 = self._lib.whisper_full_get_vad_segment_t1(self._ctx, i) / 100.0
                 vad_segs.append({"start": vt0, "end": vt1})
-        return {"text": " ".join(full_text).strip(), "segments": segments, "language": detected_lang, "n_segments": n_seg, "vad_segments": vad_segs, "model_type": self.model_type()}
+        return {"text": " ".join(full_text).strip(), "segments": segments, "language": detected_lang, "n_segments": n_seg, "vad_segments": vad_segs, "model_type": self._lib.whisper_model_type_readable(self._ctx).decode() if self._ctx else "unknown"}
 
-    def version(self) -> str:
-        v = self._lib.whisper_version(); return v.decode() if v else "unknown"
+    def version(self): return (self._lib.whisper_version() or b"").decode()
     def print_timings(self): self._lib.whisper_print_timings(self._ctx)
-    def reset_timings(self): self._lib.whisper_reset_timings(self._ctx)

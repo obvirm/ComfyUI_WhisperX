@@ -6,13 +6,13 @@ import numpy as np
 import torch, torchaudio
 from tqdm.auto import tqdm
 
-from whispercpp.whisper_lib import WhisperCPP
-from whispercpp.audio import AudioProcessor
+from .whispercpp.whisper_lib import WhisperCPP
+from .whispercpp.audio import AudioProcessor
 
 # Model Manager — wrapped agar node tetap register meski tqdm/requests belum terinstall
 WHISPERCPP_MODEL_AVAILABLE = False
 try:
-    from whispercpp.model import ModelManager, get_model_keys, load_custom_models
+    from .whispercpp.model import ModelManager, get_model_keys, load_custom_models
     WHISPERCPP_MODEL_AVAILABLE = True
 except ImportError:
     # Fallback: node tetap jalan, tapi download model otomatis nggak akan work
@@ -105,7 +105,7 @@ class WhisperCPPNode:
             "language": (lang_list, {"default": "None"}),
             "task": (["transcribe", "translate"],),
             "n_threads": ("INT", {"default": 4, "min": 1, "max": 64}),
-            "device": (["auto", "cuda", "cpu", "vulkan", "metal"], {"default": "auto"}),
+            "device": (["auto", "cuda", "cpu", "vulkan", "metal", "opencl", "hip"], {"default": "auto"}),
         }
         optional = {
             "show_advance_settings": ("BOOLEAN", {"default": False}),
