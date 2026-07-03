@@ -167,25 +167,23 @@ class WhisperCPPNode:
             "output_format": (["all","srt","vtt","txt","tsv","json","aud"],),
             "flash_attn": ("BOOLEAN", {"default":False}),
             "gpu_device": ("INT", {"default":0,"min":0,"max":8}),
+            "dtw_token_timestamps": ("BOOLEAN", {"default":False}),
+            "dtw_aheads_preset": (["none","n_top_most","custom","tiny_en","tiny","base_en","base","small_en","small","medium_en","medium","large_v1","large_v2","large_v3","large_v3_turbo"], {"default":"large_v3_turbo"}),
+            "dtw_n_top": ("INT", {"default":-1,"min":-1,"max":64}),
+            "grammar_penalty": ("FLOAT", {"default":0.0,"min":0.0,"max":10.0,"step":0.1}),
         }
-        # Standalone alignment (torchaudio wav2vec2) — muncul kalo tersedia
-        wx_optional = {}
-        if WAV2VEC2_AVAILABLE_ALIGN:
-            wx_optional.update({
-                "no_align": ("BOOLEAN", {"default":False}),
-                "align_model": (["auto"] + ALIGN_MODELS_AVAILABLE, {"default":"auto"}),
-                "return_char_alignments": ("BOOLEAN", {"default":False}),
-            })
-        # Standalone diarization (pyannote.audio langsung)
-        if DIARIZATION_AVAILABLE:
-            wx_optional.update({
-                "diarize": ("BOOLEAN", {"default":False}),
-                "diarize_model": (DIARIZATION_MODELS_LIST, {"default":"pyannote/speaker-diarization-3.1"}),
-                "min_speakers": ("INT", {"default":1,"min":1,"max":10}),
-                "max_speakers": ("INT", {"default":2,"min":1,"max":10}),
-                "hf_token": ("STRING", {"default":""}),
-            })
-        optional.update(wx_optional)
+        # Alignment (torchaudio wav2vec2) — always visible, default off
+        ext_optional = {
+            "no_align": ("BOOLEAN", {"default":True}),
+            "align_model": (["auto","WAV2VEC2_ASR_LARGE_LV60K_960H","facebook/wav2vec2-large-lv60","facebook/wav2vec2-base-960h","facebook/wav2vec2-xlsr-53-56k"], {"default":"auto"}),
+            "return_char_alignments": ("BOOLEAN", {"default":False}),
+            "diarize": ("BOOLEAN", {"default":False}),
+            "diarize_model": (["pyannote/speaker-diarization-3.1","pyannote/speaker-diarization-2.1"], {"default":"pyannote/speaker-diarization-3.1"}),
+            "min_speakers": ("INT", {"default":1,"min":1,"max":10}),
+            "max_speakers": ("INT", {"default":2,"min":1,"max":10}),
+            "hf_token": ("STRING", {"default":""}),
+        }
+        optional.update(ext_optional)
         return {"required": required, "optional": optional}
 
     RETURN_TYPES = ("STRING","STRING","STRING","STRING","STRING","STRING","STRING")
@@ -262,18 +260,23 @@ class WhisperCPPNode:
             "initial_prompt":self._get(kwargs,"initial_prompt","") or None, "carry_initial_prompt":self._get(kwargs,"carry_initial_prompt",False),
             "audio_ctx":self._get(kwargs,"audio_ctx",0), "debug_mode":self._get(kwargs,"debug_mode",False),
             "print_special":self._get(kwargs,"print_special",False), "print_progress":self._get(kwargs,"print_progress",False),
-            "tdrz_enable":self._get(kwargs,"tdrz_enable",False), **vad_params }
+            "tdrz_enable":self._get(kwargs,"tdrz_enable",False),
+            "grammar_penalty":self._get(kwargs,"grammar_penalty",0.0),
+            "dtw_token_timestamps":self._get(kwargs,"dtw_token_timestamps",False),
+            "dtw_aheads_preset":{"none":0,"n_top_most":1,"custom":2,"tiny_en":3,"tiny":4,"base_en":5,"base":6,"small_en":7,"small":8,"medium_en":9,"medium":10,"large_v1":11,"large_v2":12,"large_v3":13,"large_v3_turbo":14}.get(self._get(kwargs,"dtw_aheads_preset","large_v3_turbo"),13),
+            "dtw_n_top":self._get(kwargs,"dtw_n_top",-1), **vad_params }
 
         try: result = wcpp.transcribe(audio_data, **tp)
         except Exception as e: logger.error(f"Failed: {e}"); import traceback; traceback.print_exc(); return ("","","","","","","")
         pbar.update(1)
         
-        # --- Optional standalone alignment (torchaudio wav2vec2) ---
-        if WAV2VEC2_AVAILABLE_ALIGN and not self._get(kwargs,"no_align",False):
+        # --- Optional alignment (torchaudio wav2vec2) — default off ---
+        if not self._get(kwargs,"no_align",True):
             try:
                 logger.info("Running wav2vec2 alignment...")
                 align_lang = result.get("language","en")
                 align_model_name = self._get(kwargs,"align_model","auto")
+                from .whispercpp.alignment import load_align_model, align
                 am, _ = load_align_model(align_lang, device, model_name=align_model_name)
                 result["segments"] = align(
                     result["segments"], audio_data, am, align_lang, device,
@@ -284,12 +287,13 @@ class WhisperCPPNode:
                 logger.warning(f"Alignment skipped: {e}")
         pbar.update(1)
         
-        # --- Optional standalone diarization (pyannote.audio) ---
-        if DIARIZATION_AVAILABLE and self._get(kwargs,"diarize",False):
+        # --- Optional diarization (pyannote.audio) — default off ---
+        if self._get(kwargs,"diarize",False):
             try:
                 logger.info("Running speaker diarization...")
                 hf_token = self._get(kwargs,"hf_token","") or None
                 diar_model_name = self._get(kwargs,"diarize_model","pyannote/speaker-diarization-3.1")
+                from .whispercpp.diarization import load_diarization_pipeline, diarize, assign_speakers_to_segments
                 pipe = load_diarization_pipeline(diar_model_name, device, hf_token)
                 turns = diarize(
                     audio_data, pipe,

@@ -164,6 +164,10 @@ class WhisperCPP:
             "vad_threshold": ("vad_threshold", float), "vad_min_speech_duration_ms": ("vad_min_speech_duration_ms", int),
             "vad_min_silence_duration_ms": ("vad_min_silence_duration_ms", int), "vad_max_speech_duration_s": ("vad_max_speech_duration_s", float),
             "vad_speech_pad_ms": ("vad_speech_pad_ms", int), "vad_samples_overlap": ("vad_samples_overlap", float),
+            "grammar_penalty": ("grammar_penalty", float),
+            "dtw_token_timestamps": ("dtw_token_timestamps", bool),
+            "dtw_aheads_preset": ("dtw_aheads_preset", int),
+            "dtw_n_top": ("dtw_n_top", int),
         }
         for kw, (field, conv) in field_map.items():
             if kw in kwargs and kwargs[kw] is not None:
