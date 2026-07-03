@@ -79,6 +79,28 @@ app.registerExtension({
 
                 setup(cppToggle, cppRefs);
                 setup(extToggle, extRefs);
+
+                // ── Mutual exclusion: DTW ↔ Alignment ──
+                const dtwW = this.widgets.find(w => w.name === "dtw_token_timestamps");
+                const alignW = this.widgets.find(w => w.name === "align");
+
+                if (dtwW && alignW) {
+                    dtwW.callback = (v) => {
+                        if (v) {
+                            alignW.value = false;
+                            if (alignW.callback) alignW.callback(false);
+                        }
+                    };
+                    // Wrap align callback too
+                    const origAlignCb = alignW.callback;
+                    alignW.callback = (v) => {
+                        if (v) {
+                            dtwW.value = false;
+                            if (dtwW.callback) dtwW.callback(false);
+                        }
+                        if (origAlignCb) origAlignCb(v);
+                    };
+                }
             };
         }
     },
