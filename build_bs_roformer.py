@@ -27,11 +27,7 @@ def main():
         cmake_args.append(f"-DGGML_DIR={GGML_DIR}")
 
     # Clean stale build
-    for f in ["CMakeCache.txt", "CMakeFiles"]:
-        p = BUILD_DIR / f
-        if p.exists():
-            if p.is_dir(): shutil.rmtree(p)
-            else: p.unlink()
+    shutil.rmtree(BUILD_DIR, ignore_errors=True)
     BUILD_DIR.mkdir(parents=True, exist_ok=True)
 
     # Figure out VS generator name
