@@ -1,6 +1,6 @@
 """
 sherpa-onnx CTC forced alignment.
-Alternative to wav2vec2 alignment — uses dolphin-base-ctc-multi-lang.
+Alternative to wav2vec2 alignment — uses zipformer-en-ctc.
 """
 
 import logging, os, re, numpy as np
@@ -9,7 +9,8 @@ from pathlib import Path
 logger = logging.getLogger("WhisperCPP.AlignSherpa")
 
 SHERPA_AVAILABLE = False
-SHERPA_MODEL_NAME = "sherpa-onnx-dolphin-base-ctc-multi-lang-int8-2025-04-02"
+# Ganti ke Zipformer CTC yang lebih stabil
+SHERPA_MODEL_NAME = "sherpa-onnx-zipformer-ctc-en-2023-10-02"
 
 # Model dirs
 try:
@@ -59,7 +60,7 @@ def load_align_model(device="cpu"):
     model_path, tokens_path = ensure_model()
     logger.info(f"Loading sherpa CTC model: {model_path}")
     provider = "cuda" if device != "cpu" else "cpu"
-    recognizer = sherpa_onnx.OfflineRecognizer.from_dolphin_ctc(
+    recognizer = sherpa_onnx.OfflineRecognizer.from_zipformer_ctc(
         model=model_path,
         tokens=tokens_path,
         provider=provider,
@@ -155,10 +156,10 @@ def align(segments, audio_data, recognizer, language="en"):
     recognizer.decode_stream(stream)
     result = stream.result
     
-    if not result.tokens:
+    if not result or not result.tokens:
         logger.warning("Sherpa CTC produced no tokens, keeping original segments")
         return segments
-    
+
     # Merge CTC subword tokens into words with timestamps
     aligned_words = _merge_tokens_to_words(result.tokens, result.timestamps)
     
