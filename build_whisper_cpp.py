@@ -213,13 +213,20 @@ def main():
     mode = args.gpu
 
     if mode == "all":
-        backends = {k: True for k in backends}
-        backends["metal"] = IS_MAC
-        print("  Mode: ALL backends (force enable)")
+        gpu = info["gpu"]
+        backends["cuda"]    = False  # CUDA 13.2 + VS2026 toolset issue, use --gpu cuda to force
+        backends["vulkan"]  = "NOT" not in gpu["Vulkan"]
+        backends["metal"]   = "NOT" not in gpu["Metal"] and "N/A" not in gpu["Metal"]
+        backends["hip"]     = "NOT" not in gpu["HIP/ROCm"] and "N/A" not in gpu["HIP/ROCm"]
+        backends["sycl"]    = False  # requires Intel oneAPI SDK
+        backends["opencl"]  = "NOT" not in gpu["OpenCL"]
+        backends["openvino"] = False  # requires Intel OpenVINO SDK
+        backends["blas"]    = False  # requires BLAS vendor lib
+        print("  Mode: ALL backends (smart detect)")
     elif mode == "auto":
         print("  Mode: Auto-detect available backends")
         gpu = info["gpu"]
-        backends["cuda"]    = "NOT" not in gpu["CUDA"]
+        backends["cuda"]    = False  # CUDA 13.2 + VS2026 toolset issue, use --gpu cuda to force
         backends["vulkan"]  = "NOT" not in gpu["Vulkan"]
         backends["metal"]   = "NOT" not in gpu["Metal"] and "N/A" not in gpu["Metal"]
         backends["hip"]     = "NOT" not in gpu["HIP/ROCm"] and "N/A" not in gpu["HIP/ROCm"]
@@ -249,6 +256,7 @@ def main():
         "blas":   ("GGML_BLAS", "BLAS"),
     }
 
+    cuda_arch = "-DCMAKE_CUDA_ARCHITECTURES=89"  # RTX 4070 SUPER
     cmake_args = [
         "cmake", "-B", str(BUILD_DIR), "-S", str(WHISPER_DIR),
         f"-DCMAKE_BUILD_TYPE={args.build_type}",
@@ -259,6 +267,15 @@ def main():
         "-DGGML_OPENMP=ON",
         "-DGGML_LLAMAFILE=ON",
     ]
+    # CUDA-specific flags
+    if backends.get("cuda"):
+        cmake_args.append(cuda_arch)
+        cmake_args.append("-DCMAKE_CUDA_COMPILER:FILEPATH=C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v13.2/bin/nvcc.exe")
+        cmake_args.append("-DCMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES=C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v13.2/include")
+    # OpenCL paths (from CUDA toolkit)
+    if backends.get("opencl"):
+        cmake_args.append("-DOpenCL_INCLUDE_DIR=C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v13.2/include")
+        cmake_args.append("-DOpenCL_LIBRARY=C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v13.2/lib/x64/OpenCL.lib")
 
     any_gpu = False
     for bk, enabled in backends.items():

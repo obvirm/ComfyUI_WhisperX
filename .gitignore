@@ -11,3 +11,4 @@ whisper.cpp/build/
 models/
 .DS_Store
 Thumbs.db
+nwhisper.dlln*.pdb
