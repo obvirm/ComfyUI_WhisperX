@@ -1,0 +1,272 @@
+import ctypes
+import ctypes.util
+import logging
+import os
+import platform
+from pathlib import Path
+from typing import Optional, List, Dict, Any, Tuple
+
+logger = logging.getLogger("WhisperCPP")
+
+IS_WINDOWS = platform.system() == "Windows"
+IS_LINUX = platform.system() == "Linux"
+IS_MACOS = platform.system() == "Darwin"
+
+WHISPER_SAMPLE_RATE = 16000
+WHISPER_SAMPLING_GREEDY = 0
+WHISPER_SAMPLING_BEAM_SEARCH = 1
+
+if IS_WINDOWS:
+    LIB_NAMES = ["whisper.dll", "libwhisper.dll"]
+elif IS_LINUX:
+    LIB_NAMES = ["libwhisper.so"]
+elif IS_MACOS:
+    LIB_NAMES = ["libwhisper.dylib"]
+else:
+    LIB_NAMES = ["libwhisper.so"]
+
+# ctypes struct definitions
+class WhisperContextParams(ctypes.Structure):
+    _fields_ = [
+        ("use_gpu", ctypes.c_bool), ("flash_attn", ctypes.c_bool), ("gpu_device", ctypes.c_int),
+        ("dtw_token_timestamps", ctypes.c_bool), ("dtw_aheads_preset", ctypes.c_int), ("dtw_n_top", ctypes.c_int),
+        ("_dtw_aheads_ptr", ctypes.c_void_p), ("_dtw_aheads_n", ctypes.c_size_t), ("dtw_mem_size", ctypes.c_size_t),
+    ]
+
+class WhisperTokenData(ctypes.Structure):
+    _fields_ = [
+        ("id", ctypes.c_int32), ("tid", ctypes.c_int32), ("p", ctypes.c_float), ("plog", ctypes.c_float),
+        ("pt", ctypes.c_float), ("ptsum", ctypes.c_float), ("t0", ctypes.c_int64), ("t1", ctypes.c_int64),
+        ("t_dtw", ctypes.c_int64), ("vlen", ctypes.c_float),
+    ]
+
+class WhisperFullParams(ctypes.Structure):
+    _fields_ = [
+        ("strategy", ctypes.c_int), ("n_threads", ctypes.c_int32), ("n_max_text_ctx", ctypes.c_int32),
+        ("offset_ms", ctypes.c_int32), ("duration_ms", ctypes.c_int32),
+        ("translate", ctypes.c_bool), ("no_context", ctypes.c_bool), ("no_timestamps", ctypes.c_bool),
+        ("single_segment", ctypes.c_bool), ("print_special", ctypes.c_bool), ("print_progress", ctypes.c_bool),
+        ("print_realtime", ctypes.c_bool), ("print_timestamps", ctypes.c_bool),
+        ("token_timestamps", ctypes.c_bool), ("thold_pt", ctypes.c_float), ("thold_ptsum", ctypes.c_float),
+        ("max_len", ctypes.c_int32), ("split_on_word", ctypes.c_bool), ("max_tokens", ctypes.c_int32),
+        ("debug_mode", ctypes.c_bool), ("audio_ctx", ctypes.c_int32), ("tdrz_enable", ctypes.c_bool),
+        ("suppress_regex", ctypes.c_char_p),
+        ("initial_prompt", ctypes.c_char_p), ("carry_initial_prompt", ctypes.c_bool),
+        ("prompt_tokens", ctypes.POINTER(ctypes.c_int32)), ("prompt_n_tokens", ctypes.c_int32),
+        ("language", ctypes.c_char_p), ("detect_language", ctypes.c_bool),
+        ("suppress_blank", ctypes.c_bool), ("suppress_nst", ctypes.c_bool),
+        ("temperature", ctypes.c_float), ("max_initial_ts", ctypes.c_float), ("length_penalty", ctypes.c_float),
+        ("temperature_inc", ctypes.c_float), ("entropy_thold", ctypes.c_float), ("logprob_thold", ctypes.c_float),
+        ("no_speech_thold", ctypes.c_float),
+        ("best_of", ctypes.c_int32),  # greedy
+        ("beam_size", ctypes.c_int32), ("patience", ctypes.c_float),  # beam_search
+        ("new_segment_callback", ctypes.c_void_p), ("new_segment_callback_user_data", ctypes.c_void_p),
+        ("progress_callback", ctypes.c_void_p), ("progress_callback_user_data", ctypes.c_void_p),
+        ("encoder_begin_callback", ctypes.c_void_p), ("encoder_begin_callback_user_data", ctypes.c_void_p),
+        ("abort_callback", ctypes.c_void_p), ("abort_callback_user_data", ctypes.c_void_p),
+        ("logits_filter_callback", ctypes.c_void_p), ("logits_filter_callback_user_data", ctypes.c_void_p),
+        ("grammar_rules", ctypes.c_void_p), ("n_grammar_rules", ctypes.c_size_t), ("i_start_rule", ctypes.c_size_t), ("grammar_penalty", ctypes.c_float),
+        ("vad", ctypes.c_bool), ("vad_model_path", ctypes.c_char_p),
+        ("vad_threshold", ctypes.c_float), ("vad_min_speech_duration_ms", ctypes.c_int), ("vad_min_silence_duration_ms", ctypes.c_int),
+        ("vad_max_speech_duration_s", ctypes.c_float), ("vad_speech_pad_ms", ctypes.c_int), ("vad_samples_overlap", ctypes.c_float),
+    ]
+
+class WhisperCPP:
+    def __init__(self, lib_path: Optional[str] = None):
+        self._lib = None
+        self._ctx = None
+        self._lib_path = lib_path
+        self._model_path: Optional[str] = None
+
+    def _find_library(self) -> str:
+        if self._lib_path and os.path.isfile(self._lib_path):
+            return self._lib_path
+        base_dir = Path(__file__).resolve().parent.parent
+        search_paths = []
+        if self._lib_path:
+            search_paths.append(self._lib_path)
+        for name in LIB_NAMES:
+            search_paths.extend([
+                str(base_dir / name),
+                str(base_dir / "whisper.cpp" / "build" / "src" / name),
+                str(base_dir / "whisper.cpp" / name),
+            ])
+        for name in LIB_NAMES:
+            found = ctypes.util.find_library(name.replace(".dll","").replace(".so","").replace(".dylib",""))
+            if found:
+                search_paths.insert(0, found)
+        for path in search_paths:
+            if path and os.path.isfile(path):
+                return path
+        raise RuntimeError(f"Cannot find whisper library ({', '.join(LIB_NAMES)}).\nBuild whisper.cpp first:\n  python build_whisper_cpp.py")
+
+    def load_library(self, lib_path: Optional[str] = None) -> None:
+        if self._lib is not None: return
+        if lib_path: self._lib_path = lib_path
+        path = self._find_library()
+        self._lib = ctypes.cdll.LoadLibrary(path)
+        self._setup_functions()
+
+    def _setup_functions(self):
+        L = self._lib
+        L.whisper_version.restype = ctypes.c_char_p
+        L.whisper_init_from_file_with_params.argtypes = [ctypes.c_char_p, WhisperContextParams]
+        L.whisper_init_from_file_with_params.restype = ctypes.c_void_p
+        L.whisper_free.argtypes = [ctypes.c_void_p]; L.whisper_free.restype = None
+        L.whisper_init_state.argtypes = [ctypes.c_void_p]; L.whisper_init_state.restype = ctypes.c_void_p
+        L.whisper_free_state.argtypes = [ctypes.c_void_p]; L.whisper_free_state.restype = None
+        L.whisper_context_default_params.restype = WhisperContextParams
+        L.whisper_full_default_params.argtypes = [ctypes.c_int]
+        L.whisper_full_default_params.restype = WhisperFullParams
+        L.whisper_full.argtypes = [ctypes.c_void_p, WhisperFullParams, ctypes.POINTER(ctypes.c_float), ctypes.c_int]
+        L.whisper_full.restype = ctypes.c_int
+        L.whisper_full_parallel.argtypes = [ctypes.c_void_p, WhisperFullParams, ctypes.POINTER(ctypes.c_float), ctypes.c_int, ctypes.c_int]
+        L.whisper_full_parallel.restype = ctypes.c_int
+        L.whisper_full_n_segments.argtypes = [ctypes.c_void_p]; L.whisper_full_n_segments.restype = ctypes.c_int
+        L.whisper_full_lang_id.argtypes = [ctypes.c_void_p]; L.whisper_full_lang_id.restype = ctypes.c_int
+        L.whisper_full_get_segment_t0.argtypes = [ctypes.c_void_p, ctypes.c_int]; L.whisper_full_get_segment_t0.restype = ctypes.c_int64
+        L.whisper_full_get_segment_t1.argtypes = [ctypes.c_void_p, ctypes.c_int]; L.whisper_full_get_segment_t1.restype = ctypes.c_int64
+        L.whisper_full_get_segment_text.argtypes = [ctypes.c_void_p, ctypes.c_int]; L.whisper_full_get_segment_text.restype = ctypes.c_char_p
+        L.whisper_full_get_segment_speaker_turn_next.argtypes = [ctypes.c_void_p, ctypes.c_int]; L.whisper_full_get_segment_speaker_turn_next.restype = ctypes.c_bool
+        L.whisper_full_n_tokens.argtypes = [ctypes.c_void_p, ctypes.c_int]; L.whisper_full_n_tokens.restype = ctypes.c_int
+        L.whisper_full_get_token_text.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]; L.whisper_full_get_token_text.restype = ctypes.c_char_p
+        L.whisper_full_get_token_id.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]; L.whisper_full_get_token_id.restype = ctypes.c_int32
+        L.whisper_full_get_token_data.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]; L.whisper_full_get_token_data.restype = WhisperTokenData
+        L.whisper_full_get_token_p.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]; L.whisper_full_get_token_p.restype = ctypes.c_float
+        L.whisper_full_get_token_t0.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]; L.whisper_full_get_token_t0.restype = ctypes.c_int64
+        L.whisper_full_get_token_t1.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]; L.whisper_full_get_token_t1.restype = ctypes.c_int64
+        L.whisper_full_get_segment_no_speech_prob.argtypes = [ctypes.c_void_p, ctypes.c_int]; L.whisper_full_get_segment_no_speech_prob.restype = ctypes.c_float
+        L.whisper_full_n_vad_segments.argtypes = [ctypes.c_void_p]; L.whisper_full_n_vad_segments.restype = ctypes.c_int
+        L.whisper_full_get_vad_segment_t0.argtypes = [ctypes.c_void_p, ctypes.c_int]; L.whisper_full_get_vad_segment_t0.restype = ctypes.c_int64
+        L.whisper_full_get_vad_segment_t1.argtypes = [ctypes.c_void_p, ctypes.c_int]; L.whisper_full_get_vad_segment_t1.restype = ctypes.c_int64
+        L.whisper_lang_id.argtypes = [ctypes.c_char_p]; L.whisper_lang_id.restype = ctypes.c_int
+        L.whisper_lang_str.argtypes = [ctypes.c_int]; L.whisper_lang_str.restype = ctypes.c_char_p
+        L.whisper_lang_max_id.restype = ctypes.c_int
+        L.whisper_is_multilingual.argtypes = [ctypes.c_void_p]; L.whisper_is_multilingual.restype = ctypes.c_int
+        L.whisper_model_type_readable.argtypes = [ctypes.c_void_p]; L.whisper_model_type_readable.restype = ctypes.c_char_p
+        L.whisper_n_text_ctx.argtypes = [ctypes.c_void_p]; L.whisper_n_text_ctx.restype = ctypes.c_int
+        L.whisper_print_system_info.restype = ctypes.c_char_p
+        L.whisper_print_timings.argtypes = [ctypes.c_void_p]; L.whisper_print_timings.restype = None
+        L.whisper_reset_timings.argtypes = [ctypes.c_void_p]; L.whisper_reset_timings.restype = None
+        L.whisper_tokenize.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.POINTER(ctypes.c_int32), ctypes.c_int]
+        L.whisper_tokenize.restype = ctypes.c_int
+        L.whisper_lang_auto_detect.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.POINTER(ctypes.c_float)]
+        L.whisper_lang_auto_detect.restype = ctypes.c_int
+        L.whisper_pcm_to_mel.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_float), ctypes.c_int, ctypes.c_int]
+        L.whisper_pcm_to_mel.restype = ctypes.c_int
+
+    def load_model(self, model_path: str, use_gpu: bool = True, gpu_device: int = 0, flash_attn: bool = False):
+        if self._lib is None: self.load_library()
+        self.free_model()
+        if not os.path.isfile(model_path):
+            raise FileNotFoundError(f"Model not found: {model_path}")
+        cparams = self._lib.whisper_context_default_params()
+        cparams.use_gpu = use_gpu; cparams.gpu_device = gpu_device; cparams.flash_attn = flash_attn
+        ctx = self._lib.whisper_init_from_file_with_params(model_path.encode("utf-8"), cparams)
+        if not ctx:
+            raise RuntimeError(f"Failed to init whisper from {model_path}")
+        self._ctx = ctx; self._model_path = model_path
+
+    def free_model(self):
+        if self._ctx is not None:
+            self._lib.whisper_free(self._ctx); self._ctx = None; self._model_path = None
+
+    def __del__(self): self.free_model()
+
+    def is_loaded(self) -> bool: return self._ctx is not None
+    def model_type(self) -> str:
+        if not self._ctx: return "none"
+        v = self._lib.whisper_model_type_readable(self._ctx); return v.decode() if v else "unknown"
+    def is_multilingual(self) -> bool: return bool(self._lib.whisper_is_multilingual(self._ctx)) if self._ctx else False
+    def lang_id(self, lang: str) -> int: return self._lib.whisper_lang_id(lang.encode())
+    def lang_str(self, lid: int) -> str: v = self._lib.whisper_lang_str(lid); return v.decode() if v else "unknown"
+
+    def _build_full_params(self, **kwargs) -> WhisperFullParams:
+        strategy = kwargs.get("strategy", WHISPER_SAMPLING_GREEDY)
+        params = self._lib.whisper_full_default_params(strategy)
+        field_map = {
+            "n_threads": ("n_threads", int), "n_max_text_ctx": ("n_max_text_ctx", int),
+            "offset_ms": ("offset_ms", int), "duration_ms": ("duration_ms", int),
+            "translate": ("translate", bool), "no_context": ("no_context", bool),
+            "no_timestamps": ("no_timestamps", bool), "single_segment": ("single_segment", bool),
+            "print_special": ("print_special", bool), "print_progress": ("print_progress", bool),
+            "print_realtime": ("print_realtime", bool), "print_timestamps": ("print_timestamps", bool),
+            "token_timestamps": ("token_timestamps", bool),
+            "thold_pt": ("thold_pt", float), "thold_ptsum": ("thold_ptsum", float),
+            "max_len": ("max_len", int), "split_on_word": ("split_on_word", bool), "max_tokens": ("max_tokens", int),
+            "debug_mode": ("debug_mode", bool), "audio_ctx": ("audio_ctx", int), "tdrz_enable": ("tdrz_enable", bool),
+            "suppress_regex": ("suppress_regex", lambda v: v.encode() if v else None),
+            "initial_prompt": ("initial_prompt", lambda v: v.encode() if v else None),
+            "carry_initial_prompt": ("carry_initial_prompt", bool),
+            "language": ("language", lambda v: v.encode() if v else None),
+            "detect_language": ("detect_language", bool),
+            "suppress_blank": ("suppress_blank", bool), "suppress_nst": ("suppress_nst", bool),
+            "temperature": ("temperature", float), "max_initial_ts": ("max_initial_ts", float),
+            "length_penalty": ("length_penalty", float), "temperature_inc": ("temperature_inc", float),
+            "entropy_thold": ("entropy_thold", float), "logprob_thold": ("logprob_thold", float),
+            "no_speech_thold": ("no_speech_thold", float),
+            "best_of": ("best_of", int), "beam_size": ("beam_size", int), "patience": ("patience", float),
+            "vad": ("vad", bool), "vad_model_path": ("vad_model_path", lambda v: v.encode() if v else None),
+            "vad_threshold": ("vad_threshold", float), "vad_min_speech_duration_ms": ("vad_min_speech_duration_ms", int),
+            "vad_min_silence_duration_ms": ("vad_min_silence_duration_ms", int), "vad_max_speech_duration_s": ("vad_max_speech_duration_s", float),
+            "vad_speech_pad_ms": ("vad_speech_pad_ms", int), "vad_samples_overlap": ("vad_samples_overlap", float),
+        }
+        for kw, (field, conv) in field_map.items():
+            if kw in kwargs and kwargs[kw] is not None:
+                try: setattr(params, field, conv(kwargs[kw]))
+                except Exception: pass
+        return params
+
+    def transcribe(self, audio_data: "np.ndarray", **kwargs) -> Dict[str, Any]:
+        import numpy as np
+        if self._lib is None: self.load_library()
+        if self._ctx is None: raise RuntimeError("No model loaded.")
+        audio = np.asarray(audio_data, dtype=np.float32).ravel()
+        n_samples = len(audio)
+        task = kwargs.pop("task", None)
+        if task == "translate": kwargs["translate"] = True
+        elif task == "transcribe": kwargs["translate"] = False
+        wt = kwargs.pop("word_timestamps", None)
+        if wt is True: kwargs["token_timestamps"] = True; kwargs["split_on_word"] = True
+        if "n_threads" not in kwargs or kwargs["n_threads"] is None:
+            kwargs["n_threads"] = max(1, os.cpu_count() or 4)
+        params = self._build_full_params(**kwargs)
+        audio_ptr = audio.ctypes.data_as(ctypes.POINTER(ctypes.c_float))
+        ret = self._lib.whisper_full(self._ctx, params, audio_ptr, n_samples)
+        if ret != 0: raise RuntimeError(f"whisper_full failed: {ret}")
+        n_seg = self._lib.whisper_full_n_segments(self._ctx)
+        lang_id = self._lib.whisper_full_lang_id(self._ctx)
+        detected_lang = self.lang_str(lang_id) if lang_id >= 0 else "unknown"
+        segments, full_text = [], []
+        for i in range(n_seg):
+            text = (self._lib.whisper_full_get_segment_text(self._ctx, i) or b"").decode()
+            t0 = self._lib.whisper_full_get_segment_t0(self._ctx, i) / 100.0
+            t1 = self._lib.whisper_full_get_segment_t1(self._ctx, i) / 100.0
+            st = bool(self._lib.whisper_full_get_segment_speaker_turn_next(self._ctx, i))
+            nsp = float(self._lib.whisper_full_get_segment_no_speech_prob(self._ctx, i))
+            n_tok = self._lib.whisper_full_n_tokens(self._ctx, i)
+            tokens, words = [], []
+            for j in range(n_tok):
+                tt = (self._lib.whisper_full_get_token_text(self._ctx, i, j) or b"").decode()
+                tp = float(self._lib.whisper_full_get_token_p(self._ctx, i, j))
+                tt0 = self._lib.whisper_full_get_token_t0(self._ctx, i, j) / 100.0
+                tt1 = self._lib.whisper_full_get_token_t1(self._ctx, i, j) / 100.0
+                tid = self._lib.whisper_full_get_token_id(self._ctx, i, j)
+                tokens.append({"id": tid, "text": tt, "probability": tp, "start": tt0, "end": tt1})
+                if tt.strip() and not tt.startswith("[") and not tt.startswith("<"):
+                    words.append({"word": tt.strip(), "start": tt0, "end": tt1, "probability": tp})
+            segments.append({"start": t0, "end": t1, "text": text, "tokens": tokens, "words": words, "speaker_turn_next": st, "no_speech_prob": nsp})
+            full_text.append(text)
+        vad_segs = []
+        if kwargs.get("vad", False):
+            n_vad = self._lib.whisper_full_n_vad_segments(self._ctx)
+            for i in range(n_vad):
+                vt0 = self._lib.whisper_full_get_vad_segment_t0(self._ctx, i) / 100.0
+                vt1 = self._lib.whisper_full_get_vad_segment_t1(self._ctx, i) / 100.0
+                vad_segs.append({"start": vt0, "end": vt1})
+        return {"text": " ".join(full_text).strip(), "segments": segments, "language": detected_lang, "n_segments": n_seg, "vad_segments": vad_segs, "model_type": self.model_type()}
+
+    def version(self) -> str:
+        v = self._lib.whisper_version(); return v.decode() if v else "unknown"
+    def print_timings(self): self._lib.whisper_print_timings(self._ctx)
+    def reset_timings(self): self._lib.whisper_reset_timings(self._ctx)
