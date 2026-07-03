@@ -20,7 +20,7 @@ except Exception as e:
 _ctx = None
 
 def ensure_loaded():
-    global _ctx
+    global _ctx, CPPANNOTE_AVAILABLE
     if _ctx is None and CPPANNOTE_AVAILABLE:
         _ctx = _init()
         if _ctx is None:
