@@ -1,0 +1,11 @@
+{
+  "class": "SpeakerDiarization",
+  "segmentation_step": 0.1,
+  "embedding_exclude_overlap": true,
+  "klustering": "VBxClustering",
+  "segmentation.threshold": "None",
+  "segmentation.min_duration_off": 0.0,
+  "clustering.threshold": 0.6,
+  "clustering.Fa": 0.07,
+  "clustering.Fb": 0.8
+}

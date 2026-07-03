@@ -1,0 +1,197 @@
+#!/usr/bin/env python3
+# MIT License
+#
+# Quantize ONNX models with onnx-shrink-ray, convert to ORT format (no
+# optimizations so quantized weights are preserved), then emit C++ source
+# files with the ORT data and JSON configs as compiled-in byte arrays.
+#
+# Usage:
+#   python cpp/scripts/export_ort_embedded.py \
+#       --segmentation-onnx cpp/artifacts/community1-segmentation.onnx \
+#       --embedding-onnx    cpp/artifacts/community1-embedding.onnx
+
+from __future__ import annotations
+
+import argparse
+import os
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+
+def _quantize_onnx(onnx_path: Path, output_dir: Path, ir_version: int) -> Path:
+    """Run onnx-shrink-ray to weight-only-quantize an ONNX file.
+    Returns the path to the quantized output file."""
+    cmd = [
+        sys.executable, "-m", "onnx_shrink_ray.shrink",
+        "--ir-version", str(ir_version),
+        "--output_dir", str(output_dir),
+        str(onnx_path),
+    ]
+    subprocess.check_call(cmd)
+    expected = output_dir / (onnx_path.stem + "_quantized_weights.onnx")
+    if not expected.exists():
+        raise RuntimeError(f"Expected quantized file not found: {expected}")
+    return expected
+
+
+def _onnx_to_ort_no_opt(onnx_path: Path, ort_path: Path) -> None:
+    """Convert ONNX -> ORT with all optimizations disabled."""
+    import onnxruntime as ort
+
+    so = ort.SessionOptions()
+    so.graph_optimization_level = ort.GraphOptimizationLevel.ORT_DISABLE_ALL
+    so.optimized_model_filepath = str(ort_path)
+    ort.InferenceSession(str(onnx_path), so)
+    if not ort_path.exists():
+        raise RuntimeError(f"Expected ORT file not found: {ort_path}")
+
+
+def _get_ir_version(onnx_path: Path) -> int:
+    import onnx
+    model = onnx.load(str(onnx_path))
+    return model.ir_version
+
+
+def _bytes_to_cpp_array(data: bytes, var_name: str) -> str:
+    """Format raw bytes as a C++ unsigned char array initializer."""
+    lines = []
+    for i in range(0, len(data), 16):
+        chunk = data[i:i + 16]
+        hex_vals = ", ".join(f"0x{b:02x}" for b in chunk)
+        lines.append(f"  {hex_vals},")
+    body = "\n".join(lines)
+    return (
+        f"alignas(64) const unsigned char {var_name}[] = {{\n"
+        f"{body}\n"
+        f"}};\n"
+        f"const std::size_t {var_name}_size = sizeof({var_name});\n"
+    )
+
+
+def _string_to_cpp_raw(data: str, var_name: str) -> str:
+    """Format a string as a C++ raw string literal."""
+    return (
+        f'const char {var_name}[] = R"pyannote_embed({data})pyannote_embed";\n'
+        f"const std::size_t {var_name}_size = sizeof({var_name}) - 1;\n"
+    )
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser(
+        description="Quantize ONNX -> ORT -> embedded C++ source files."
+    )
+    ap.add_argument("--segmentation-onnx", type=Path, required=True)
+    ap.add_argument("--embedding-onnx", type=Path, required=True)
+    ap.add_argument(
+        "--output-dir", type=Path, default=None,
+        help="Output directory for generated .h/.cpp (default: cpp/src/ relative to repo root)",
+    )
+    args = ap.parse_args()
+
+    repo_root = Path(__file__).resolve().parent.parent.parent
+    out_dir: Path = args.output_dir or (repo_root / "cpp" / "src")
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    seg_onnx: Path = args.segmentation_onnx.resolve()
+    emb_onnx: Path = args.embedding_onnx.resolve()
+
+    seg_json_path = seg_onnx.with_suffix(".json")
+    emb_json_path = emb_onnx.with_suffix(".json")
+    for p in (seg_onnx, emb_onnx, seg_json_path, emb_json_path):
+        if not p.exists():
+            raise SystemExit(f"Required file not found: {p}")
+
+    seg_json_text = seg_json_path.read_text(encoding="utf-8").strip()
+    emb_json_text = emb_json_path.read_text(encoding="utf-8").strip()
+
+    seg_ir = _get_ir_version(seg_onnx)
+    emb_ir = _get_ir_version(emb_onnx)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp = Path(tmpdir)
+
+        print(f"Quantizing {seg_onnx.name} ...")
+        seg_q = _quantize_onnx(seg_onnx, tmp, seg_ir)
+
+        print(f"Quantizing {emb_onnx.name} ...")
+        emb_q = _quantize_onnx(emb_onnx, tmp, emb_ir)
+
+        seg_ort = tmp / "segmentation.ort"
+        emb_ort = tmp / "embedding.ort"
+
+        print("Converting segmentation to ORT (no optimizations) ...")
+        _onnx_to_ort_no_opt(seg_q, seg_ort)
+
+        print("Converting embedding to ORT (no optimizations) ...")
+        _onnx_to_ort_no_opt(emb_q, emb_ort)
+
+        seg_ort_data = seg_ort.read_bytes()
+        emb_ort_data = emb_ort.read_bytes()
+
+    print(f"Segmentation ORT: {len(seg_ort_data):,} bytes")
+    print(f"Embedding ORT:    {len(emb_ort_data):,} bytes")
+
+    ns = "cppannote::embedded_community1"
+    header_guard = "COMMUNITY1_ORT_EMBEDDED_H_"
+    header_name = "community1_ort_embedded.h"
+    cpp_name = "community1_ort_embedded.cpp"
+
+    hpp = f"""\
+// SPDX-License-Identifier: MIT
+// AUTO-GENERATED by cpp/scripts/export_ort_embedded.py — do not edit by hand.
+#ifndef {header_guard}
+#define {header_guard}
+
+#include <cstddef>
+
+namespace {ns} {{
+
+extern const unsigned char segmentation_ort_data[];
+extern const std::size_t segmentation_ort_data_size;
+
+extern const unsigned char embedding_ort_data[];
+extern const std::size_t embedding_ort_data_size;
+
+extern const char segmentation_json[];
+extern const std::size_t segmentation_json_size;
+
+extern const char embedding_json[];
+extern const std::size_t embedding_json_size;
+
+}}  // namespace {ns}
+
+#endif  // {header_guard}
+"""
+
+    cpp_parts = [
+        f"""\
+// SPDX-License-Identifier: MIT
+// AUTO-GENERATED by cpp/scripts/export_ort_embedded.py — do not edit by hand.
+
+#include <cstddef>
+
+#include "{header_name}"
+
+namespace {ns} {{
+
+""",
+        _bytes_to_cpp_array(seg_ort_data, "segmentation_ort_data"),
+        "\n",
+        _bytes_to_cpp_array(emb_ort_data, "embedding_ort_data"),
+        "\n",
+        _string_to_cpp_raw(seg_json_text, "segmentation_json"),
+        "\n",
+        _string_to_cpp_raw(emb_json_text, "embedding_json"),
+        f"\n}}  // namespace {ns}\n",
+    ]
+
+    (out_dir / header_name).write_text(hpp, encoding="utf-8")
+    (out_dir / cpp_name).write_text("".join(cpp_parts), encoding="utf-8")
+    print(f"Wrote {out_dir / header_name}")
+    print(f"Wrote {out_dir / cpp_name}")
+
+
+if __name__ == "__main__":
+    main()
