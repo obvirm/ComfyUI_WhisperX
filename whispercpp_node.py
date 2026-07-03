@@ -5,7 +5,7 @@ import numpy as np
 import torch, torchaudio
 
 from .whispercpp.whisper_lib import WhisperCPP
-from .whispercpp.audio import AudioProcessor
+from .whispercpp.audio import AudioProcessor, WHISPER_SAMPLE_RATE
 
 # Model Manager — wrapped agar node tetap register meski tqdm/requests belum terinstall
 WHISPERCPP_MODEL_AVAILABLE = False
@@ -247,9 +247,14 @@ class WhisperCPPNode:
             uvr_chunk_size = self._get(kwargs,"uvr_chunk_size",-1)
             uvr_overlap = self._get(kwargs,"uvr_overlap",-1)
             try:
-                audio_data = separate_vocals(audio_data, sr=sr if 'sr' in dir() else 44100,
+                # Audio is 16kHz from process_comfy_audio; resample to 44.1kHz for BSRoformer
+                t = torch.from_numpy(audio_data).float().unsqueeze(0)
+                audio_44k = torchaudio.transforms.Resample(WHISPER_SAMPLE_RATE, 44100)(t).squeeze().numpy().astype(np.float32)
+                audio_44k = separate_vocals(audio_44k, sr=44100,
                     model_name=uvr_model, chunk_size=uvr_chunk_size, overlap=uvr_overlap)
-                sr = 44100  # UVR outputs at 44.1kHz
+                # UVR outputs 44.1kHz; resample back to 16kHz for whisper
+                t2 = torch.from_numpy(audio_44k).float().unsqueeze(0)
+                audio_data = torchaudio.transforms.Resample(44100, WHISPER_SAMPLE_RATE)(t2).squeeze().numpy().astype(np.float32)
                 logger.info(f"UVR done: {len(audio_data)} samples")
             except Exception as e:
                 logger.error(f"UVR failed: {e}")
