@@ -51,7 +51,9 @@ app.registerExtension({
                                 this.widgets.splice(idx + 1, 0, ...toAdd);
                             }
                         }
+                        const oldW = this.size[0];
                         this.size = this.computeSize();
+                        this.size[0] = oldW;  // keep width fixed
                         this.setDirtyCanvas(true, true);
                     };
                     toggle.callback = (v) => update(v);
