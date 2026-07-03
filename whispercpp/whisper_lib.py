@@ -72,10 +72,13 @@ class WhisperCPP:
         search = []
         if self._lib_path: search.append(self._lib_path)
         for n in LIB_NAMES:
-            search.extend([str(base_dir / n), str(base_dir / "whisper.cpp" / "build" / "bin" / n),
-                          str(base_dir / "whisper.cpp" / "build" / "src" / n), str(base_dir / "whisper.cpp" / n)])
+            search.extend([str(base_dir / n),
+                          str(base_dir / "whisper.cpp" / "build" / "bin" / n),
+                          str(base_dir / "whisper.cpp" / "build" / "bin" / "Release" / n),
+                          str(base_dir / "whisper.cpp" / "build" / "src" / n),
+                          str(base_dir / "whisper.cpp" / n)])
             f = ctypes.util.find_library(n.replace(".dll","").replace(".so","").replace(".dylib",""))
-            if f: search.insert(0, f)
+            if f: search.append(str(base_dir / f))
         for p in search:
             if p and os.path.isfile(p): return p
         raise RuntimeError(f"Cannot find whisper lib. Build first: python build_whisper_cpp.py")
