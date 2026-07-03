@@ -1,0 +1,32 @@
+# Files yang nggak perlu di registry package
+AGENTS.md
+MEMD.md
+picture/
+gen_ort_json.py
+run_test.bat
+test_transcribe.py
+
+# cpp-annote: test data, scripts, CLI tools
+cpp-annote/golden/
+cpp-annote/tests/
+cpp-annote/tools/
+cpp-annote/scripts/
+cpp-annote/build/
+cpp-annote/onnxruntime-win-x64-1.27.0/
+cpp-annote/zlib/CMakeLists.txt
+cpp-annote/zlib/Makefile.in
+cpp-annote/zlib/configure
+cpp-annote/zlib/win32/
+cpp-annote/zlib/contrib/
+cpp-annote/zlib/test/
+cpp-annote/zlib/examples/
+cpp-annote/zlib/doc/
+cpp-annote/zlib/msdos/
+cpp-annote/zlib/nintendods/
+cpp-annote/zlib/os400/
+cpp-annote/zlib/qnx/
+cpp-annote/zlib/watcom/
+cpp-annote/zlib/old/
+cpp-annote/zlib/amiga/
+cpp-annote/zlib/treebuild.xml
+cpp-annote/zlib/make_vms.com
