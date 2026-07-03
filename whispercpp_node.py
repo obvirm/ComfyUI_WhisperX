@@ -129,7 +129,7 @@ class WhisperCPPNode:
             "separate_vocals": ("BOOLEAN", {"default": False}),
             "dtw_token_timestamps": ("BOOLEAN", {"default": False}),
             "vad": ("BOOLEAN", {"default": False}),
-            "no_align": ("BOOLEAN", {"default":True}),
+            "align": ("BOOLEAN", {"default":True}),
 
             # --- ADVANCE CPP (show_advance_cpp) ---
             "show_advance_cpp": ("BOOLEAN", {"default": False}),
@@ -295,8 +295,8 @@ class WhisperCPPNode:
         except Exception as e: logger.error(f"Failed: {e}"); import traceback; traceback.print_exc(); return ("","","","","","","")
         pbar.update(1)
         
-        # --- Optional alignment (sherpa-onnx CTC) — default off ---
-        if not self._get(kwargs,"no_align",True):
+        # --- Optional alignment (sherpa-onnx CTC) — default ON ---
+        if self._get(kwargs,"align",True):
             if SHERPA_ALIGN_AVAILABLE:
                 try:
                     logger.info("Running sherpa-onnx CTC alignment...")
