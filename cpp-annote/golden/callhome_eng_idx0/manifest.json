@@ -1,0 +1,28 @@
+{
+  "pyannote_audio_version": "4.0.5.dev0+g78c0d16a5.d20260414",
+  "checkpoint": "pyannote/speaker-diarization-community-1",
+  "revision": null,
+  "receptive_field": {
+    "start": 0.0,
+    "duration": 0.0619375,
+    "step": 0.016875
+  },
+  "pipeline_snapshot": {
+    "class": "SpeakerDiarization",
+    "segmentation_step": 0.1,
+    "embedding_exclude_overlap": true,
+    "klustering": "VBxClustering",
+    "segmentation.threshold": "None",
+    "segmentation.min_duration_off": 0.0,
+    "clustering.threshold": 0.6,
+    "clustering.Fa": 0.07,
+    "clustering.Fb": 0.8
+  },
+  "utterances": [
+    {
+      "uri": "callhome_eng_data_idx0_head120s",
+      "early_exit": false,
+      "path": "callhome_eng_data_idx0_head120s"
+    }
+  ]
+}

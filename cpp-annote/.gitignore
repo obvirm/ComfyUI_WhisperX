@@ -1,0 +1,7 @@
+/build/
+/.callhome_eval_work/
+.venv/
+*.pyc
+__pycache__/onnxruntime-win-x64-1.27.0/
+zlib/build/
+build/
