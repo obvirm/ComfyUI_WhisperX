@@ -267,6 +267,9 @@ def main():
         "-DGGML_OPENMP=ON",
         "-DGGML_LLAMAFILE=ON",
     ]
+    # Static CRT on Windows (avoid MSVC runtime DLL dependency)
+    if IS_WIN:
+        cmake_args.append("-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded")
     # CUDA-specific flags
     if backends.get("cuda"):
         cmake_args.append(cuda_arch)
