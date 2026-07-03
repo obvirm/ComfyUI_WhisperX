@@ -41,7 +41,14 @@ app.registerExtension({
 
                 const setup = (toggle, refs) => {
                     if (!toggle) return;
+
+                    // Captures the user's manually-set node width so toggles never reset it.
+                    // Initialized from .size[0] on first toggle; updated on every resize.
+                    let savedWidth = this.size[0] || 400;
+
                     const update = (show) => {
+                        if (savedWidth === 0) savedWidth = this.size[0] || 400;
+
                         if (!show) {
                             this.widgets = this.widgets.filter(w => !refs.includes(w));
                         } else {
@@ -51,12 +58,22 @@ app.registerExtension({
                                 this.widgets.splice(idx + 1, 0, ...toAdd);
                             }
                         }
-                        const oldW = this.size[0];
-                        this.size = this.computeSize();
-                        this.size[0] = oldW;  // keep width fixed
+
+                        // Only height changes – width stays at what the user chose.
+                        const newSize = this.computeSize();
+                        this.size = [savedWidth, newSize[1]];
                         this.setDirtyCanvas(true, true);
                     };
+
                     toggle.callback = (v) => update(v);
+
+                    // Track manual resizes so the user's width is always honoured.
+                    const origResize = this.onResize;
+                    this.onResize = function (w, h) {
+                        if (w != null) savedWidth = w;
+                        if (origResize) return origResize.apply(this, arguments);
+                    };
+
                     setTimeout(() => update(toggle.value), 10);
                 };
 
