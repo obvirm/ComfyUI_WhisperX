@@ -7,8 +7,28 @@ import torch, torchaudio
 from tqdm.auto import tqdm
 
 from whispercpp.whisper_lib import WhisperCPP
-from whispercpp.model import ModelManager, get_model_keys, load_custom_models
 from whispercpp.audio import AudioProcessor
+
+# Model Manager — wrapped agar node tetap register meski tqdm/requests belum terinstall
+WHISPERCPP_MODEL_AVAILABLE = False
+try:
+    from whispercpp.model import ModelManager, get_model_keys, load_custom_models
+    WHISPERCPP_MODEL_AVAILABLE = True
+except ImportError:
+    # Fallback: node tetap jalan, tapi download model otomatis nggak akan work
+    class DummyModelManager:
+        def __init__(self): self._model_path = None
+        def ensure_custom_config(self, *args): pass
+        def get_model_path(self, key): return None
+        def download_model(self, key):
+            import os, sys
+            logger = logging.getLogger("WhisperCPP")
+            logger.error(f"Cannot download {key}: install tqdm & requests: pip install tqdm requests huggingface-hub")
+            return None
+    ModelManager = DummyModelManager
+    GGML_FALLBACK_KEYS = ["large-v3-turbo","large-v3","medium","small","base","tiny","tiny.en","base.en","small.en","medium.en","large-v2"]
+    def get_model_keys(): return GGML_FALLBACK_KEYS
+    def load_custom_models(*args, **kwargs): pass
 
 WHISPERX_AVAILABLE = False
 try:
@@ -160,7 +180,8 @@ class WhisperCPPNode:
         return WhisperCPPNode._whisper
 
     def _ensure_mgr(self):
-        if WhisperCPPNode._model_manager is None: WhisperCPPNode._model_manager = ModelManager()
+        if WhisperCPPNode._model_manager is None:
+            WhisperCPPNode._model_manager = ModelManager()
         return WhisperCPPNode._model_manager
 
     def transcribe(self, **kwargs):
@@ -204,7 +225,7 @@ class WhisperCPPNode:
         if self._get(kwargs,"vad",False):
             vad_params = {"vad":True,"vad_threshold":self._get(kwargs,"vad_threshold",0.5),"vad_min_speech_duration_ms":self._get(kwargs,"vad_min_speech_ms",250),"vad_min_silence_duration_ms":self._get(kwargs,"vad_min_silence_ms",100),"vad_max_speech_duration_s":self._get(kwargs,"vad_max_speech_s",30.0),"vad_speech_pad_ms":self._get(kwargs,"vad_speech_pad_ms",400)}
 
-        tp = { "strategy":strategy, "n_threads":self._get(kwargs,"n_threads",4), "language":lang, "task":self._get(kwargs,"task","transcribe"),
+        tp = { "strategy":strategy, "n_threads":self._get(kwargs,"n_threads",4), "language":lang, "detect_language":bool(lang is None), "task":self._get(kwargs,"task","transcribe"),
             "temperature":self._get(kwargs,"temperature",0.0), "temperature_inc":self._get(kwargs,"temperature_inc",0.2), "max_initial_ts":self._get(kwargs,"max_initial_ts",1.0), "length_penalty":self._get(kwargs,"length_penalty",1.0),
             "best_of":self._get(kwargs,"best_of",5), "beam_size":self._get(kwargs,"beam_size",5), "patience":self._get(kwargs,"patience",1.0),
             "entropy_thold":self._get(kwargs,"entropy_thold",2.4), "logprob_thold":self._get(kwargs,"logprob_thold",-1.0), "no_speech_thold":self._get(kwargs,"no_speech_thold",0.6),
