@@ -106,11 +106,20 @@ def separate_vocals(audio_data, sr=44100, model_name=DEFAULT_MODEL, chunk_size=-
         # Decode output WAV from memory
         buf_out = io.BytesIO(r.stdout)
         sr_out, vocal_data = wavfile.read(buf_out)
-        vocal_float = vocal_data.astype(np.float32) / 32767.0
+        vocal_float = vocal_data.astype(np.float32)
         if vocal_float.ndim > 1:
             vocal_float = vocal_float.mean(axis=1)
+        
+        # BSRoformer outputs float WAV with very small amplitudes (~3e-5 peak)
+        # Normalize to reasonable listening level
+        peak = np.abs(vocal_float).max()
+        if peak > 0 and peak < 1:
+            vocal_float /= peak
+        if np.abs(vocal_float).max() > 0:
+            vocal_float /= np.abs(vocal_float).max() * 1.05
+        vocal_float = np.clip(vocal_float, -1.0, 1.0)
 
-        logger.info(f"Vocal separation done: {len(vocal_float)} samples @ {sr_out}Hz")
+        logger.info(f"Vocal separation done: {len(vocal_float)} samples @ {sr_out}Hz, peak={peak:.6f}")
         return vocal_float
 
     except subprocess.TimeoutExpired:
