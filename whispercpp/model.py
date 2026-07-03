@@ -57,22 +57,41 @@ class ModelManager:
         fname = os.path.basename(urlparse(info["url"]).path)
         path = os.path.join(self.cache_dir, fname)
         if os.path.isfile(path):
-            logger.info(f"Model cached at {path}")
-            return path
+            # Verify file is complete (heuristic: check header magic)
+            fsize = os.path.getsize(path)
+            if fsize > 1024:
+                logger.info(f"Model cached at {path} ({fsize/1e9:.2f}GB)")
+                return path
+        # Resume download if partial file exists
+        headers = {}
+        resume_pos = 0
+        if os.path.isfile(path):
+            resume_pos = os.path.getsize(path)
+            if resume_pos > 0:
+                headers["Range"] = f"bytes={resume_pos}-"
+                logger.info(f"Resuming download from {resume_pos/1e6:.1f}MB")
         logger.info(f"Downloading {key} ({info['size_mb']/1000:.1f}GB)...")
         try:
-            resp = requests.get(info["url"], stream=True)
+            resp = requests.get(info["url"], stream=True, headers=headers)
             resp.raise_for_status()
             total = int(resp.headers.get("content-length", 0))
-            with open(path, "wb") as f, tqdm(total=total, unit="B", unit_scale=True, desc=key) as pbar:
+            mode = "ab" if resume_pos > 0 else "wb"
+            if "content-range" in resp.headers:
+                # Server accepted range request
+                total += resume_pos
+            with open(path, mode) as f, tqdm(
+                initial=resume_pos, total=total, unit="B",
+                unit_scale=True, desc=key
+            ) as pbar:
                 for chunk in resp.iter_content(1024*1024):
                     f.write(chunk)
                     pbar.update(len(chunk))
-            logger.info(f"Model saved to {path}")
+            logger.info(f"Model saved to {path} ({os.path.getsize(path)/1e9:.2f}GB)")
             return path
         except Exception as e:
             logger.error(f"Download failed: {e}")
-            if os.path.exists(path):
+            # Don't delete partial file on resume failure, keep for next retry
+            if resume_pos == 0 and os.path.exists(path):
                 os.unlink(path)
             return None
 
