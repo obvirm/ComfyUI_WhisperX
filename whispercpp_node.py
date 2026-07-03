@@ -30,15 +30,44 @@ except ImportError:
     def get_model_keys(): return GGML_FALLBACK_KEYS
     def load_custom_models(*args, **kwargs): pass
 
+# Full language codes for whisper (100 languages)
+WHISPER_LANGUAGES = {
+    "en":"english", "zh":"chinese", "de":"german", "es":"spanish", "ru":"russian", "ko":"korean", "fr":"french",
+    "ja":"japanese", "pt":"portuguese", "tr":"turkish", "pl":"polish", "ca":"catalan", "nl":"dutch",
+    "ar":"arabic", "sv":"swedish", "it":"italian", "id":"indonesian", "hi":"hindi", "fi":"finnish",
+    "vi":"vietnamese", "he":"hebrew", "uk":"ukrainian", "el":"greek", "ms":"malay", "cs":"czech",
+    "ro":"romanian", "da":"danish", "hu":"hungarian", "ta":"tamil", "no":"norwegian", "th":"thai",
+    "ur":"urdu", "hr":"croatian", "bg":"bulgarian", "lt":"lithuanian", "la":"latin",
+    "mi":"maori", "ml":"malayalam", "cy":"welsh", "sk":"slovak", "te":"telugu", "fa":"persian",
+    "lv":"latvian", "bn":"bengali", "sr":"serbian", "az":"azerbaijani", "sl":"slovenian",
+    "kn":"kannada", "et":"estonian", "mk":"macedonian", "br":"breton", "eu":"basque",
+    "is":"icelandic", "hy":"armenian", "ne":"nepali", "bs":"bosnian",
+    "kk":"kazakh", "sq":"albanian", "sw":"swahili", "gl":"galician", "mr":"marathi",
+    "pa":"punjabi", "si":"sinhala", "km":"khmer", "sn":"shona", "yo":"yoruba",
+    "so":"somali", "af":"afrikaans", "oc":"occitan", "ka":"georgian", "be":"belarusian",
+    "tg":"tajik", "sd":"sindhi", "gu":"gujarati", "am":"amharic", "yi":"yiddish",
+    "lo":"lao", "uz":"uzbek", "fo":"faroese", "ht":"haitian creole", "ps":"pashto",
+    "tk":"turkmen", "nn":"nynorsk", "mt":"maltese", "sa":"sanskrit", "lb":"luxembourgish",
+    "my":"myanmar", "bo":"tibetan", "tl":"tagalog", "mg":"malagasy", "as":"assamese",
+    "tt":"tatar", "haw":"hawaiian", "ln":"lingala", "ha":"hausa", "ba":"bashkir",
+    "jw":"javanese", "su":"sundanese", "yue":"cantonese", "nb":"bokmal", "mn":"mongolian",
+}
+
 WHISPERX_AVAILABLE = False
 try:
     from whisperx.alignment import align, load_align_model, DEFAULT_ALIGN_MODELS_TORCH, DEFAULT_ALIGN_MODELS_HF
     from whisperx.diarize import DiarizationPipeline, assign_word_speakers
-    from whisperx.utils import LANGUAGES, TO_LANGUAGE_CODE, get_writer
+    from whisperx.utils import LANGUAGES as WX_LANGUAGES, TO_LANGUAGE_CODE as WX_TOLANG, get_writer
     WHISPERX_AVAILABLE = True
+    # Merge whisperx languages with our full list
+    if WX_LANGUAGES: WHISPER_LANGUAGES.update(WX_LANGUAGES)
+    LANGUAGES = WHISPER_LANGUAGES
+    TO_LANGUAGE_CODE = {v:k for k,v in WHISPER_LANGUAGES.items()}
+    if WX_TOLANG: TO_LANGUAGE_CODE.update(WX_TOLANG)
 except ImportError:
     DEFAULT_ALIGN_MODELS_TORCH, DEFAULT_ALIGN_MODELS_HF = {}, {}
-    LANGUAGES, TO_LANGUAGE_CODE = {"en":"english"}, {"english":"en"}
+    LANGUAGES = WHISPER_LANGUAGES
+    TO_LANGUAGE_CODE = {v:k for k,v in WHISPER_LANGUAGES.items()}
 
 NODE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(NODE_DIR, "whispercpp.json")
