@@ -60,7 +60,7 @@ ALIGN_MODELS_AVAILABLE = []
 HAVE_TRANSFORMERS = False
 STANDALONE_ALIGN_IMPORTED = False
 try:
-    from .whispercpp.alignment import (
+    from .whispercpp.ext.alignment import (
         load_align_model, align, WAV2VEC2_AVAILABLE, ALIGN_MODELS_AVAILABLE as _AMA,
         HAVE_TRANSFORMERS as _HT, HF_ALIGN_MODELS as _HFM
     )
@@ -75,7 +75,7 @@ except ImportError:
 DIARIZATION_AVAILABLE = False
 DIARIZATION_MODELS_LIST = ["pyannote/speaker-diarization-3.1", "pyannote/speaker-diarization-2.1"]
 try:
-    from .whispercpp.diarization import (
+    from .whispercpp.ext.diarization import (
         load_diarization_pipeline, diarize, assign_speakers_to_segments,
         DIARIZATION_AVAILABLE as _DA, DIARIZATION_MODELS as _DM
     )
@@ -281,7 +281,7 @@ class WhisperCPPNode:
                 logger.info("Running wav2vec2 alignment...")
                 align_lang = result.get("language","en")
                 align_model_name = self._get(kwargs,"align_model","auto")
-                from .whispercpp.alignment import load_align_model, align
+                from .whispercpp.ext.alignment import load_align_model, align
                 am, _ = load_align_model(align_lang, device, model_name=align_model_name)
                 result["segments"] = align(
                     result["segments"], audio_data, am, align_lang, device,
@@ -298,7 +298,7 @@ class WhisperCPPNode:
                 logger.info("Running speaker diarization...")
                 hf_token = self._get(kwargs,"hf_token","") or None
                 diar_model_name = self._get(kwargs,"diarize_model","pyannote/speaker-diarization-3.1")
-                from .whispercpp.diarization import load_diarization_pipeline, diarize, assign_speakers_to_segments
+                from .whispercpp.ext.diarization import load_diarization_pipeline, diarize, assign_speakers_to_segments
                 pipe = load_diarization_pipeline(diar_model_name, device, hf_token)
                 turns = diarize(
                     audio_data, pipe,
