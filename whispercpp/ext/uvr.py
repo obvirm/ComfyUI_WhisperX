@@ -109,9 +109,10 @@ def separate_vocals(audio_data, sr=44100, model_name=DEFAULT_MODEL, chunk_size=-
 
         # Process via DLL
         result = ctx.process(stereo, chunk_size=chunk_size, num_overlap=overlap)
-        # result shape: [num_stems, n_samples]
-        # stem 0 = vocals (dari model vocal-focused)
-        vocals = result[0]
+        # result shape: [num_stems, n_samples_interleaved_stereo]
+        # stem 0 = vocals (interleaved stereo) -> convert ke mono
+        vocals_st = result[0]
+        vocals = (vocals_st[0::2] + vocals_st[1::2]) * 0.5
 
         # Normalisasi: BSRoformer output sangat kecil (~3e-5)
         peak = np.abs(vocals).max()
