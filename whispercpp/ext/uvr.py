@@ -52,13 +52,13 @@ def ensure_model(model_name=DEFAULT_MODEL):
 
 def separate_vocals(audio_data, sr=44100, model_name=DEFAULT_MODEL, denoise=0.5, use_gpu=True):
     """
-    Run BS-Roformer vocal separation via command-line tool.
+    Run BS-Roformer vocal separation via pipe (no temp files).
 
     Args:
         audio_data: numpy array (float32, mono)
         sr: sample rate
         model_name: GGUF model filename
-        denoise: not used by BSRoformer (kept for API compat)
+        denoise: ignored (kept for API compat)
         use_gpu: hint for GPU (BSRoformer auto-detects)
 
     Returns:
@@ -68,42 +68,40 @@ def separate_vocals(audio_data, sr=44100, model_name=DEFAULT_MODEL, denoise=0.5,
         logger.warning("BSRoformer CLI not built. Run build_bs_roformer.bat first.")
         return audio_data
 
-    # Ensure input is 1D mono
     audio_1d = audio_data if audio_data.ndim == 1 else audio_data.mean(axis=1)
 
     model_path = ensure_model(model_name)
-    tmpdir = tempfile.mkdtemp(prefix="bsr_")
+
     try:
-        input_wav = os.path.join(tmpdir, "input.wav")
-        output_wav = os.path.join(tmpdir, "output.wav")
-
-        # Write input WAV
+        # Encode input WAV to memory buffer
+        import io
         import scipy.io.wavfile as wavfile
+        buf = io.BytesIO()
         audio_int16 = np.clip(audio_1d * 32767, -32768, 32767).astype(np.int16)
-        wavfile.write(input_wav, sr, audio_int16)
+        wavfile.write(buf, sr, audio_int16)
+        input_wav_bytes = buf.getvalue()
 
-        # Run BS-Roformer
+        # Run BS-Roformer with stdin/stdout pipe
         logger.info(f"Running BSRoformer: {model_name}")
         cmd = [
             str(BS_ROFORMER_BIN),
             str(model_path),
-            input_wav,
-            output_wav,
+            "-",  # read WAV from stdin
+            "-",  # write WAV to stdout
         ]
-        if use_gpu:
-            cmd.extend(["--gpu", "auto"])
 
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+        r = subprocess.run(cmd, input=input_wav_bytes, capture_output=True, timeout=600)
         if r.returncode != 0:
             logger.error(f"BSRoformer failed: {r.stderr[:200]}")
             return audio_1d
 
-        # Read output WAV
-        if not os.path.isfile(output_wav):
-            logger.warning("BSRoformer produced no output file, using original")
+        if not r.stdout or len(r.stdout) < 44:
+            logger.warning("BSRoformer produced no output, using original")
             return audio_1d
 
-        sr_out, vocal_data = wavfile.read(output_wav)
+        # Decode output WAV from memory
+        buf_out = io.BytesIO(r.stdout)
+        sr_out, vocal_data = wavfile.read(buf_out)
         vocal_float = vocal_data.astype(np.float32) / 32767.0
         if vocal_float.ndim > 1:
             vocal_float = vocal_float.mean(axis=1)
@@ -117,7 +115,3 @@ def separate_vocals(audio_data, sr=44100, model_name=DEFAULT_MODEL, denoise=0.5,
     except Exception as e:
         logger.error(f"BSRoformer error: {e}")
         return audio_1d
-    finally:
-        import shutil
-        try: shutil.rmtree(tmpdir)
-        except: pass
