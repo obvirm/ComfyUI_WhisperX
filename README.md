@@ -1,21 +1,33 @@
 # ComfyUI-WhisperCPP
 
-🎤 **WhisperCPP** — ComfyUI custom node untuk speech-to-text menggunakan [whisper.cpp](https://github.com/ggml-org/whisper.cpp) dengan **full CPP parameter support**.
-
-Binding ctypes langsung ke C API whisper.cpp — tanpa third-party Python wrappers.  
-Cross-platform: Windows, Linux, macOS.
+ComfyUI custom node for speech-to-text using whisper.cpp with full CPP parameter support via ctypes binding.
 
 ## Features
-- **whisper.cpp Native** — Direct ctypes binding, full control
-- **All CPP Parameters** — Setiap `whisper_full_params` field di-expose
-- **All GGML Models** — tiny → large-v3-turbo
-- **Optional Alignment** — Word-level via wav2vec2 (whisperx)
-- **Optional Diarization** — Speaker diarization via pyannote (whisperx)
-- **Multiple Outputs** — SRT, VTT, TXT, TSV, JSON, AUD
-- **Cross-Platform** — Windows/Linux/macOS
-- **Git Submodule** — whisper.cpp source included, build your own binary
+
+- **whisper.cpp native** - Direct ctypes binding, no third-party Python wrappers
+- **All whisper_full_params** - Every field exposed as node inputs
+- **All GGML models** - tiny to large-v3-turbo
+- **Optional alignment** - Word-level via wav2vec2 (whisperx)
+- **Optional diarization** - Speaker diarization via pyannote (whisperx)
+- **Multiple outputs** - SRT, VTT, TXT, TSV, JSON, AUD
+- **GPU acceleration** - Vulkan, OpenCL, CUDA (all compiled into one binary)
+
+## GPU Backends
+
+| Backend | Windows | Linux | macOS |
+|---------|---------|-------|-------|
+| Vulkan  | Yes     | Yes   | Yes   |
+| OpenCL  | Yes     | Yes   | -     |
+| CUDA    | Yes*    | Yes   | -     |
+| Metal   | -       | -     | Yes   |
+| HIP     | -       | Yes   | -     |
+
+*CUDA toolset requires compatible CMake + VS integration.
+
+Auto-detect at build time with `--gpu auto` or force enable with `--gpu all`.
 
 ## Installation
+
 ```bash
 cd ComfyUI/custom_nodes/
 git clone --recurse-submodules https://github.com/obvirm/ComfyUI-WhisperCPP
@@ -24,21 +36,41 @@ pip install -r requirements.txt
 python build_whisper_cpp.py
 ```
 
+### Build Options
+
+```bash
+# Auto-detect GPU backends (default)
+python build_whisper_cpp.py
+
+# Force all available backends
+python build_whisper_cpp.py --gpu all
+
+# Specific backend
+python build_whisper_cpp.py --gpu cuda
+python build_whisper_cpp.py --gpu vulkan
+
+# CPU only
+python build_whisper_cpp.py --gpu none
+```
+
 ## Usage
-1. Add **WhisperCPP Transcription** node
-2. Connect AUDIO → `audio`
-3. Select `model` (auto-downloaded)
-4. Set `language` (or None for auto-detect)
-5. Toggle `show_advance_settings` for ALL whisper.cpp params
+
+1. Add WhisperCPP Transcription node
+2. Connect AUDIO to audio input
+3. Select model (auto-downloaded on first use)
+4. Set language (or None for auto-detect)
+5. Toggle show_advance_settings to access all whisper.cpp params
 
 ## Architecture
+
 ```
-├── whisper.cpp/          # Git submodule (ggml-org/whisper.cpp)
-├── whispercpp/           # Python package (our ctypes binding)
-│   ├── whisper_lib.py    # ctypes binding ke C API
-│   ├── model.py          # GGML model management
-│   └── audio.py          # Audio processing
-├── whispercpp_node.py    # ComfyUI node
-├── build_whisper_cpp.py  # Build script
-└── js/whispercpp_node.js # Frontend UI
+├── whisper.cpp/          git submodule (ggml-org/whisper.cpp)
+├── whispercpp/           Python package (ctypes binding)
+│   ├── whisper_lib.py    ctypes binding to C API
+│   ├── model.py          GGML model management
+│   └── audio.py          Audio processing
+├── whispercpp_node.py    ComfyUI node
+├── build_whisper_cpp.py  Cross-platform build script
+├── js/whispercpp_node.js Frontend collapse widget
+└── whisper.dll/.so/.dylib Built library (gitignored)
 ```
