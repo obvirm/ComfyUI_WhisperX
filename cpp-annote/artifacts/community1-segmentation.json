@@ -1,0 +1,21 @@
+{
+  "model_type": "segmentation",
+  "checkpoint": "pyannote/speaker-diarization-community-1",
+  "subfolder": "segmentation",
+  "revision": null,
+  "sample_rate": 16000,
+  "num_channels": 1,
+  "chunk_duration_sec": 10.0,
+  "chunk_step_sec": 1.0,
+  "chunk_num_samples": 160000,
+  "powerset": true,
+  "export_includes_powerset_to_multilabel": true,
+  "input_names": [
+    "waveforms"
+  ],
+  "output_names": [
+    "segmentation"
+  ],
+  "opset": 17,
+  "notes": "Input layout (batch, channel, samples) matches Inference.infer. Output matches post-conversion multilabel when powerset and skip_powerset_conversion=False."
+}

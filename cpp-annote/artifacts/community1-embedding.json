@@ -1,0 +1,24 @@
+{
+  "model_type": "embedding",
+  "checkpoint": "pyannote/speaker-diarization-community-1",
+  "subfolder": "embedding",
+  "revision": null,
+  "sample_rate": 16000,
+  "num_channels": 1,
+  "num_mel_bins": 80,
+  "frame_length_ms": 25.0,
+  "frame_shift_ms": 10.0,
+  "fbank_centering_span": null,
+  "embedding_dim": 256,
+  "example_num_samples_for_fbank_ref": 80000,
+  "example_num_frames": 498,
+  "input_names": [
+    "fbank",
+    "weights"
+  ],
+  "output_names": [
+    "embedding"
+  ],
+  "opset": 17,
+  "notes": "ONNX inputs are Kaldi log-fbank features matching pyannote ``BaseWeSpeakerResNet.compute_fbank`` output: shape (batch, num_frames, num_mel_bins). Compute fbank outside ONNX (torchaudio kaldi.fbank + scaling/mean per checkpoint). weights (batch, num_frames): 1.0 keep frame, 0.0 drop; must match num_frames for fbank."
+}
