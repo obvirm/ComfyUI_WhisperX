@@ -122,7 +122,13 @@ class WhisperCPPNode:
             "n_threads": ("INT", {"default": 4, "min": 1, "max": 64}),
             "device": (["auto", "cuda", "cpu", "vulkan", "metal", "opencl", "hip"], {"default": "auto"}),
         }
+        # --- SELALU KELIHATAN (umum / plug-and-play) ---
         optional = {
+            "separate_vocals": ("BOOLEAN", {"default": False}),
+            "dtw_token_timestamps": ("BOOLEAN", {"default": False}),
+            "vad": ("BOOLEAN", {"default": False}),
+
+            # --- ADVANCE CPP (show_advance_cpp) ---
             "show_advance_cpp": ("BOOLEAN", {"default": False}),
             "sampling_strategy": (["greedy","beam_search"], {"default":"greedy"}),
             "best_of": ("INT", {"default":5,"min":1,"max":20}),
@@ -157,7 +163,6 @@ class WhisperCPPNode:
             "print_special": ("BOOLEAN", {"default":False}),
             "print_progress": ("BOOLEAN", {"default":False}),
             "tdrz_enable": ("BOOLEAN", {"default":False}),
-            "vad": ("BOOLEAN", {"default":False}),
             "vad_model_path": ("STRING", {"default":""}),
             "vad_threshold": ("FLOAT", {"default":0.5,"min":0.0,"max":1.0,"step":0.01}),
             "vad_min_speech_ms": ("INT", {"default":250,"min":0,"max":5000}),
@@ -166,14 +171,14 @@ class WhisperCPPNode:
             "vad_speech_pad_ms": ("INT", {"default":400,"min":0,"max":2000}),
             "flash_attn": ("BOOLEAN", {"default":False}),
             "gpu_device": ("INT", {"default":0,"min":0,"max":8}),
-            "dtw_token_timestamps": ("BOOLEAN", {"default":False}),
             "dtw_aheads_preset": (["none","n_top_most","custom","tiny_en","tiny","base_en","base","small_en","small","medium_en","medium","large_v1","large_v2","large_v3","large_v3_turbo"], {"default":"large_v3_turbo"}),
             "dtw_n_top": ("INT", {"default":-1,"min":-1,"max":64}),
             "grammar_penalty": ("FLOAT", {"default":0.0,"min":0.0,"max":10.0,"step":0.1}),
+
+            # --- ADVANCE EXT (show_advance_ext): UVR + alignment + diarization ---
             "show_advance_ext": ("BOOLEAN", {"default": False}),
-        }
-        # Alignment (torchaudio wav2vec2) — always visible, default off
-        ext_optional = {
+            "uvr_model": ("STRING", {"default": "UVR-MDX-NET-Inst_HQ_3"}),
+            "uvr_denoise": ("FLOAT", {"default":0.5,"min":0.0,"max":1.0,"step":0.01}),
             "no_align": ("BOOLEAN", {"default":True}),
             "align_model": (["auto","WAV2VEC2_ASR_LARGE_LV60K_960H","facebook/wav2vec2-large-lv60","facebook/wav2vec2-base-960h","facebook/wav2vec2-xlsr-53-56k"], {"default":"auto"}),
             "return_char_alignments": ("BOOLEAN", {"default":False}),
@@ -183,7 +188,6 @@ class WhisperCPPNode:
             "max_speakers": ("INT", {"default":2,"min":1,"max":10}),
             "hf_token": ("STRING", {"default":""}),
         }
-        optional.update(ext_optional)
         return {"required": required, "optional": optional}
 
     RETURN_TYPES = ("STRING","STRING","STRING","STRING","STRING","STRING","STRING")
