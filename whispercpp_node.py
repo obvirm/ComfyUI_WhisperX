@@ -143,15 +143,15 @@ class WhisperCPPNode:
             "sampling_strategy": (["greedy","beam_search"], {"default":"greedy"}),
             "best_of": ("INT", {"default":5,"min":1,"max":20}),
             "beam_size": ("INT", {"default":5,"min":1,"max":20}),
-            "patience": ("FLOAT", {"default":1.0,"min":0.0,"max":10.0,"step":0.1}),
+            "patience": ("FLOAT", {"default":-1.0,"min":0.0,"max":10.0,"step":0.1}),
             "temperature": ("FLOAT", {"default":0.0,"min":0.0,"max":2.0,"step":0.1}),
             "temperature_inc": ("FLOAT", {"default":0.2,"min":0.0,"max":1.0,"step":0.1}),
             "max_initial_ts": ("FLOAT", {"default":1.0,"min":0.0,"max":60.0,"step":0.1}),
-            "length_penalty": ("FLOAT", {"default":1.0,"min":0.0,"max":5.0,"step":0.1}),
-            "n_max_text_ctx": ("INT", {"default":-1,"min":-1,"max":4096}),
+            "length_penalty": ("FLOAT", {"default":-1.0,"min":0.0,"max":5.0,"step":0.1}),
+            "n_max_text_ctx": ("INT", {"default":16384,"min":-1,"max":4096}),
             "offset_ms": ("INT", {"default":0,"min":0,"max":3600000}),
             "duration_ms": ("INT", {"default":0,"min":0,"max":3600000}),
-            "no_context": ("BOOLEAN", {"default":False}),
+            "no_context": ("BOOLEAN", {"default":True}),
             "single_segment": ("BOOLEAN", {"default":False}),
             "no_timestamps": ("BOOLEAN", {"default":False}),
             "max_tokens": ("INT", {"default":0,"min":0,"max":1024}),
@@ -161,7 +161,7 @@ class WhisperCPPNode:
             "thold_pt": ("FLOAT", {"default":0.01,"min":0.0,"max":1.0,"step":0.001}),
             "thold_ptsum": ("FLOAT", {"default":0.01,"min":0.0,"max":1.0,"step":0.001}),
             "suppress_blank": ("BOOLEAN", {"default":True}),
-            "suppress_nst": ("BOOLEAN", {"default":True}),
+            "suppress_nst": ("BOOLEAN", {"default":False}),
             "suppress_regex": ("STRING", {"default":""}),
             "entropy_thold": ("FLOAT", {"default":2.4,"min":0.0,"max":10.0,"step":0.1}),
             "logprob_thold": ("FLOAT", {"default":-1.0,"min":-10.0,"max":0.0,"step":0.1}),
@@ -171,7 +171,7 @@ class WhisperCPPNode:
             "audio_ctx": ("INT", {"default":0,"min":0,"max":4096}),
             "debug_mode": ("BOOLEAN", {"default":False}),
             "print_special": ("BOOLEAN", {"default":False}),
-            "print_progress": ("BOOLEAN", {"default":False}),
+            "print_progress": ("BOOLEAN", {"default":True}),
             "tdrz_enable": ("BOOLEAN", {"default":False}),
             "vad_model_path": ("STRING", {"default":""}),
             "vad_threshold": ("FLOAT", {"default":0.5,"min":0.0,"max":1.0,"step":0.01}),
@@ -183,7 +183,7 @@ class WhisperCPPNode:
             "gpu_device": ("INT", {"default":0,"min":0,"max":8}),
             "dtw_aheads_preset": (["none","n_top_most","custom","tiny_en","tiny","base_en","base","small_en","small","medium_en","medium","large_v1","large_v2","large_v3","large_v3_turbo"], {"default":"large_v3_turbo"}),
             "dtw_n_top": ("INT", {"default":-1,"min":-1,"max":64}),
-            "grammar_penalty": ("FLOAT", {"default":0.0,"min":0.0,"max":10.0,"step":0.1}),
+            "grammar_penalty": ("FLOAT", {"default":100.0,"min":0.0,"max":10.0,"step":0.1}),
 
             # --- ADVANCE EXT (show_advance_ext): UVR + alignment + diarization ---
             "show_advance_ext": ("BOOLEAN", {"default": False}),
@@ -277,19 +277,19 @@ class WhisperCPPNode:
         native_align = self._get(kwargs,"token_timestamps",False) or self._get(kwargs,"split_on_word",False)
 
         tp = { "strategy":strategy, "n_threads":self._get(kwargs,"n_threads",4), "language":lang, "detect_language":bool(lang is None), "task":self._get(kwargs,"task","transcribe"),
-            "temperature":self._get(kwargs,"temperature",0.0), "temperature_inc":self._get(kwargs,"temperature_inc",0.2), "max_initial_ts":self._get(kwargs,"max_initial_ts",1.0), "length_penalty":self._get(kwargs,"length_penalty",1.0),
-            "best_of":self._get(kwargs,"best_of",5), "beam_size":self._get(kwargs,"beam_size",5), "patience":self._get(kwargs,"patience",1.0),
+            "temperature":self._get(kwargs,"temperature",0.0), "temperature_inc":self._get(kwargs,"temperature_inc",0.2), "max_initial_ts":self._get(kwargs,"max_initial_ts",1.0), "length_penalty":self._get(kwargs,"length_penalty",-1.0),
+            "best_of":self._get(kwargs,"best_of",5), "beam_size":self._get(kwargs,"beam_size",5), "patience":self._get(kwargs,"patience",-1.0),
             "entropy_thold":self._get(kwargs,"entropy_thold",2.4), "logprob_thold":self._get(kwargs,"logprob_thold",-1.0), "no_speech_thold":self._get(kwargs,"no_speech_thold",0.6),
-            "n_max_text_ctx":self._get(kwargs,"n_max_text_ctx",-1), "offset_ms":self._get(kwargs,"offset_ms",0), "duration_ms":self._get(kwargs,"duration_ms",0),
-            "no_context":self._get(kwargs,"no_context",False), "single_segment":self._get(kwargs,"single_segment",False), "no_timestamps":self._get(kwargs,"no_timestamps",False),
+            "n_max_text_ctx":self._get(kwargs,"n_max_text_ctx",16384), "offset_ms":self._get(kwargs,"offset_ms",0), "duration_ms":self._get(kwargs,"duration_ms",0),
+            "no_context":self._get(kwargs,"no_context",True), "single_segment":self._get(kwargs,"single_segment",False), "no_timestamps":self._get(kwargs,"no_timestamps",False),
             "max_tokens":self._get(kwargs,"max_tokens",0), "max_len":self._get(kwargs,"max_len",0), "split_on_word":self._get(kwargs,"split_on_word",False),
             "token_timestamps":self._get(kwargs,"token_timestamps",False), "thold_pt":self._get(kwargs,"thold_pt",0.01), "thold_ptsum":self._get(kwargs,"thold_ptsum",0.01),
-            "suppress_blank":self._get(kwargs,"suppress_blank",True), "suppress_nst":self._get(kwargs,"suppress_nst",True), "suppress_regex":self._get(kwargs,"suppress_regex","") or None,
+            "suppress_blank":self._get(kwargs,"suppress_blank",True), "suppress_nst":self._get(kwargs,"suppress_nst",False), "suppress_regex":self._get(kwargs,"suppress_regex","") or None,
             "initial_prompt":self._get(kwargs,"initial_prompt","") or None, "carry_initial_prompt":self._get(kwargs,"carry_initial_prompt",False),
             "audio_ctx":self._get(kwargs,"audio_ctx",0), "debug_mode":self._get(kwargs,"debug_mode",False),
-            "print_special":self._get(kwargs,"print_special",False), "print_progress":self._get(kwargs,"print_progress",False),
+            "print_special":self._get(kwargs,"print_special",False), "print_progress":self._get(kwargs,"print_progress",True),
             "tdrz_enable":self._get(kwargs,"tdrz_enable",False),
-            "grammar_penalty":self._get(kwargs,"grammar_penalty",0.0), **vad_params }
+            "grammar_penalty":self._get(kwargs,"grammar_penalty",100.0), **vad_params }
 
         try: result = wcpp.transcribe(audio_data, **tp)
         except Exception as e: logger.error(f"Failed: {e}"); import traceback; traceback.print_exc(); return ("","","","","","","")
