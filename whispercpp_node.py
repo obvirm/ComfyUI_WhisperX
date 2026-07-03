@@ -102,6 +102,15 @@ class ColoredLogger:
 
 logger = ColoredLogger()
 
+# Standalone UVR vocal separation
+UVR_AVAILABLE = False
+try:
+    from .whispercpp.ext.uvr import separate_vocals
+    UVR_AVAILABLE = True
+    logger.info("UVR vocal separation available")
+except Exception as e:
+    logger.debug(f"UVR import: {e}")
+
 class WhisperCPPNode:
     PBAR_FORMAT = "\033[96m{l_bar}\033[0m\033[92m{bar:15}\033[0m\033[93m{r_bar}\033[0m"
     _whisper = None
@@ -237,6 +246,18 @@ class WhisperCPPNode:
         pbar.update(1)
 
         audio_data = AudioProcessor.process_comfy_audio(kwargs.get("audio"))
+        
+        # --- Optional UVR vocal separation ---
+        if self._get(kwargs,"separate_vocals",False):
+            uvr_model = self._get(kwargs,"uvr_model","UVR-MDX-NET-Inst_HQ_3")
+            uvr_denoise = self._get(kwargs,"uvr_denoise",0.5)
+            try:
+                audio_data = separate_vocals(audio_data, sr=sr if 'sr' in dir() else 44100,
+                    model_name=uvr_model, denoise=uvr_denoise, use_gpu=use_gpu)
+                sr = 44100  # UVR outputs at 44.1kHz
+                logger.info(f"UVR done: {len(audio_data)} samples")
+            except Exception as e:
+                logger.error(f"UVR failed: {e}")
         pbar.update(1)
 
         lang = self._get(kwargs,"language","en")
