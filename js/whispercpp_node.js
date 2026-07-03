@@ -1,5 +1,6 @@
 import { app } from "/scripts/app.js";
 
+// Widgets hidden under show_advance_cpp
 const CPP_WIDGETS = [
     "sampling_strategy","best_of","beam_size","patience",
     "temperature","temperature_inc","max_initial_ts","length_penalty",
@@ -11,13 +12,15 @@ const CPP_WIDGETS = [
     "initial_prompt","carry_initial_prompt",
     "audio_ctx","debug_mode","print_special","print_progress",
     "tdrz_enable","grammar_penalty",
-    "vad","vad_model_path","vad_threshold","vad_min_speech_ms",
+    "vad_model_path","vad_threshold","vad_min_speech_ms",
     "vad_min_silence_ms","vad_max_speech_s","vad_speech_pad_ms",
     "flash_attn","gpu_device",
-    "dtw_token_timestamps","dtw_aheads_preset","dtw_n_top",
+    "dtw_aheads_preset","dtw_n_top",
 ];
 
+// Widgets hidden under show_advance_ext
 const EXT_WIDGETS = [
+    "uvr_model","uvr_denoise",
     "no_align","align_model","return_char_alignments",
     "diarize","diarize_model","min_speakers","max_speakers","hf_token",
 ];
@@ -33,7 +36,6 @@ app.registerExtension({
                 const cppToggle = this.widgets.find(w => w.name === "show_advance_cpp");
                 const extToggle = this.widgets.find(w => w.name === "show_advance_ext");
 
-                // Grab widget REFERENCES once, keep via closure
                 const cppRefs = CPP_WIDGETS.map(n => this.widgets.find(w => w.name === n)).filter(Boolean);
                 const extRefs = EXT_WIDGETS.map(n => this.widgets.find(w => w.name === n)).filter(Boolean);
 
