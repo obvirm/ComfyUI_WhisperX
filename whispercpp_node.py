@@ -296,7 +296,9 @@ class WhisperCPPNode:
         pbar.update(1)
         
         # --- Optional alignment (sherpa-onnx CTC) — default ON ---
-        if self._get(kwargs,"align",True):
+        # Skipped if DTW is active (mutually exclusive)
+        do_align = self._get(kwargs,"align",True) and not self._get(kwargs,"dtw_token_timestamps",False)
+        if do_align:
             if SHERPA_ALIGN_AVAILABLE:
                 try:
                     logger.info("Running sherpa-onnx CTC alignment...")
