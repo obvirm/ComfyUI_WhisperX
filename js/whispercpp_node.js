@@ -10,12 +10,13 @@ const OPTIONAL_WIDGETS_NAMES = [
     "entropy_thold","logprob_thold","no_speech_thold",
     "initial_prompt","carry_initial_prompt",
     "audio_ctx","debug_mode","print_special","print_progress",
-    "tdrz_enable",
+    "tdrz_enable","grammar_penalty",
     "vad","vad_threshold","vad_min_speech_ms","vad_min_silence_ms","vad_max_speech_s","vad_speech_pad_ms",
     "filename_prefix","output_format",
-    "align_model","no_align","interpolate_method","return_char_alignments",
-    "diarize","diarize_model","min_speakers","max_speakers","hf_token",
     "flash_attn","gpu_device",
+    "dtw_token_timestamps","dtw_aheads_preset","dtw_n_top",
+    "no_align","align_model","return_char_alignments",
+    "diarize","diarize_model","min_speakers","max_speakers","hf_token",
 ];
 
 app.registerExtension({
