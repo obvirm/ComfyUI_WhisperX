@@ -1,128 +1,123 @@
 """
-UVR5 vocal separation via audio-separator (MDX-Net).
-Extracts voice from noisy/music audio before whisper transcription.
-
-Works on CPU and GPU. Model auto-downloaded on first use.
+Vocal separation via BSRoformer.cpp (GGML-based, C++ inference).
+Much faster than audio-separator — uses CPU/GPU with GGML.
 """
 
-import os, logging, tempfile, numpy as np
+import os, logging, tempfile, subprocess, numpy as np
 from pathlib import Path
 
 UVR_AVAILABLE = False
-UVR_MODEL_MAP = {
-    "UVR-MDX-NET-Inst_HQ_3": "UVR-MDX-NET-Inst_HQ_3.onnx",
-    "UVR-MDX-NET-Inst_HQ_4": "UVR-MDX-NET-Inst_HQ_4.onnx",
+logger = logging.getLogger("WhisperCPP.UVR")
+
+# Built binary path
+NODE_DIR = Path(__file__).resolve().parent.parent.parent  # ComfyUI-WhisperXX
+BS_ROFORMER_BIN = NODE_DIR / "bs_roformer-cli.exe"
+
+# Default model path (downloaded on first use)
+try:
+    import folder_paths
+    MODEL_DIR = Path(folder_paths.models_dir) / "uvr"
+except ImportError:
+    MODEL_DIR = NODE_DIR / "models" / "uvr"
+
+DEFAULT_MODEL = "voc_fv6-Q8_0.gguf"
+MODEL_URLS = {
+    "voc_fv6-Q8_0.gguf": "https://huggingface.co/chenmozhijin/BSRoformer-GGUF/resolve/main/GaboxR67/MelBandRoformers/melbandroformers/vocals/voc_fv6-Q8_0.gguf",
+    "BSRoformer-anvuew-Q8_0.gguf": "https://huggingface.co/chenmozhijin/BSRoformer-GGUF/resolve/main/anvuew/BS-RoFormer/BSRoformer-anvuew-Q8_0.gguf",
 }
 
-try:
-    from audio_separator.separator import Separator
-    logger = logging.getLogger("WhisperCPP.UVR")
-    logger.info("audio-separator available for vocal separation")
+if BS_ROFORMER_BIN.exists():
     UVR_AVAILABLE = True
-except Exception as e:
-    logger = logging.getLogger("WhisperCPP.UVR")
-    logger.warning(f"audio-separator not available: {e}")
-    UVR_AVAILABLE = False
+    logger.info(f"BSRoformer CLI found: {BS_ROFORMER_BIN}")
+else:
+    logger.warning(f"BSRoformer CLI not found at {BS_ROFORMER_BIN}")
 
 
-def get_uvr_model_dir():
-    """Return path to UVR model storage."""
-    # Try common ComfyUI model path first
-    try:
-        import folder_paths
-        return os.path.join(folder_paths.models_dir, "uvr")
-    except ImportError:
-        pass
-    return os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "models", "uvr")
+def ensure_model(model_name=DEFAULT_MODEL):
+    """Download model if not present."""
+    model_path = MODEL_DIR / model_name
+    if model_path.exists():
+        return str(model_path)
+    os.makedirs(MODEL_DIR, exist_ok=True)
+    url = MODEL_URLS.get(model_name)
+    if not url:
+        raise FileNotFoundError(f"Unknown model: {model_name}")
+    logger.info(f"Downloading {model_name} ({url})...")
+    import urllib.request
+    urllib.request.urlretrieve(url, str(model_path))
+    size_mb = os.path.getsize(model_path) / 1e6
+    logger.info(f"Downloaded {model_name}: {size_mb:.1f} MB")
+    return str(model_path)
 
 
-def separate_vocals(audio_data, sr=44100, model_name="UVR-MDX-NET-Inst_HQ_3", denoise=0.5, use_gpu=True):
+def separate_vocals(audio_data, sr=44100, model_name=DEFAULT_MODEL, denoise=0.5, use_gpu=True):
     """
-    Separate vocals from audio using UVR MDX-Net.
+    Run BS-Roformer vocal separation via command-line tool.
 
     Args:
-        audio_data: numpy array (float32), single channel or stereo
-        sr: sample rate of input audio
-        model_name: UVR model name (default: UVR-MDX-NET-Inst_HQ_3)
-        denoise: denoise strength 0-1 (passed to model params)
-        use_gpu: whether to use GPU acceleration
+        audio_data: numpy array (float32, mono)
+        sr: sample rate
+        model_name: GGUF model filename
+        denoise: not used by BSRoformer (kept for API compat)
+        use_gpu: hint for GPU (BSRoformer auto-detects)
 
     Returns:
-        numpy array (float32) of vocal-only audio at original sample rate
-        Returns original audio if UVR is unavailable or fails.
+        numpy array (float32, mono) of vocal audio
     """
     if not UVR_AVAILABLE:
-        logger.warning("audio-separator not installed. Install with: pip install audio-separator onnxruntime")
+        logger.warning("BSRoformer CLI not built. Run build_bs_roformer.bat first.")
         return audio_data
 
-    model_dir = get_uvr_model_dir()
-    os.makedirs(model_dir, exist_ok=True)
+    # Ensure input is 1D mono
+    audio_1d = audio_data if audio_data.ndim == 1 else audio_data.mean(axis=1)
 
-    # Save input audio to temp WAV
-    import scipy.io.wavfile as wavfile
-    temp_dir = tempfile.mkdtemp(prefix="uvr_")
-    input_path = os.path.join(temp_dir, "input.wav")
-
-    # Ensure stereo for UVR model
-    if audio_data.ndim == 1:
-        audio_input = np.column_stack([audio_data, audio_data])
-    else:
-        audio_input = audio_data
-
-    # Normalize to int16
-    audio_int16 = np.clip(audio_input * 32767, -32768, 32767).astype(np.int16)
-    wavfile.write(input_path, sr, audio_int16)
-
+    model_path = ensure_model(model_name)
+    tmpdir = tempfile.mkdtemp(prefix="bsr_")
     try:
-        logger.info(f"Running vocal separation with {model_name}...")
+        input_wav = os.path.join(tmpdir, "input.wav")
+        output_wav = os.path.join(tmpdir, "output.wav")
 
-        # Determine device
-        import torch
-        device = "cuda" if use_gpu and torch.cuda.is_available() else "cpu"
+        # Write input WAV
+        import scipy.io.wavfile as wavfile
+        audio_int16 = np.clip(audio_1d * 32767, -32768, 32767).astype(np.int16)
+        wavfile.write(input_wav, sr, audio_int16)
 
-        sep = Separator(
-            log_level=logging.WARNING,
-            model_file_dir=model_dir,
-            output_dir=temp_dir,
-            output_format="WAV",
-            output_single_stem="vocals",
-            sample_rate=sr,
-            use_autocast=False,
-        )
+        # Run BS-Roformer
+        logger.info(f"Running BSRoformer: {model_name}")
+        cmd = [
+            str(BS_ROFORMER_BIN),
+            str(model_path),
+            input_wav,
+            output_wav,
+        ]
+        if use_gpu:
+            cmd.extend(["--gpu", "auto"])
 
-        # Load model
-        model_filename = UVR_MODEL_MAP.get(model_name, "UVR-MDX-NET-Inst_HQ_3.onnx")
-        sep.load_model(model_filename)
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+        if r.returncode != 0:
+            logger.error(f"BSRoformer failed: {r.stderr[:200]}")
+            return audio_1d
 
-        # Run separation
-        output_files = sep.separate(input_path)
+        # Read output WAV
+        if not os.path.isfile(output_wav):
+            logger.warning("BSRoformer produced no output file, using original")
+            return audio_1d
 
-        # Find vocal output
-        vocal_path = None
-        for f in output_files:
-            if "vocals" in Path(f).stem.lower() or "output" in Path(f).stem.lower():
-                vocal_path = f
-                break
-        if not vocal_path and output_files:
-            vocal_path = output_files[0]
+        sr_out, vocal_data = wavfile.read(output_wav)
+        vocal_float = vocal_data.astype(np.float32) / 32767.0
+        if vocal_float.ndim > 1:
+            vocal_float = vocal_float.mean(axis=1)
 
-        if vocal_path and os.path.exists(vocal_path):
-            _, vocal_data = wavfile.read(vocal_path)
-            vocal_float = vocal_data.astype(np.float32) / 32767.0
-            # Convert to mono
-            if vocal_float.ndim > 1:
-                vocal_float = vocal_float.mean(axis=1)
-            logger.info(f"Vocal separation done: {len(vocal_float)} samples")
-            return vocal_float
-        else:
-            logger.warning("Vocal separation produced no output, using original audio")
-            return audio_data if audio_data.ndim == 1 else audio_data.mean(axis=1)
+        logger.info(f"Vocal separation done: {len(vocal_float)} samples @ {sr_out}Hz")
+        return vocal_float
 
+    except subprocess.TimeoutExpired:
+        logger.error("BSRoformer timed out (>10 min)")
+        return audio_1d
     except Exception as e:
-        logger.error(f"Vocal separation failed: {e}")
-        return audio_data if audio_data.ndim == 1 else audio_data.mean(axis=1)
+        logger.error(f"BSRoformer error: {e}")
+        return audio_1d
     finally:
-        # Cleanup temp
         import shutil
-        try: shutil.rmtree(temp_dir)
+        try: shutil.rmtree(tmpdir)
         except: pass

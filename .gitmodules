@@ -1,3 +1,6 @@
 [submodule "whisper.cpp"]
 	path = whisper.cpp
 	url = https://github.com/ggml-org/whisper.cpp
+[submodule "bs_roformer.cpp"]
+	path = bs_roformer.cpp
+	url = https://github.com/chenmozhijin/BSRoformer.cpp.git
