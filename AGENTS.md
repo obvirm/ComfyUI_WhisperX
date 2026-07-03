@@ -23,6 +23,7 @@ ComfyUI-WhisperCPP/
 │   └── audio.py             # audio loader / preprocessor
 │   └── ext/
 │       ├── __init__.py
+│       ├── uvr.py          # vocal separation via audio-separator (UVR MDX-Net)
 │       ├── alignment.py     # forced alignment via torchaudio wav2vec2 (opsional)
 │       └── diarization.py   # speaker diarization via pyannote (opsional)
 ├── js/
@@ -65,10 +66,17 @@ ComfyUI-WhisperCPP/
 ### 10. Testing
 - Test dengan cara ComfyUI load: `importlib.util.spec_from_file_location(...)`.
 - Test transcribe beneran: sine wave → verify segments > 0.
+- Test UVR: create Separator, run separate, verify vocal output.
 - Test alignment: wav2vec2 → verify timestamp.
 - Test VAD: pastiin gak crash kalo model path kosong.
 
-### 11. MEMD
+### 11. IMPLEMENTASI END-TO-END (JANGAN SETENGAH-SETENGAH)
+- **JANGAN pernah nambah parameter/toggle tanpa implementasi processing-nya.**
+  Contoh: `separate_vocals` → harus ada `uvr.py` + hook di `transcribe()`.
+- Kalo nambah fitur: selesaiin dari ujung ke ujung (Python + JS + test).
+- Kalo gak bisa selesaiin sekarang: jangan nambah parameternya dulu.
+
+### 12. MEMD
 - Setiap keputusan penting → catet di MEMD.md.
 - Jangan sampe ada "lupa" masalah yang udah kelar.
 
