@@ -1,0 +1,13 @@
+MEMD.md
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+build/
+whisper.cpp/build/
+*.dll
+*.so
+*.dylib
+models/
+.DS_Store
+Thumbs.db
