@@ -20,7 +20,7 @@ const CPP_WIDGETS = [
 const EXT_WIDGETS = [
     "separate_model","separate_chunk_size","separate_overlap",
     "align_model","return_char_alignments",
-    "diarize","diarize_model","min_speakers","max_speakers","hf_token",
+    "diarize",
 ];
 
 app.registerExtension({
