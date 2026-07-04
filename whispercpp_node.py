@@ -64,19 +64,6 @@ try:
 except ImportError:
     pass
 
-# Standalone diarization — pyannote.audio langsung (no whisperx)
-DIARIZATION_AVAILABLE = False
-DIARIZATION_MODELS_LIST = ["pyannote/speaker-diarization-3.1", "pyannote/speaker-diarization-2.1"]
-try:
-    from .whispercpp.ext.diarization import (
-        load_diarization_pipeline, diarize, assign_speakers_to_segments,
-        DIARIZATION_AVAILABLE as _DA, DIARIZATION_MODELS as _DM
-    )
-    DIARIZATION_AVAILABLE = _DA
-    DIARIZATION_MODELS_LIST = _DM
-except ImportError:
-    pass
-
 NODE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(NODE_DIR, "whispercpp.json")
 
@@ -192,10 +179,6 @@ class WhisperCPPNode:
             "align_model": (["sherpa-onnx-zipformer-ctc-en-2023-10-02"], {"default":"sherpa-onnx-zipformer-ctc-en-2023-10-02"}),
             "return_char_alignments": ("BOOLEAN", {"default":False}),
             "diarize": ("BOOLEAN", {"default":False}),
-            "diarize_model": (["pyannote/speaker-diarization-3.1","pyannote/speaker-diarization-2.1"], {"default":"pyannote/speaker-diarization-3.1"}),
-            "min_speakers": ("INT", {"default":1,"min":1,"max":10}),
-            "max_speakers": ("INT", {"default":2,"min":1,"max":10}),
-            "hf_token": ("STRING", {"default":""}),
         }
         return {"required": required, "optional": optional}
 
@@ -375,21 +358,28 @@ class WhisperCPPNode:
                 logger.warning("sherpa-onnx not installed, alignment unavailable")
         pbar.update(1)
         
-        # --- Optional diarization (pyannote.audio) — default off ---
+        # --- Optional diarization (cpp-annote DLL) — default off ---
         if self._get(kwargs,"diarize",False):
             try:
-                logger.info("Running speaker diarization...")
-                hf_token = self._get(kwargs,"hf_token","") or None
-                diar_model_name = self._get(kwargs,"diarize_model","pyannote/speaker-diarization-3.1")
-                from .whispercpp.ext.diarization import load_diarization_pipeline, diarize, assign_speakers_to_segments
-                pipe = load_diarization_pipeline(diar_model_name, device, hf_token)
-                turns = diarize(
-                    audio_data, pipe,
-                    min_speakers=self._get(kwargs,"min_speakers",None),
-                    max_speakers=self._get(kwargs,"max_speakers",None),
-                )
-                result["segments"] = assign_speakers_to_segments(result["segments"], turns)
-                logger.success("Diarization done")
+                logger.info("Running speaker diarization via cpp-annote DLL...")
+                from .whispercpp.ext.cppannote import diarize as cpp_diarize, CPPANNOTE_AVAILABLE as _cppa
+                if not _cppa:
+                    raise RuntimeError("cpp-annote not available")
+                turns = cpp_diarize(audio_data, sr=16000)
+                if turns and (len(turns) > 1 or turns[0].get("speaker",0) != 0):
+                    for seg in result.get("segments",[]):
+                        seg_start = seg.get("start",0)
+                        seg_end = seg.get("end",0)
+                        best_spk, best_overlap = 0, 0
+                        for t in turns:
+                            overlap = max(0, min(seg_end, t.get("end",0)) - max(seg_start, t.get("start",0)))
+                            if overlap > best_overlap:
+                                best_overlap, best_spk = overlap, t.get("speaker",0)
+                        seg["speaker"] = best_spk
+                    n_spk = len(set(s.get("speaker",0) for s in result["segments"]))
+                    logger.info(f"Diarization done: {n_spk} speaker(s)")
+                else:
+                    logger.info("Diarization: single speaker")
             except Exception as e:
                 logger.warning(f"Diarization skipped: {e}")
         pbar.update(1)
