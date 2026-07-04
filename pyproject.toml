@@ -1,5 +1,5 @@
 [project]
-name = "obvirm-whispercpp"
+name = "obvirm-whisperxx"
 description = "WhisperCPP for ComfyUI - whisper.cpp with full CPP params, alignment, diarization"
 version = "1.0.0"
 license = {file = "LICENSE"}
