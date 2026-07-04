@@ -137,8 +137,8 @@ class WhisperCPPNode:
             "temperature": ("FLOAT", {"default":0.0,"min":0.0,"max":2.0,"step":0.1}),
             "temperature_inc": ("FLOAT", {"default":0.2,"min":0.0,"max":1.0,"step":0.1}),
             "max_initial_ts": ("FLOAT", {"default":1.0,"min":0.0,"max":60.0,"step":0.1}),
-            "length_penalty": ("FLOAT", {"default":-1.0,"min":0.0,"max":5.0,"step":0.1}),
-            "n_max_text_ctx": ("INT", {"default":16384,"min":-1,"max":4096}),
+            "length_penalty": ("FLOAT", {"default":-1.0,"min":-10.0,"max":5.0,"step":0.1}),
+            "n_max_text_ctx": ("INT", {"default":16384,"min":-1,"max":65536}),
             "offset_ms": ("INT", {"default":0,"min":0,"max":3600000}),
             "duration_ms": ("INT", {"default":0,"min":0,"max":3600000}),
             "no_context": ("BOOLEAN", {"default":True}),
@@ -169,7 +169,7 @@ class WhisperCPPNode:
             "gpu_device": ("INT", {"default":0,"min":0,"max":8}),
             "dtw_aheads_preset": (["none","n_top_most","custom","tiny_en","tiny","base_en","base","small_en","small","medium_en","medium","large_v1","large_v2","large_v3","large_v3_turbo"], {"default":"large_v3_turbo"}),
             "dtw_n_top": ("INT", {"default":-1,"min":-1,"max":64}),
-            "grammar_penalty": ("FLOAT", {"default":100.0,"min":0.0,"max":10.0,"step":0.1}),
+            "grammar_penalty": ("FLOAT", {"default":100.0,"min":0.0,"max":100.0,"step":0.1}),
 
             # --- ADVANCE EXT (show_advance_ext): UVR + alignment + diarization ---
             "show_advance_ext": ("BOOLEAN", {"default": False}),
