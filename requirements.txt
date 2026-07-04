@@ -4,8 +4,4 @@ requests
 huggingface-hub
 scipy
 sherpa-onnx
-onnxruntime>=1.17.0
-# GPU support (install salah satu):
-# pip install onnxruntime-g.cuda     # NVIDIA CUDA
-# pip install onnxruntime-directml   # DirectML (any GPU on Windows)
-# pip install onnxruntime-rocm       # AMD ROCm (Linux)
+onnxruntime
