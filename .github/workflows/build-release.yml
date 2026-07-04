@@ -1,0 +1,138 @@
+name: Build & Release DLLs
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # whisper.cpp — Vulkan + OpenCL + CPU
+      - name: Build whisper.cpp
+        run: python build_whisper_cpp.py
+
+      # BSRoformer
+      - name: Build BSRoformer
+        run: python build_bs_roformer.py
+
+      # cpp-annote
+      - name: Build cpp-annote
+        shell: cmd
+        run: build_cpp_annote_dll.bat
+
+      # Package
+      - name: Collect DLLs
+        shell: bash
+        run: |
+          mkdir -p release
+          cp whisper.dll ggml-base.dll ggml-cpu.dll ggml-opencl.dll ggml-vulkan.dll ggml.dll release/
+          cp bs_roformer.dll release/
+          cp cpp_annote.dll onnxruntime.dll onnxruntime_providers_shared.dll release/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-dlls
+          path: release/
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake build-essential libcl-dev libvulkan-dev
+
+      # whisper.cpp — OpenCL + Vulkan + CPU
+      - name: Build whisper.cpp
+        run: python build_whisper_cpp.py
+
+      # BSRoformer
+      - name: Build BSRoformer
+        run: python build_bs_roformer.py
+
+      # cpp-annote — TODO: cross-platform build script
+      # - name: Build cpp-annote
+      #   run: python build_cpp_annote.py
+
+      # Package
+      - name: Collect .so
+        run: |
+          mkdir -p release
+          cp libwhisper.so* release/ 2>/dev/null || true
+          cp libbs_roformer.so* release/ 2>/dev/null || true
+          # Find ggml .so files
+          find . -name "libggml*.so*" -exec cp {} release/ \;
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-so
+          path: release/
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Build whisper.cpp
+        run: python build_whisper_cpp.py
+
+      - name: Build BSRoformer
+        run: python build_bs_roformer.py
+
+      - name: Collect dylib
+        run: |
+          mkdir -p release
+          cp libwhisper.dylib release/ 2>/dev/null || true
+          cp libbs_roformer.dylib release/ 2>/dev/null || true
+          find . -name "libggml*.dylib*" -exec cp {} release/ \;
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-dylib
+          path: release/
+
+  release:
+    needs: [build-windows, build-linux, build-macos]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            windows-dlls/*
+            linux-so/*
+            macos-dylib/*
+          generate_release_notes: true

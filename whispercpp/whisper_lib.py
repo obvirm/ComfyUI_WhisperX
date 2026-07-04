@@ -118,8 +118,61 @@ class WhisperCPP:
     def load_library(self, lib_path=None):
         if self._lib is not None: return
         if lib_path: self._lib_path = lib_path
-        self._lib = ctypes.cdll.LoadLibrary(self._find_library())
+        try:
+            lib = self._find_library()
+        except RuntimeError:
+            # Step 1: Try auto-download from GitHub Releases
+            if self._auto_download():
+                lib = self._find_library()
+            else:
+                # Step 2: Try auto-build (requires CMake + compiler)
+                self._auto_build()
+                lib = self._find_library()
+        self._lib = ctypes.cdll.LoadLibrary(lib)
         self._setup_functions()
+
+    def _auto_download(self) -> bool:
+        """Download DLLs from GitHub Releases based on detected GPU."""
+        import urllib.request, zipfile, io
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        # Detect GPU and pick correct release
+        try:
+            from .gpu_detect import get_release_tag, get_dll_zip_name
+            tag = get_release_tag()
+            asset = get_dll_zip_name()
+        except Exception:
+            tag = "v2.0.3"
+            asset = "whisper-cpp-win64.zip" if platform.system() == "Windows" else ""
+        if not asset:
+            return False
+        url = f"https://github.com/obvirm/ComfyUI-WhisperCPP/releases/download/{tag}/{asset}"
+        try:
+            logger.info(f"Downloading {asset} from GitHub Releases...")
+            data = urllib.request.urlopen(url, timeout=120).read()
+            with zipfile.ZipFile(io.BytesIO(data)) as zf:
+                zf.extractall(base_dir)
+            logger.info(f"Downloaded {asset} to {base_dir}")
+            return True
+        except Exception as e:
+            logger.warning(f"Auto-download failed: {e}")
+            return False
+
+    def _auto_build(self):
+        """Try auto-build (may fail without CMake/compiler)."""
+        import subprocess, sys
+        build_script = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "build_whisper_cpp.py")
+        if not os.path.isfile(build_script):
+            return
+        logger.info("Attempting auto-build (requires CMake + compiler)...")
+        try:
+            r = subprocess.run([sys.executable, build_script], cwd=os.path.dirname(build_script),
+                timeout=600, capture_output=True, text=True)
+            if r.returncode == 0:
+                logger.info("Auto-build succeeded")
+            else:
+                logger.warning(f"Auto-build failed: {r.stderr[:200]}")
+        except Exception as e:
+            logger.warning(f"Auto-build error: {e}")
 
     def _setup_functions(self):
         L = self._lib
