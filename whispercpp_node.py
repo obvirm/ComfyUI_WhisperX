@@ -135,7 +135,7 @@ class WhisperCPPNode:
             "beam_size": ("INT", {"default":5,"min":1,"max":20}),
             "patience": ("FLOAT", {"default":-1.0,"min":0.0,"max":10.0,"step":0.1}),
             "temperature": ("FLOAT", {"default":0.0,"min":0.0,"max":2.0,"step":0.1}),
-            "temperature_inc": ("FLOAT", {"default":0.2,"min":0.0,"max":1.0,"step":0.1}),
+            "temperature_inc": ("FLOAT", {"default":0.4,"min":0.0,"max":1.0,"step":0.1}),
             "max_initial_ts": ("FLOAT", {"default":1.0,"min":0.0,"max":60.0,"step":0.1}),
             "length_penalty": ("FLOAT", {"default":-1.0,"min":-10.0,"max":5.0,"step":0.1}),
             "n_max_text_ctx": ("INT", {"default":16384,"min":-1,"max":65536}),
@@ -156,7 +156,7 @@ class WhisperCPPNode:
             "hallu_threshold": ("FLOAT", {"default":0.6,"min":0.0,"max":1.0,"step":0.05}),
             "suppress_regex": ("STRING", {"default":""}),
             "entropy_thold": ("FLOAT", {"default":2.0,"min":0.0,"max":10.0,"step":0.1}),
-            "logprob_thold": ("FLOAT", {"default":-1.0,"min":-10.0,"max":0.0,"step":0.1}),
+            "logprob_thold": ("FLOAT", {"default":-0.5,"min":-10.0,"max":0.0,"step":0.1}),
             "no_speech_thold": ("FLOAT", {"default":0.6,"min":0.0,"max":1.0,"step":0.01}),
             "initial_prompt": ("STRING", {"default":"","multiline":True}),
             "carry_initial_prompt": ("BOOLEAN", {"default":False}),
@@ -259,9 +259,9 @@ class WhisperCPPNode:
 
         # Common transcribe params (nggak include offset/duration biar bisa per-segment)
         tp_base = { "strategy":strategy, "n_threads":self._get(kwargs,"n_threads",4), "language":lang, "detect_language":bool(lang is None), "task":self._get(kwargs,"task","transcribe"),
-            "temperature":self._get(kwargs,"temperature",0.0), "temperature_inc":self._get(kwargs,"temperature_inc",0.2), "max_initial_ts":self._get(kwargs,"max_initial_ts",1.0), "length_penalty":self._get(kwargs,"length_penalty",-1.0),
+            "temperature":self._get(kwargs,"temperature",0.0), "temperature_inc":self._get(kwargs,"temperature_inc",0.4), "max_initial_ts":self._get(kwargs,"max_initial_ts",1.0), "length_penalty":self._get(kwargs,"length_penalty",-1.0),
             "best_of":self._get(kwargs,"best_of",5), "beam_size":self._get(kwargs,"beam_size",5), "patience":self._get(kwargs,"patience",-1.0),
-            "entropy_thold":self._get(kwargs,"entropy_thold",2.0), "logprob_thold":self._get(kwargs,"logprob_thold",-1.0), "no_speech_thold":self._get(kwargs,"no_speech_thold",0.6),
+            "entropy_thold":self._get(kwargs,"entropy_thold",2.0), "logprob_thold":self._get(kwargs,"logprob_thold",-0.5), "no_speech_thold":self._get(kwargs,"no_speech_thold",0.6),
             "n_max_text_ctx":self._get(kwargs,"n_max_text_ctx",16384), "no_context":self._get(kwargs,"no_context",True),
             "no_timestamps":self._get(kwargs,"no_timestamps",False),
             "max_tokens":self._get(kwargs,"max_tokens",0), "max_len":self._get(kwargs,"max_len",0), "split_on_word":self._get(kwargs,"split_on_word",False),
@@ -388,7 +388,7 @@ class WhisperCPPNode:
                         except Exception as e:
                             logger.warning(f"Region {ri} failed: {e}")
                     result = {
-                        "text": ". ".join(full_texts).strip(),
+                        "text": " ".join(full_texts).strip(),
                         "segments": all_segments,
                         "language": "en",
                         "n_segments": len(all_segments),
