@@ -21,3 +21,4 @@ cpp-annote/.mcp.json
 node.zip
 cpp-annote/*.exe
 cpp-annote/audio/
+.mcp.json
