@@ -24,9 +24,9 @@ jobs:
       - name: Build whisper.cpp
         run: python build_whisper_cpp.py
 
-      # BSRoformer — all GPU backends
+      # BSRoformer — CPU only (no GPU SDKs in CI)
       - name: Build BSRoformer
-        run: python build_bs_roformer.py --gpu
+        run: python build_bs_roformer.py
 
       # cpp-annote
       - name: Build cpp-annote
