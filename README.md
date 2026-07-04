@@ -11,42 +11,46 @@ Full pipeline: ASR → Vocal Separation → Alignment → Diarization — **zero
 
 ## Features
 
-- **whisper.cpp native** — DLL + ctypes binding langsung ke C API, nggak ada Python wrapper
-- **Semua `whisper_full_params`** — setiap parameter terekspos sebagai widget node
-- **Dua advance toggle** — `show_advance_cpp` (core whisper params) + `show_advance_ext` (UVR/alignment/diarization detail)
+- **whisper.cpp native** — DLL + ctypes binding directly to C API, no Python wrapper
+- **All `whisper_full_params`** — every parameter exposed as a node widget
+- **Two advance toggles** — `show_advance_cpp` (core whisper params) + `show_advance_ext` (UVR/alignment/diarization detail)
 - **7 output sockets** — text, segments_json, srt, vtt, tsv, aud, json_result (no file I/O)
 - **GPU acceleration** — Vulkan, OpenCL, CUDA, Metal (build-time auto-detect)
 - **VAD** — cpp-annote (community-1 segmentation model, DLL + onnxruntime)
 - **UVR vocal separation** — BSRoformer.cpp DLL (GGUF model, no temp files)
-- **Alignment** — sherpa-onnx CTC (dolphin-base, word-level timestamps)
-- **Diarization** — pyannote.audio (opsional, perlu HF token)
+- **Pre-filter** — RMS-based energy filter to prevent hallucinations on silence
+- **Alignment** — sherpa-onnx CTC (zipformer, word-level timestamps)
+- **Diarization** — cpp-annote DLL (no Python dependencies)
 - **Cross-platform** — Windows/MSVC, Linux/GCC, macOS/Clang (DLL/so/dylib)
 
 ## Modules
 
-| Module | Bahasa | Binding | File |
+| Module | Language | Binding | File |
 |---|---|---|---|
 | **whisper.cpp** (ASR) | C API | `whisper_lib.py` | `whisper.dll` (1.3 MB) |
 | **BSRoformer.cpp** (UVR) | C API | `bs_roformer_lib.py` | `bs_roformer.dll` + ggml DLLs |
 | **cpp-annote** (VAD/Diarization) | C API | `cpp_annote_lib.py` | `cpp_annote.dll` + onnxruntime.dll |
 
-Semua modul konsisten: **C API header → shared library → ctypes binding**.
+All modules follow the same pattern: **C API header → shared library → ctypes binding**.
 
 ## Pipeline
 
 ```
 Audio Input
   │
-  ├─ [UVR] BSRoformer.dll → vocal separation (opsional)
+  ├─ [UVR] BSRoformer.dll → vocal separation (optional)
   │    16kHz → Resample(44100) → DLL → mono → Resample(16000)
   │
-  ├─ [VAD] cpp-annote.dll → speech segmentation (opsional)
+  ├─ [Pre-filter] RMS energy → speech detection (optional)
+  │    Only transcribe sections with audio energy > threshold
   │
-  ├─ whisper.dll → transcribe (per-segment kalo VAD on)
+  ├─ [VAD] cpp-annote.dll → speech segmentation (optional)
+  │
+  ├─ whisper.dll → transcribe (per-segment if VAD/pre-filter on)
   │
   ├─ [Alignment] sherpa-onnx CTC → word timestamps (default ON)
   │
-  └─ [Diarization] pyannote.audio → speaker labels (opsional)
+  └─ [Diarization] cpp-annote DLL → speaker labels (optional)
        │
        └─ 7 output sockets
 ```
@@ -101,18 +105,19 @@ python build_whisper_cpp.py --gpu cpu  # CPU only
 
 1. Add **WhisperCPPNode**
 2. Connect audio source to `audio` socket
-3. Select model (auto-download pertama kali)
-4. Atur `language` (atau None buat auto-detect)
-5. Set `vad=true` untuk active speech detection (cpp-annote segmentation)
-6. Set `separate_vocals=true` untuk vocal separation (BSRoformer)
-7. Enable `show_advance_cpp` / `show_advance_ext` untuk akses semua parameter
+3. Select model (auto-downloads on first use)
+4. Set `language` (or None for auto-detect)
+5. Enable `hallu_filter` (default ON) for RMS-based pre-filter to prevent hallucinations
+6. Set `vad=true` for active speech detection (cpp-annote segmentation)
+7. Set `separate_vocals=true` for vocal separation (BSRoformer)
+8. Enable `show_advance_cpp` / `show_advance_ext` for full parameter access
 
 ### Output Sockets
 
-| Socket | Format | Isi |
+| Socket | Format | Content |
 |---|---|---|
 | `text` | STRING | Full transcript |
-| `segments_json` | STRING (JSON) | Segments dengan timestamps |
+| `segments_json` | STRING (JSON) | Segments with timestamps |
 | `srt` | STRING | SubRip subtitle |
 | `vtt` | STRING | WebVTT subtitle |
 | `tsv` | STRING | Tab-separated values |
@@ -121,11 +126,11 @@ python build_whisper_cpp.py --gpu cpu  # CPU only
 
 ## Models
 
-| Model | Lokasi | Ukuran |
+| Model | Location | Size |
 |---|---|---|
 | Whisper GGML | `ComfyUI/models/whispercpp/` | 1.6 GB (large-v3-turbo) |
 | UVR GGUF | `ComfyUI/models/uvr/` | 251 MB |
-| Alignment CTC | `ComfyUI/models/alignment/sherpa/` | 81 MB |
+| Alignment CTC | `ComfyUI/models/alignment/sherpa/` | 383 MB |
 | cpp-annote ONNX | `cpp-annote/artifacts/` | 32 MB (in repo) |
 
 ## Architecture
@@ -144,7 +149,6 @@ ComfyUI-WhisperCPP/
 │   └── ext/
 │       ├── uvr.py              # Vocal separation (BSRoformer DLL)
 │       ├── alignment_sherpa.py  # CTC alignment
-│       ├── diarization.py      # pyannote diarization
 │       ├── cpp_annote_lib.py   # ctypes → cpp_annote.dll
 │       └── cppannote.py        # VAD + diarization wrapper
 │
@@ -157,5 +161,10 @@ ComfyUI-WhisperCPP/
 ├── build_cpp_annote_dll.bat    # Windows build
 │
 ├── AGENTS.md                   # AI agent rules
+├── ROADMAP.md                  # Future plans
 └── MEMD.md                     # Project memory
 ```
+
+## License
+
+Apache 2.0
