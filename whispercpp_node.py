@@ -297,7 +297,7 @@ class WhisperCPPNode:
             all_segments = []
             full_texts = []
             for seg_i, (seg_start, seg_end) in enumerate(speech_segs):
-                comfy.utils.throw_exception_if_cancelled()
+                comfy.model_management.throw_exception_if_processing_interrupted()
                 dur_ms = int((seg_end - seg_start) * 1000)
                 if dur_ms < 100:  # skip <100ms segments
                     continue
@@ -372,7 +372,7 @@ class WhisperCPPNode:
                     # Convert to seconds and transcribe per region
                     all_segments, full_texts = [], []
                     for ri, (sf, ef) in enumerate(regions):
-                        comfy.utils.throw_exception_if_cancelled()
+                        comfy.model_management.throw_exception_if_processing_interrupted()
                         seg_start = sf * hop_len / sr
                         seg_end = ef * hop_len / sr
                         dur_s = seg_end - seg_start
