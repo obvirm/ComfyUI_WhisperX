@@ -165,6 +165,8 @@ class WhisperCPPNode:
             "thold_ptsum": ("FLOAT", {"default":0.01,"min":0.0,"max":1.0,"step":0.001}),
             "suppress_blank": ("BOOLEAN", {"default":True}),
             "suppress_nst": ("BOOLEAN", {"default":True}),
+            "hallu_filter": ("BOOLEAN", {"default":True}),
+            "hallu_threshold": ("FLOAT", {"default":0.6,"min":0.0,"max":1.0,"step":0.05}),
             "suppress_regex": ("STRING", {"default":""}),
             "entropy_thold": ("FLOAT", {"default":2.0,"min":0.0,"max":10.0,"step":0.1}),
             "logprob_thold": ("FLOAT", {"default":-1.0,"min":-10.0,"max":0.0,"step":0.1}),
@@ -341,6 +343,17 @@ class WhisperCPPNode:
             try: result = wcpp.transcribe(audio_data, **tp)
             except Exception as e: logger.error(f"Failed: {e}"); import traceback; traceback.print_exc(); return ("","","","","","","")
         pbar.update(1)
+        
+        # ── Hallucination filter: remove low-confidence segments ──
+        do_hallu = self._get(kwargs,"hallu_filter",True)
+        hallu_th = self._get(kwargs,"hallu_threshold",0.6)
+        if do_hallu and "segments" in result:
+            before = len(result["segments"])
+            filtered = [s for s in result["segments"] if s.get("no_speech_prob", 0) <= hallu_th]
+            removed = before - len(filtered)
+            if removed:
+                logger.info(f"Hallucination filter: removed {removed}/{before} segments (nsp > {hallu_th})")
+            result["segments"] = filtered
         
         # --- Optional alignment (sherpa-onnx CTC) — default ON ---
         # Skipped if DTW is active (mutually exclusive)
