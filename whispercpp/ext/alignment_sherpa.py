@@ -150,39 +150,62 @@ def align(segments, audio_data, recognizer, language="en"):
     if audio_data is None or len(audio_data) == 0:
         return segments
     
-    # Run CTC model on full audio
-    stream = recognizer.create_stream()
-    stream.accept_waveform(sr, audio_data.tolist())
-    recognizer.decode_stream(stream)
-    result = stream.result
+    # Chunk audio by whisper segments to avoid OOM on long audio
+    # Process each segment independently through CTC model
+    total_samples = len(audio_data)
+    logger.info(f"Sherpa CTC alignment: {len(segments)} segments, {total_samples/sr:.1f}s audio")
     
-    if not result or not result.tokens:
-        logger.warning("Sherpa CTC produced no tokens, keeping original segments")
+    all_aligned_words = []
+    segment_word_mapping = {}  # whisper word text -> (start, end)
+    
+    for seg_idx, seg in enumerate(segments):
+        start_sample = int(seg.get("start", 0) * sr)
+        end_sample = int(seg.get("end", total_samples / sr) * sr)
+        end_sample = min(end_sample, total_samples)
+        
+        # Add 0.5s context on each side for CTC alignment accuracy
+        ctx_start = max(0, start_sample - int(0.5 * sr))
+        ctx_end = min(total_samples, end_sample + int(0.5 * sr))
+        seg_pad_start = start_sample - ctx_start  # padding in samples before seg
+        
+        # Skip very short segments (CTC needs minimum audio)
+        if ctx_end - ctx_start < sr * 0.3:  # Less than 300ms
+            continue
+        
+        chunk = audio_data[ctx_start:ctx_end]
+        try:
+            stream = recognizer.create_stream()
+            stream.accept_waveform(sr, chunk.tolist())
+            recognizer.decode_stream(stream)
+            result = stream.result
+            if not result or not result.tokens:
+                continue
+            words = _merge_tokens_to_words(result.tokens, result.timestamps)
+            # Adjust timestamps back to full audio reference
+            for w in words:
+                w["start"] = round(w["start"] + ctx_start / sr, 3)
+                w["end"] = round(w["end"] + ctx_start / sr, 3)
+            all_aligned_words.extend(words)
+            logger.debug(f"  Seg {seg_idx}: {len(words)} words from CTC")
+        except Exception as e:
+            logger.warning(f"  Seg {seg_idx} CTC failed: {e}")
+            continue
+    
+    if not all_aligned_words:
+        logger.warning("Sherpa CTC produced no tokens for any segment")
         return segments
-
-    # Merge CTC subword tokens into words with timestamps
-    aligned_words = _merge_tokens_to_words(result.tokens, result.timestamps)
     
-    if not aligned_words:
-        logger.warning("Sherpa CTC alignment empty, keeping original")
-        return segments
+    logger.info(f"CTC alignment: {len(all_aligned_words)} words total from sherpa")
     
-    # Map aligned timestamps to whisper segments
-    # Strategy: match words by position and text similarity
-    logger.info(f"CTC alignment: {len(aligned_words)} words from sherpa")
-    
-    # Build a word index from sherpa's output
-    sherpa_text = " ".join(w["word"] for w in aligned_words).lower()
-    whisper_text = " ".join(s.get("text", "") for s in segments).lower()
-    
-    # Extract all words from segments
+    # Build word list from whisper segments
     all_whisper_words = []
     for seg in segments:
         seg_words = seg.get("words", [])
         if seg_words:
-            all_whisper_words.extend(seg_words)
+            for w in seg_words:
+                w["segment_index"] = len(all_whisper_words)
+                all_whisper_words.append(w)
         else:
-            # Split segment text into words
             for w in seg.get("text", "").split():
                 all_whisper_words.append({
                     "word": w,
@@ -192,55 +215,42 @@ def align(segments, audio_data, recognizer, language="en"):
                 })
     
     if not all_whisper_words:
-        logger.warning("No words to align")
         return segments
     
-    # Simple sequential word mapping: assign timestamps from sherpa to whisper words
-    # This works well when both ASR models produce similar text
+    # Simple sequential word mapping
     from difflib import SequenceMatcher
-    
-    # Match sherpa words to whisper words using sequence matching
-    sherpa_word_strs = [w["word"].lower() for w in aligned_words]
-    whisper_word_strs = [w["word"].lower() for w in all_whisper_words]
-    
-    matcher = SequenceMatcher(None, sherpa_word_strs, whisper_word_strs)
-    mapping = {}  # whisper_word_idx -> (sherpa_word_idx, confidence)
-    
+    sherpa_strs = [w["word"].lower() for w in all_aligned_words]
+    whisper_strs = [w["word"].lower() for w in all_whisper_words]
+    matcher = SequenceMatcher(None, sherpa_strs, whisper_strs)
+    mapping = {}
     for tag, i1, i2, j1, j2 in matcher.get_opcodes():
         if tag == "equal":
             for offset in range(i2 - i1):
                 mapping[j1 + offset] = (i1 + offset, 1.0)
         elif tag == "replace":
-            # Best effort: 1-to-1 mapping within the block
             min_len = min(i2 - i1, j2 - j1)
             for offset in range(min_len):
                 mapping[j1 + offset] = (i1 + offset, 0.7)
     
-    # Apply timestamps to whisper words
+    # Apply timestamps
     for w_idx, w in enumerate(all_whisper_words):
         if w_idx in mapping:
             s_idx, _ = mapping[w_idx]
-            if s_idx < len(aligned_words):
-                w["start"] = round(aligned_words[s_idx]["start"], 3)
-                w["end"] = round(aligned_words[s_idx]["end"], 3)
+            if s_idx < len(all_aligned_words):
+                w["start"] = round(all_aligned_words[s_idx]["start"], 3)
+                w["end"] = round(all_aligned_words[s_idx]["end"], 3)
     
-    # Rebuild segment word lists from aligned words
-    seg_word_map = {}
-    for w in all_whisper_words:
-        seg_idx = w.get("segment_index", 0)
-        # Find which segment this word belongs to
-        for si, seg in enumerate(segments):
-            seg_words = seg.get("words", [])
-            for sw in seg_words:
-                if sw.get("word") == w.get("word") and sw.get("start", 0) == seg.get("start", 0):
-                    # This is a segment word - copy timestamps from our aligned version
-                    if "start" in w and "end" in w and w["start"] != seg.get("start", 0):
-                        sw["start"] = w["start"]
-                        sw["end"] = w["end"]
-    
-    # Also update segment-level start/end from first/last word
+    # Rebuild segment word lists
     for seg in segments:
         seg_words = seg.get("words", [])
+        for sw in seg_words:
+            for aw in all_whisper_words:
+                if (aw.get("word") == sw.get("word") and
+                    aw.get("segment_index") == sw.get("segment_index", 0) and
+                    "start" in aw and "end" in aw):
+                    sw["start"] = aw["start"]
+                    sw["end"] = aw["end"]
+                    break
         if seg_words:
             seg["start"] = seg_words[0].get("start", seg.get("start", 0))
             seg["end"] = seg_words[-1].get("end", seg.get("end", 0))
