@@ -4,4 +4,3 @@ requests
 huggingface-hub
 scipy
 sherpa-onnx
-onnxruntime
