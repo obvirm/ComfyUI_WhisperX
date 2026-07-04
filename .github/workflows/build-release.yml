@@ -30,8 +30,7 @@ jobs:
 
       # cpp-annote
       - name: Build cpp-annote
-        shell: cmd
-        run: build_cpp_annote_dll.bat
+        run: python build_cpp_annote.py --cuda
 
       # Package
       - name: Collect DLLs
@@ -40,7 +39,10 @@ jobs:
           mkdir -p release
           cp whisper.dll ggml-base.dll ggml-cpu.dll ggml-opencl.dll ggml-vulkan.dll ggml.dll release/
           cp bs_roformer.dll release/
-          cp cpp_annote.dll onnxruntime.dll onnxruntime_providers_shared.dll release/
+          cp cpp_annote.dll release/
+          # Copy all ONNX Runtime DLLs (CPU + CUDA)
+          cp onnxruntime*.dll release/ 2>/dev/null || true
+          cp cpp-annote/onnxruntime*/lib/onnxruntime*.dll release/ 2>/dev/null || true
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -70,12 +72,17 @@ jobs:
       - name: Build BSRoformer
         run: python build_bs_roformer.py --gpu
 
+      - name: Build cpp-annote
+        run: python build_cpp_annote.py
+
       - name: Collect .so
         run: |
           mkdir -p release
           find . -name "libwhisper.so*" -exec cp {} release/ \;
           find . -name "libbs_roformer.so*" -exec cp {} release/ \;
+          find . -name "libcpp_annote.so*" -exec cp {} release/ \;
           find . -name "libggml*.so*" -exec cp {} release/ \;
+          find . -name "libonnxruntime*.so*" -exec cp {} release/ \;
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -100,9 +107,16 @@ jobs:
       - name: Build BSRoformer
         run: python build_bs_roformer.py --gpu
 
+      - name: Build cpp-annote
+        run: python build_cpp_annote.py
+
       - name: Collect dylib
         run: |
           mkdir -p release
+          find . -name "libwhisper.dylib*" -exec cp {} release/ \;
+          find . -name "libbs_roformer.dylib*" -exec cp {} release/ \;
+          find . -name "libcpp_annote.dylib*" -exec cp {} release/ \;
+          find . -name "libggml*.dylib*" -exec cp {} release/ \;
           find . -name "libwhisper.dylib*" -exec cp {} release/ \;
           find . -name "libbs_roformer.dylib*" -exec cp {} release/ \;
           find . -name "libggml*.dylib*" -exec cp {} release/ \;

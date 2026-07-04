@@ -628,11 +628,15 @@ void CppAnnoteEngine::init_config_and_models(
 CppAnnoteEngine::CppAnnoteEngine()
     : ort_env_(ORT_LOGGING_LEVEL_WARNING, "cppannote"),
       session_options_{},
-      session_(make_segmentation_session(ort_env_, session_options_, "")),
+      session_(nullptr),
       mem_(Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault)),
       alloc_{},
-      in_name_(session_.GetInputNameAllocated(0, alloc_)),
-      out_name_(session_.GetOutputNameAllocated(0, alloc_)) {
+      in_name_(nullptr),
+      out_name_(nullptr) {
+  configure_gpu();
+  session_ = make_segmentation_session(ort_env_, session_options_, "");
+  in_name_ = session_.GetInputNameAllocated(0, alloc_);
+  out_name_ = session_.GetOutputNameAllocated(0, alloc_);
   init_config_and_models("");
 }
 
@@ -640,13 +644,35 @@ CppAnnoteEngine::CppAnnoteEngine(const std::string &segmentation_onnx_path,
                                    const std::string &embedding_onnx_path)
     : ort_env_(ORT_LOGGING_LEVEL_WARNING, "cppannote"),
       session_options_{},
-      session_(make_segmentation_session(ort_env_, session_options_,
-                                         segmentation_onnx_path)),
+      session_(nullptr),
       mem_(Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault)),
       alloc_{},
-      in_name_(session_.GetInputNameAllocated(0, alloc_)),
-      out_name_(session_.GetOutputNameAllocated(0, alloc_)) {
+      in_name_(nullptr),
+      out_name_(nullptr) {
+  configure_gpu();
+  session_ = make_segmentation_session(ort_env_, session_options_,
+                                         segmentation_onnx_path);
+  in_name_ = session_.GetInputNameAllocated(0, alloc_);
+  out_name_ = session_.GetOutputNameAllocated(0, alloc_);
   init_config_and_models(embedding_onnx_path);
+}
+
+void CppAnnoteEngine::configure_gpu() {
+  // Try CUDA provider (NVIDIA GPU)
+  try {
+    OrtCUDAProviderOptions cuda_options;
+    cuda_options.device_id = 0;
+    session_options_.AppendExecutionProvider_CUDA(cuda_options);
+    return;  // CUDA available, use it
+  } catch (...) {}
+  // Try TensorRT (faster inference, requires CUDA)
+  try {
+    OrtTensorRTProviderOptions trt_options;
+    trt_options.device_id = 0;
+    session_options_.AppendExecutionProvider_TensorRT(trt_options);
+    return;  // TensorRT available, use it
+  } catch (...) {}
+  // Fallback to CPU (default)
 }
 
 // ---------------------------------------------------------------------------
