@@ -13,24 +13,26 @@ IS_MAC = platform.system() == "Darwin"
 
 ORT_VERSION = "1.27.0"
 
-def download_ort(cuda=False):
-    """Download ONNX Runtime if not present."""
+def download_ort(cuda=False, directml=False, coreml=False, rocm=False):
+    """Download ONNX Runtime with specific provider support."""
     if IS_WIN:
         if cuda:
             ort_name = f"onnxruntime-win-x64-gpu-{ORT_VERSION}"
-            url = f"https://github.com/microsoft/onnxruntime/releases/download/v{ORT_VERSION}/{ort_name}.zip"
+        elif directml:
+            ort_name = f"onnxruntime-win-x64-dml-{ORT_VERSION}" if ORT_VERSION >= "1.15.0" else f"onnxruntime-win-x64-{ORT_VERSION}"
         else:
             ort_name = f"onnxruntime-win-x64-{ORT_VERSION}"
-            url = f"https://github.com/microsoft/onnxruntime/releases/download/v{ORT_VERSION}/{ort_name}.zip"
+        url = f"https://github.com/microsoft/onnxruntime/releases/download/v{ORT_VERSION}/{ort_name}.zip"
     elif platform.system() == "Linux":
         if cuda:
             ort_name = f"onnxruntime-linux-x64-gpu-{ORT_VERSION}"
-            url = f"https://github.com/microsoft/onnxruntime/releases/download/v{ORT_VERSION}/{ort_name}.tar.gz"
+        elif rocm:
+            ort_name = f"onnxruntime-linux-x64-rocm-{ORT_VERSION}" if ORT_VERSION >= "1.16.0" else f"onnxruntime-linux-x64-{ORT_VERSION}"
         else:
             ort_name = f"onnxruntime-linux-x64-{ORT_VERSION}"
-            url = f"https://github.com/microsoft/onnxruntime/releases/download/v{ORT_VERSION}/{ort_name}.tar.gz"
+        url = f"https://github.com/microsoft/onnxruntime/releases/download/v{ORT_VERSION}/{ort_name}.tar.gz"
     elif IS_MAC:
-        ort_name = f"onnxruntime-osx-arm64-{ORT_VERSION}"
+        ort_name = f"onnxruntime-osx-arm64-{ORT_VERSION}" if platform.machine() == "arm64" else f"onnxruntime-osx-x86_64-{ORT_VERSION}"
         url = f"https://github.com/microsoft/onnxruntime/releases/download/v{ORT_VERSION}/{ort_name}.tgz"
     else:
         return None
@@ -60,22 +62,27 @@ def download_ort(cuda=False):
 def main():
     parser = argparse.ArgumentParser(description="Build cpp-annote shared library")
     parser.add_argument("--clean", action="store_true", help="Clean build dir")
-    parser.add_argument("--cuda", action="store_true", help="Enable CUDA backend")
+    parser.add_argument("--cuda", action="store_true", help="Enable CUDA backend (NVIDIA)")
+    parser.add_argument("--directml", action="store_true", help="Enable DirectML backend (any GPU on Windows)")
+    parser.add_argument("--coreml", action="store_true", help="Enable CoreML backend (macOS Metal)")
+    parser.add_argument("--rocm", action="store_true", help="Enable ROCm backend (AMD)")
+    parser.add_argument("--gpu", action="store_true", help="Auto-detect best GPU backend")
     parser.add_argument("--no-copy", action="store_true", help="Don't copy to root")
     args = parser.parse_args()
 
-    if not ANNOTE_DIR.is_dir() or not (ANNOTE_DIR / "CMakeLists.txt").is_file():
-        print("ERROR: cpp-annote directory not found.")
-        sys.exit(1)
+    # --gpu auto-detect
+    if args.gpu:
+        import shutil as _shutil
+        if platform.system() == "Windows":
+            args.directml = True  # DirectML works with any GPU on Windows
+        elif platform.system() == "Darwin":
+            args.coreml = True
+        elif _shutil.which("nvidia-smi"):
+            args.cuda = True
+        # ROCm detection not implemented
 
-    if args.clean and BUILD_DIR.is_dir():
-        shutil.rmtree(BUILD_DIR)
-        print("Cleaned build dir")
-
-    BUILD_DIR.mkdir(parents=True, exist_ok=True)
-
-    # Download ONNX Runtime
-    ort_dir = download_ort(cuda=args.cuda)
+    # Download ONNX Runtime with selected provider
+    ort_dir = download_ort(cuda=args.cuda, directml=args.directml, coreml=args.coreml, rocm=args.rocm)
     if not ort_dir:
         print("ERROR: Could not download ONNX Runtime")
         sys.exit(1)

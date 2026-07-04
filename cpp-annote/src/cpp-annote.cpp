@@ -662,21 +662,49 @@ void CppAnnoteEngine::configure_gpu() {
   session_options_.SetIntraOpNumThreads(4);
   session_options_.SetInterOpNumThreads(2);
   
-  // Try CUDA provider (NVIDIA GPU)
+  // Try providers in priority order: CUDA > TensorRT > DirectML > CoreML > ROCm > CPU
+  
+  // 1. CUDA (NVIDIA, fastest)
   try {
     OrtCUDAProviderOptions cuda_options;
     cuda_options.device_id = 0;
     session_options_.AppendExecutionProvider_CUDA(cuda_options);
-    return;  // CUDA available, use it
+    return;
   } catch (...) {}
-  // Try TensorRT (faster inference, requires CUDA)
+  
+  // 2. TensorRT (NVIDIA, even faster than CUDA)
   try {
     OrtTensorRTProviderOptions trt_options;
     trt_options.device_id = 0;
     session_options_.AppendExecutionProvider_TensorRT(trt_options);
-    return;  // TensorRT available, use it
+    return;
   } catch (...) {}
-  // Fallback to CPU (default)
+  
+  // 3. DirectML (Windows, works with ANY GPU: NVIDIA/AMD/Intel)
+  try {
+    session_options_.AppendExecutionProvider_DML(0);
+    return;
+  } catch (...) {}
+  
+  // 4. CoreML (macOS, uses Metal)
+  try {
+    session_options_.AppendExecutionProvider_CoreML();
+    return;
+  } catch (...) {}
+  
+  // 5. ROCm (AMD, Linux)
+  try {
+    session_options_.AppendExecutionProvider_ROCm(0);
+    return;
+  } catch (...) {}
+  
+  // 6. OpenVINO (Intel)
+  try {
+    session_options_.AppendExecutionProvider_OpenVINO();
+    return;
+  } catch (...) {}
+  
+  // Fallback to CPU
 }
 
 // ---------------------------------------------------------------------------

@@ -30,7 +30,7 @@ jobs:
 
       # cpp-annote
       - name: Build cpp-annote
-        run: python build_cpp_annote.py --cuda
+        run: python build_cpp_annote.py --gpu
 
       # Package
       - name: Collect DLLs
