@@ -166,7 +166,7 @@ class WhisperCPPNode:
             "print_progress": ("BOOLEAN", {"default":True}),
             "tdrz_enable": ("BOOLEAN", {"default":False}),
             "flash_attn": ("BOOLEAN", {"default":False}),
-            "gpu_device": ("INT", {"default":0,"min":0,"max":8}),
+            "gpu_device": ("INT", {"default":0,"min":-1,"max":8}),
             "dtw_aheads_preset": (["none","n_top_most","custom","tiny_en","tiny","base_en","base","small_en","small","medium_en","medium","large_v1","large_v2","large_v3","large_v3_turbo"], {"default":"large_v3_turbo"}),
             "dtw_n_top": ("INT", {"default":-1,"min":-1,"max":64}),
             "grammar_penalty": ("FLOAT", {"default":100.0,"min":0.0,"max":100.0,"step":0.1}),
@@ -222,7 +222,10 @@ class WhisperCPPNode:
         device = self._get(kwargs,"device","auto")
         use_gpu = device in ("auto","cuda","vulkan","metal")
         wcpp = self._ensure_whisper()
-        dtw_preset = {"none":0,"n_top_most":1,"custom":2,"tiny_en":3,"tiny":4,"base_en":5,"base":6,"small_en":7,"small":8,"medium_en":9,"medium":10,"large_v1":11,"large_v2":12,"large_v3":13,"large_v3_turbo":14}.get(self._get(kwargs,"dtw_aheads_preset","large_v3_turbo"),13)
+        dtw_preset_str = self._get(kwargs,"dtw_aheads_preset","large_v3_turbo")
+        if not isinstance(dtw_preset_str, str) or dtw_preset_str not in {"none","n_top_most","custom","tiny_en","tiny","base_en","base","small_en","small","medium_en","medium","large_v1","large_v2","large_v3","large_v3_turbo"}:
+            dtw_preset_str = "large_v3_turbo"
+        dtw_preset = {"none":0,"n_top_most":1,"custom":2,"tiny_en":3,"tiny":4,"base_en":5,"base":6,"small_en":7,"small":8,"medium_en":9,"medium":10,"large_v1":11,"large_v2":12,"large_v3":13,"large_v3_turbo":14}[dtw_preset_str]
         try: wcpp.load_model(model_path, use_gpu=use_gpu, gpu_device=self._get(kwargs,"gpu_device",0), flash_attn=self._get(kwargs,"flash_attn",False),
             dtw_token_timestamps=self._get(kwargs,"dtw_token_timestamps",False), dtw_aheads_preset=dtw_preset, dtw_n_top=self._get(kwargs,"dtw_n_top",-1))
         except RuntimeError as e: logger.error(f"Load failed: {e}"); return ("","","","","","","")
