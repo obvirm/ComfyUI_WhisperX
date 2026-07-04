@@ -101,7 +101,17 @@ def main():
             if p.is_dir() and (p / "include").exists():
                 ort_include = p / "include"
                 ort_lib = p / "lib"
+                ort_dir = p  # Use the nested dir as root
                 break
+    
+    # Debug: print directory contents
+    print(f"ORT root: {ort_dir}")
+    print(f"ORT include: {ort_include} (exists={ort_include.exists()})")
+    print(f"ORT lib: {ort_lib} (exists={ort_lib.exists()})")
+    if ort_include.exists():
+        print(f"  include contents: {list(ort_include.iterdir())[:10]}")
+    if ort_lib.exists():
+        print(f"  lib contents: {list(ort_lib.iterdir())[:10]}")
 
     # Generator
     if IS_WIN:
