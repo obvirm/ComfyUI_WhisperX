@@ -658,6 +658,10 @@ CppAnnoteEngine::CppAnnoteEngine(const std::string &segmentation_onnx_path,
 }
 
 void CppAnnoteEngine::configure_gpu() {
+  // Optimize CPU performance
+  session_options_.SetIntraOpNumThreads(4);
+  session_options_.SetInterOpNumThreads(2);
+  
   // Try CUDA provider (NVIDIA GPU)
   try {
     OrtCUDAProviderOptions cuda_options;
