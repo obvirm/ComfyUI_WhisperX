@@ -68,7 +68,7 @@ def main():
 
     # Generator
     if IS_WIN:
-        generator = '"Visual Studio 18 2026"'
+        generator = "Visual Studio 18 2026"
     elif IS_MAC:
         generator = "Unix Makefiles"
     else:
