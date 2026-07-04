@@ -46,7 +46,10 @@ def main():
     parser.add_argument("--clean", action="store_true", help="Clean build dir")
     parser.add_argument("--build-type", choices=["Release","Debug"], default="Release")
     parser.add_argument("--no-copy", action="store_true", help="Jangan copy ke root")
-    parser.add_argument("--cuda", action="store_true", help="Enable CUDA")
+    parser.add_argument("--cuda", action="store_true", help="Enable CUDA backend")
+    parser.add_argument("--vulkan", action="store_true", help="Enable Vulkan backend")
+    parser.add_argument("--opencl", action="store_true", help="Enable OpenCL backend")
+    parser.add_argument("--gpu", action="store_true", help="Enable all available GPU backends")
     args = parser.parse_args()
 
     if not BSR_DIR.is_dir() or not (BSR_DIR / "CMakeLists.txt").is_file():
@@ -67,16 +70,27 @@ def main():
     else:
         generator = "Unix Makefiles"
 
-    # CUDA
-    cuda_on = "ON" if args.cuda else "OFF"
+    # GPU backends
+    cuda_on = "ON" if args.cuda or args.gpu else "OFF"
+    vulkan_on = "ON" if args.vulkan or args.gpu else "OFF"
+    opencl_on = "ON" if args.opencl or args.gpu else "OFF"
+
+    # Auto-detect GPU if --gpu
+    if args.gpu:
+        import shutil as _shutil
+        if not _shutil.which("nvidia-smi"):
+            cuda_on = "OFF"
+        # Vulkan/OpenCL detected by ggml at configure time
 
     # Configure
-    print(f"Configuring ({args.build_type})...")
+    print(f"Configuring ({args.build_type}) CUDA={cuda_on} Vulkan={vulkan_on} OpenCL={opencl_on}...")
     cmd = [
         "cmake", "-B", str(BUILD_DIR), "-S", str(BSR_DIR),
         f"-DCMAKE_BUILD_TYPE={args.build_type}",
         f"-G", generator,
         f"-DGGML_CUDA={cuda_on}",
+        f"-DGGML_VULKAN={vulkan_on}",
+        f"-DGGML_OPENCL={opencl_on}",
         f"-DBSR_BUILD_CLI=OFF",
         f"-DBSR_BUILD_SHARED=ON",
         f"-DBSR_BUILD_TESTS=OFF",
