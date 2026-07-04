@@ -72,8 +72,8 @@ def main():
 
     # GPU backends
     cuda_on = "ON" if args.cuda or args.gpu else "OFF"
-    vulkan_on = "ON" if args.vulkan or args.gpu else "OFF"
-    opencl_on = "ON" if args.opencl or args.gpu else "OFF"
+    vulkan_on = "ON" if (args.vulkan or args.gpu) and not IS_MAC else "OFF"
+    opencl_on = "ON" if (args.opencl or args.gpu) and not IS_MAC else "OFF"
 
     # Auto-detect GPU if --gpu
     if args.gpu:
