@@ -14,20 +14,25 @@ IS_MAC = platform.system() == "Darwin"
 ORT_VERSION = "1.27.0"
 
 def download_ort(cuda=False, directml=False, coreml=False, rocm=False):
-    """Download ONNX Runtime with specific provider support."""
+    """Download ONNX Runtime with specific provider support.
+    v1.27.0 packages:
+      Windows: onnxruntime-win-x64-{VERSION}.zip (CPU)
+               onnxruntime-win-x64-gpu_cuda12-{VERSION}.zip
+      Linux:   onnxruntime-linux-x64-{VERSION}.tgz (CPU)
+               onnxruntime-linux-x64-gpu_cuda12-{VERSION}.tgz
+               onnxruntime-linux-x64-gpu_cuda13-{VERSION}.tgz
+      macOS:   onnxruntime-osx-arm64-{VERSION}.tgz
+    Note: DirectML package not available in v1.27.0 — falls back to CPU.
+    """
     if IS_WIN:
         if cuda:
-            ort_name = f"onnxruntime-win-x64-gpu-{ORT_VERSION}"
-        elif directml:
-            ort_name = f"onnxruntime-win-x64-dml-{ORT_VERSION}" if ORT_VERSION >= "1.15.0" else f"onnxruntime-win-x64-{ORT_VERSION}"
+            ort_name = f"onnxruntime-win-x64-gpu_cuda12-{ORT_VERSION}"
         else:
             ort_name = f"onnxruntime-win-x64-{ORT_VERSION}"
         url = f"https://github.com/microsoft/onnxruntime/releases/download/v{ORT_VERSION}/{ort_name}.zip"
     elif platform.system() == "Linux":
         if cuda:
-            ort_name = f"onnxruntime-linux-x64-gpu-{ORT_VERSION}"
-        elif rocm:
-            ort_name = f"onnxruntime-linux-x64-rocm-{ORT_VERSION}" if ORT_VERSION >= "1.16.0" else f"onnxruntime-linux-x64-{ORT_VERSION}"
+            ort_name = f"onnxruntime-linux-x64-gpu_cuda12-{ORT_VERSION}"
         else:
             ort_name = f"onnxruntime-linux-x64-{ORT_VERSION}"
         url = f"https://github.com/microsoft/onnxruntime/releases/download/v{ORT_VERSION}/{ort_name}.tgz"
