@@ -1,0 +1,5 @@
+paths:
+  - 'whispercpp/**/*.py'
+  - 'whispercpp_node.py'
+  - '__init__.py'
+  - 'build_*.py'
