@@ -155,7 +155,7 @@ def find_lib(build_dir, lib_name):
             candidates.append(build_dir / "bin" / v)
             candidates.append(build_dir / "src" / v)
             candidates.append(build_dir / "lib" / v)
-    if IS_MACOS:
+    if IS_MAC:
         for v in ["libwhisper.1.dylib", "libwhisper.1.9.1.dylib"]:
             candidates.append(build_dir / "bin" / v)
             candidates.append(build_dir / "src" / v)
