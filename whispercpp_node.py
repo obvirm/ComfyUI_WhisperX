@@ -220,20 +220,34 @@ class WhisperCPPNode:
         pbar.update(1)
 
         device = self._get(kwargs,"device","auto")
-        use_gpu = device in ("auto","cuda","vulkan","metal")
+        use_gpu = device in ("auto","cuda","vulkan","metal","hip")
+        gpu_device = self._get(kwargs,"gpu_device",0)
+        
+        # Map device to backend for each module
+        def _device_to_backend(dev):
+            """Map device dropdown to backend name."""
+            if dev in ("auto", "cuda"): return "cuda"
+            if dev == "vulkan": return "vulkan"
+            if dev == "metal": return "metal"
+            if dev == "opencl": return "opencl"
+            if dev == "hip": return "rocm"
+            if dev == "cpu": return "cpu"
+            return "auto"
+        backend = _device_to_backend(device)
+        
         wcpp = self._ensure_whisper()
         dtw_preset_str = self._get(kwargs,"dtw_aheads_preset","large_v3_turbo")
         if not isinstance(dtw_preset_str, str) or dtw_preset_str not in {"none","n_top_most","custom","tiny_en","tiny","base_en","base","small_en","small","medium_en","medium","large_v1","large_v2","large_v3","large_v3_turbo"}:
             dtw_preset_str = "large_v3_turbo"
         dtw_preset = {"none":0,"n_top_most":1,"custom":2,"tiny_en":3,"tiny":4,"base_en":5,"base":6,"small_en":7,"small":8,"medium_en":9,"medium":10,"large_v1":11,"large_v2":12,"large_v3":13,"large_v3_turbo":14}[dtw_preset_str]
-        try: wcpp.load_model(model_path, use_gpu=use_gpu, gpu_device=self._get(kwargs,"gpu_device",0), flash_attn=self._get(kwargs,"flash_attn",False),
+        try: wcpp.load_model(model_path, use_gpu=use_gpu, gpu_device=gpu_device, flash_attn=self._get(kwargs,"flash_attn",False),
             dtw_token_timestamps=self._get(kwargs,"dtw_token_timestamps",False), dtw_aheads_preset=dtw_preset, dtw_n_top=self._get(kwargs,"dtw_n_top",-1))
         except RuntimeError as e: logger.error(f"Load failed: {e}"); return ("","","","","","","")
         pbar.update(1)
 
         audio_data = AudioProcessor.process_comfy_audio(kwargs.get("audio"))
         
-        # --- Optional UVR vocal separation ---
+        # --- Optional UVR vocal separation (BSRoformer) ---
         if self._get(kwargs,"separate_vocals",False):
             separate_model = self._get(kwargs,"separate_model","voc_fv6-Q8_0.gguf")
             separate_chunk_size = self._get(kwargs,"separate_chunk_size",-1)
@@ -243,7 +257,7 @@ class WhisperCPPNode:
                 t = torch.from_numpy(audio_data).float().unsqueeze(0)
                 audio_44k = torchaudio.transforms.Resample(WHISPER_SAMPLE_RATE, 44100)(t).squeeze().numpy().astype(np.float32)
                 audio_44k = separate_vocals(audio_44k, sr=44100,
-                    model_name=separate_model, chunk_size=separate_chunk_size, overlap=separate_overlap)
+                    model_name=separate_model, chunk_size=separate_chunk_size, overlap=separate_overlap, use_gpu=use_gpu)
                 # UVR outputs 44.1kHz; resample back to 16kHz for whisper
                 t2 = torch.from_numpy(audio_44k).float().unsqueeze(0)
                 audio_data = torchaudio.transforms.Resample(44100, WHISPER_SAMPLE_RATE)(t2).squeeze().numpy().astype(np.float32)
