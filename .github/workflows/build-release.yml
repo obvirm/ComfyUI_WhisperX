@@ -29,6 +29,13 @@ jobs:
         run: python build_bs_roformer.py
 
       # cpp-annote
+      - name: Install zlib (for cnpy)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          choco install zlib -y --no-progress
+          echo "ZLIB_ROOT=C:/ProgramData/chocolatey/lib/zlib" >> $GITHUB_ENV
+
       - name: Build cpp-annote
         run: python build_cpp_annote.py --gpu
 
