@@ -103,25 +103,6 @@ def _detect_linux() -> dict:
     return info
 
 
-def get_release_tag() -> str:
-    """Get the latest release tag for auto-download."""
-    return "v2.0.3"  # update on each release
-
-
-def get_dll_zip_name() -> str:
-    """Get the correct zip filename based on platform."""
-    system = platform.system()
-    if system == "Windows":
-        return "whisper-cpp-win64.zip"
-    elif system == "Linux":
-        return "whisper-cpp-linux-x64.zip"
-    elif system == "Darwin":
-        if platform.machine() == "arm64":
-            return "whisper-cpp-macos-arm64.zip"
-        return "whisper-cpp-macos-x64.zip"
-    return ""
-
-
 if __name__ == "__main__":
     info = detect_gpu()
     print(f"Platform: {info['platform']} {info['arch']}")
