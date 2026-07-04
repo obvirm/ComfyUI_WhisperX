@@ -106,6 +106,8 @@ def main():
     
     # Debug: print directory contents
     print(f"ORT root: {ort_dir}")
+    if ort_dir.exists():
+        print(f"  root contents: {[p.name for p in ort_dir.iterdir()]}")
     print(f"ORT include: {ort_include} (exists={ort_include.exists()})")
     print(f"ORT lib: {ort_lib} (exists={ort_lib.exists()})")
     if ort_include.exists():
