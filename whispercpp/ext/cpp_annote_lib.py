@@ -53,12 +53,29 @@ def _find_library():
     return None
 
 
+def _auto_download():
+    """Download cpp_annote from GitHub Releases."""
+    try:
+        from ..auto_download import download_module
+        from ..gpu_detect import detect_gpu
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        gpu = detect_gpu()
+        has_gpu = gpu["backend"] != "cpu"
+        download_module("cpp_annote", base_dir, has_gpu=has_gpu)
+    except Exception as e:
+        logger.warning(f"Auto-download failed: {e}")
+
+
 def _load():
     global _lib, _available
     if _lib is not None: return _lib
     dll_path = _find_library()
     if dll_path is None:
-        logger.error("cpp_annote not found. Build: build_cpp_annote_dll.bat")
+        # Try auto-download
+        _auto_download()
+        dll_path = _find_library()
+    if dll_path is None:
+        logger.error("cpp_annote not found. Build: build_cpp_annote.py")
         _available = False
         return None
     if IS_WINDOWS:

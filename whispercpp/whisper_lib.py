@@ -133,26 +133,13 @@ class WhisperCPP:
 
     def _auto_download(self) -> bool:
         """Download DLLs from GitHub Releases based on detected GPU."""
-        import urllib.request, zipfile, io
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        # Detect GPU and pick correct release
         try:
-            from .gpu_detect import get_release_tag, get_dll_zip_name
-            tag = get_release_tag()
-            asset = get_dll_zip_name()
-        except Exception:
-            tag = "v2.0.3"
-            asset = "whisper-cpp-win64.zip" if platform.system() == "Windows" else ""
-        if not asset:
-            return False
-        url = f"https://github.com/obvirm/ComfyUI-WhisperCPP/releases/download/{tag}/{asset}"
-        try:
-            logger.info(f"Downloading {asset} from GitHub Releases...")
-            data = urllib.request.urlopen(url, timeout=120).read()
-            with zipfile.ZipFile(io.BytesIO(data)) as zf:
-                zf.extractall(base_dir)
-            logger.info(f"Downloaded {asset} to {base_dir}")
-            return True
+            from .gpu_detect import detect_gpu
+            from .auto_download import download_module, check_module_files
+            gpu = detect_gpu()
+            has_gpu = gpu["backend"] != "cpu"
+            return download_module("whisper", base_dir, has_gpu=has_gpu)
         except Exception as e:
             logger.warning(f"Auto-download failed: {e}")
             return False
