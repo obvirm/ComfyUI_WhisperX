@@ -69,6 +69,10 @@ def _load():
 
     dll_path = _find_library()
     if dll_path is None:
+        # Try auto-download
+        _auto_download()
+        dll_path = _find_library()
+    if dll_path is None:
         logger.error("bs_roformer not found. Build: python build_bs_roformer.py")
         _available = False
         return None
