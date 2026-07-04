@@ -70,6 +70,10 @@ class CppAnnoteEngine {
   CppAnnoteEngine(CppAnnoteEngine&&) = delete;
   CppAnnoteEngine& operator=(CppAnnoteEngine&&) = delete;
 
+private:
+  /// Auto-detect and configure GPU provider (CUDA > TensorRT > CPU)
+  void configure_gpu();
+
   static std::vector<float> extract_chunk_audio(const float* audio,
                                                 int64_t num_samples,
                                                 int64_t offset,
