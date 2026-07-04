@@ -348,7 +348,7 @@ class WhisperCPPNode:
                 if rms > hallu_th * 0.01:  # hallu_th=0.6 -> rms > 0.006
                     filtered.append(s)
                 else:
-                    logger.debug(f"  Filtered: [{s.get('start',0):.1f}-{s.get('end',0):.1f}] rms={rms:.6f} '{s.get('text','')[:30]}'")
+                    logger.info(f"Filtered: [{s.get('start',0):.1f}-{s.get('end',0):.1f}] rms={rms:.6f}")
             removed = before - len(filtered)
             if removed:
                 logger.info(f"Hallucination filter: removed {removed}/{before} segments (energy < {hallu_th*0.01:.4f})")
