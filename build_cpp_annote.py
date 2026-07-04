@@ -2,7 +2,7 @@
 """Build cpp-annote shared library (DLL/so/dylib).
 Supports CPU and CUDA backends.
 """
-import argparse, os, platform, shutil, subprocess, sys, urllib.request, zipfile
+import argparse, io, os, platform, shutil, subprocess, sys, urllib.request, zipfile
 from pathlib import Path
 
 NODE_DIR = Path(__file__).resolve().parent
@@ -58,7 +58,7 @@ def download_ort(cuda=False, directml=False, coreml=False, rocm=False):
             with zipfile.ZipFile(io.BytesIO(data)) as zf:
                 zf.extractall(ANNOTE_DIR)
         else:
-            import tarfile, io
+            import tarfile
             with tarfile.open(fileobj=io.BytesIO(data)) as tf:
                 tf.extractall(ANNOTE_DIR)
         print(f"Downloaded to {ort_dir}")
