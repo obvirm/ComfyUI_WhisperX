@@ -4,3 +4,6 @@
 [submodule "bs_roformer.cpp"]
 	path = bs_roformer.cpp
 	url = https://github.com/obvirm/BSRoformer.cpp.git
+[submodule "cpp-annote"]
+	path = cpp-annote
+	url = https://github.com/obvirm/cpp-annote.git
