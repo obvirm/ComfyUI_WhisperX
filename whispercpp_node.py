@@ -187,7 +187,7 @@ class WhisperCPPNode:
             "separate_model": (["voc_fv6-Q8_0.gguf","BSRoformer-anvuew-Q8_0.gguf","becruily_deux-Q8_0.gguf","voc_fv6-FP16.gguf"], {"default":"voc_fv6-Q8_0.gguf"}),
             "separate_chunk_size": ("INT", {"default":-1,"min":-1,"max":1000000,"step":1}),
             "separate_overlap": ("INT", {"default":-1,"min":-1,"max":20,"step":1}),
-            "align_model": (["auto","dolphin-base-ctc-multi-lang"], {"default":"auto"}),
+            "align_model": (["sherpa-onnx-zipformer-ctc-en-2023-10-02"], {"default":"sherpa-onnx-zipformer-ctc-en-2023-10-02"}),
             "return_char_alignments": ("BOOLEAN", {"default":False}),
             "diarize": ("BOOLEAN", {"default":False}),
             "diarize_model": (["pyannote/speaker-diarization-3.1","pyannote/speaker-diarization-2.1"], {"default":"pyannote/speaker-diarization-3.1"}),
