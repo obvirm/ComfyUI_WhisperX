@@ -339,7 +339,7 @@ class WhisperCPPNode:
                 
                 # Compute RMS per frame
                 rms_frames = np.array([
-                    np.sqrt(np.mean(audio_data[i*h : i*h + w]**2))
+                    np.sqrt(np.mean(audio_data[i*hop_len : i*hop_len + win_len]**2))
                     for i in range(n_frames)
                 ])
                 
