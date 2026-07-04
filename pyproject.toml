@@ -1,7 +1,7 @@
 [project]
 name = "obvirm-whisperxx"
 description = "WhisperCPP for ComfyUI - whisper.cpp with full CPP params, alignment, diarization"
-version = "2.0.2"
+version = "2.0.3"
 license = {file = "LICENSE"}
 dependencies = ["numpy","tqdm","requests","huggingface-hub","scipy","sherpa-onnx"]
 
