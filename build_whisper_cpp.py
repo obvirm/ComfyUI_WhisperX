@@ -243,7 +243,7 @@ def main():
         backends["metal"]   = "NOT" not in gpu["Metal"] and "N/A" not in gpu["Metal"]
         backends["hip"]     = "NOT" not in gpu["HIP/ROCm"] and "N/A" not in gpu["HIP/ROCm"]
         backends["sycl"]    = "NOT" not in gpu["SYCL (Intel)"]
-        backends["opencl"]  = "NOT" not in gpu["OpenCL"]
+        backends["opencl"]  = False  # requires OpenCL SDK headers (not in CI)
         backends["openvino"] = "NOT" not in gpu["OpenVINO (Intel)"]
         backends["blas"]    = IS_MAC  # BLAS only reliable on macOS (Accelerate)
     elif mode == "none" or mode == "cpu":
