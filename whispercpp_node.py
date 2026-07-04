@@ -298,26 +298,32 @@ class WhisperCPPNode:
             full_texts = []
             prev_text = ""
             for seg_i, (seg_start, seg_end) in enumerate(speech_segs):
-                offset_ms = int(seg_start * 1000)
                 dur_ms = int((seg_end - seg_start) * 1000)
                 if dur_ms < 100:  # skip <100ms segments
                     continue
+                # Extrak chunk, jangan offset_ms (timestamps bisa overflow)
+                chunk = audio_data[int(seg_start*16000):int(seg_end*16000)]
+                if len(chunk) == 0:
+                    continue
                 # Carry context from previous segment for continuity
                 carry = {"initial_prompt": prev_text or None}
-                seg_tp = {**tp_base, "offset_ms": offset_ms, "duration_ms": dur_ms, **carry}
+                seg_tp = {**tp_base, "offset_ms": 0, "duration_ms": 0, **carry}
                 try:
-                    seg_result = wcpp.transcribe(audio_data, **seg_tp)
+                    seg_result = wcpp.transcribe(chunk, **seg_tp)
                     seg_text = seg_result.get("text","").strip()
                     if seg_text:
                         full_texts.append(seg_text)
                         prev_text = (prev_text + " " + seg_text).strip()[-500:]  # keep last 500 chars
                     for seg in seg_result.get("segments",[]):
+                        # Shift chunk timestamps to original audio position
+                        seg["start"] = seg.get("start", 0) + seg_start
+                        seg["end"] = seg.get("end", 0) + seg_start
                         all_segments.append(seg)
                     logger.info(f"  [{seg_i+1}/{len(speech_segs)}] {seg_start:.1f}s-{seg_end:.1f}s: {seg_text[:60]}...")
                 except Exception as e:
                     logger.warning(f"VAD segment {seg_i} failed: {e}")
             result = {
-                "text": ". ".join(full_texts).strip(),
+                "text": " ".join(full_texts).strip(),
                 "segments": all_segments,
                 "language": "en",
                 "n_segments": len(all_segments),
