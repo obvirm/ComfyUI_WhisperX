@@ -245,7 +245,7 @@ def main():
         backends["sycl"]    = "NOT" not in gpu["SYCL (Intel)"]
         backends["opencl"]  = "NOT" not in gpu["OpenCL"]
         backends["openvino"] = "NOT" not in gpu["OpenVINO (Intel)"]
-        backends["blas"]    = True  # CMake auto-detects
+        backends["blas"]    = IS_MAC  # BLAS only reliable on macOS (Accelerate)
     elif mode == "none" or mode == "cpu":
         pass  # CPU only
     else:
