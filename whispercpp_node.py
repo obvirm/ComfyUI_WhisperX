@@ -293,27 +293,23 @@ class WhisperCPPNode:
 
         # ── Transcribe ──
         if do_vad:
-            # Per-segment transcription with context carry-over
+            # Per-segment transcription
             all_segments = []
             full_texts = []
-            prev_text = ""
             for seg_i, (seg_start, seg_end) in enumerate(speech_segs):
                 dur_ms = int((seg_end - seg_start) * 1000)
                 if dur_ms < 100:  # skip <100ms segments
                     continue
-                # Extrak chunk, jangan offset_ms (timestamps bisa overflow)
+                # Extrak chunk — NO initial_prompt (causes whisper loops)
                 chunk = audio_data[int(seg_start*16000):int(seg_end*16000)]
                 if len(chunk) == 0:
                     continue
-                # Carry context from previous segment for continuity
-                carry = {"initial_prompt": prev_text or None}
-                seg_tp = {**tp_base, "offset_ms": 0, "duration_ms": 0, **carry}
+                seg_tp = {**tp_base, "offset_ms": 0, "duration_ms": 0, "initial_prompt": None}
                 try:
                     seg_result = wcpp.transcribe(chunk, **seg_tp)
                     seg_text = seg_result.get("text","").strip()
                     if seg_text:
                         full_texts.append(seg_text)
-                        prev_text = (prev_text + " " + seg_text).strip()[-500:]  # keep last 500 chars
                     for seg in seg_result.get("segments",[]):
                         # Shift chunk timestamps to original audio position
                         seg["start"] = seg.get("start", 0) + seg_start
@@ -373,7 +369,7 @@ class WhisperCPPNode:
                         regions.append((start_frame, n_frames))
                     
                     # Convert to seconds and transcribe per region
-                    all_segments, full_texts, prev_text = [], [], ""
+                    all_segments, full_texts = [], []
                     for ri, (sf, ef) in enumerate(regions):
                         seg_start = sf * hop_len / sr
                         seg_end = ef * hop_len / sr
@@ -383,16 +379,14 @@ class WhisperCPPNode:
                         dur_ms = int(dur_s * 1000)
                         if dur_ms < 1000:  # skip <1s
                             continue
-                        carry = {"initial_prompt": prev_text or None}
-                        # Extract audio chunk instead of offset_ms (whisper timestamps overflow duration_ms)
+                        # Extract audio chunk — NO initial_prompt carry (causes whisper loops)
                         chunk = audio_data[int(seg_start*16000):int(seg_end*16000)]
-                        seg_tp = {**tp_base, "offset_ms": 0, "duration_ms": 0, **carry}
+                        seg_tp = {**tp_base, "offset_ms": 0, "duration_ms": 0, "initial_prompt": None}
                         try:
                             seg_result = wcpp.transcribe(chunk, **seg_tp)
                             seg_text = seg_result.get("text","").strip()
                             if seg_text:
                                 full_texts.append(seg_text)
-                                prev_text = (prev_text + " " + seg_text).strip()[-500:]
                             for seg in seg_result.get("segments",[]):
                                 # Shift chunk timestamps to original audio position
                                 seg["start"] = seg.get("start", 0) + seg_start
