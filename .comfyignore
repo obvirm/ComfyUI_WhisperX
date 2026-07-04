@@ -1,4 +1,5 @@
 # Files yang nggak perlu di registry package
+.mcp.json
 AGENTS.md
 MEMD.md
 picture/

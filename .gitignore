@@ -17,6 +17,7 @@ nwhisper.dlln*.pdbn*.dllcpp-annote/onnxruntime-win-x64-1.27.0/
 cpp-annote/onnxruntime-win-x64-1.27.0/
 cpp-annote/zlib/build/
 cpp-annote/build/
-cpp-annote/node.zip
+cpp-annote/.mcp.json
+node.zip
 cpp-annote/*.exe
 cpp-annote/audio/
