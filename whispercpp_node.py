@@ -325,37 +325,81 @@ class WhisperCPPNode:
                 "model_type": wcpp._lib.whisper_model_type_readable(wcpp._ctx).decode() if wcpp._ctx else "unknown",
             }
         else:
-            tp = {**tp_base, "offset_ms":0, "duration_ms":0}
-            try: result = wcpp.transcribe(audio_data, **tp)
-            except Exception as e: logger.error(f"Failed: {e}"); import traceback; traceback.print_exc(); return ("","","","","","","")
-        pbar.update(1)
-        
-        # ── Hallucination filter: remove segments with low audio energy ──
-        do_hallu = self._get(kwargs,"hallu_filter",True)
-        hallu_th = self._get(kwargs,"hallu_threshold",0.6)
-        if do_hallu and "segments" in result:
-            sr = 16000
-            total_samples = len(audio_data)
-            before = len(result["segments"])
-            filtered = []
-            for s in result["segments"]:
-                start_samp = int(s.get("start",0) * sr)
-                end_samp = int(s.get("end", total_samples/sr) * sr)
-                end_samp = min(end_samp, total_samples)
-                if start_samp >= end_samp:
-                    continue
-                chunk = audio_data[start_samp:end_samp]
-                rms = np.sqrt(np.mean(chunk**2)) if len(chunk) > 0 else 0
-                # Normalize RMS by overall peak
-                peak = np.max(np.abs(chunk)) if len(chunk) > 0 else 0
-                if rms > hallu_th * 0.01:  # hallu_th=0.6 -> rms > 0.006
-                    filtered.append(s)
+            # ── RMS-based pre-filter (lightweight VAD, no ML model) ──
+            do_hallu = self._get(kwargs,"hallu_filter",True)
+            hallu_th = self._get(kwargs,"hallu_threshold",0.6)
+            if do_hallu:
+                sr = 16000
+                window_ms = 30  # 30ms window
+                hop_ms = 10     # 10ms step
+                win_len = int(sr * window_ms / 1000)
+                hop_len = int(sr * hop_ms / 1000)
+                threshold = hallu_th * 0.01  # 0.6 -> 0.006
+                n_frames = (len(audio_data) - win_len) // hop_len + 1
+                
+                # Compute RMS per frame
+                rms_frames = np.array([
+                    np.sqrt(np.mean(audio_data[i*h : i*h + w]**2))
+                    for i in range(n_frames)
+                ])
+                
+                # Find speech regions (RMS > threshold)
+                is_speech = rms_frames > threshold
+                if is_speech.any():
+                    # Find contiguous regions
+                    regions = []
+                    in_speech = False
+                    start_frame = 0
+                    for i in range(n_frames):
+                        if is_speech[i] and not in_speech:
+                            start_frame = i
+                            in_speech = True
+                        elif not is_speech[i] and in_speech:
+                            # Merge gap < 500ms (50 frames)
+                            gap = i - start_frame
+                            for j in range(i, min(i + 50, n_frames)):
+                                if is_speech[j]:
+                                    break
+                            else:
+                                regions.append((start_frame, i))
+                                in_speech = False
+                    if in_speech:
+                        regions.append((start_frame, n_frames))
+                    
+                    # Convert to seconds and transcribe per region
+                    all_segments, full_texts, prev_text = [], [], ""
+                    for ri, (sf, ef) in enumerate(regions):
+                        seg_start = sf * hop_len / sr
+                        seg_end = ef * hop_len / sr
+                        dur_ms = int((seg_end - seg_start) * 1000)
+                        if dur_ms < 1000:  # skip <1s
+                            continue
+                        carry = {"initial_prompt": prev_text or None}
+                        seg_tp = {**tp_base, "offset_ms": int(seg_start*1000), "duration_ms": dur_ms, **carry}
+                        try:
+                            seg_result = wcpp.transcribe(audio_data, **seg_tp)
+                            seg_text = seg_result.get("text","").strip()
+                            if seg_text:
+                                full_texts.append(seg_text)
+                                prev_text = (prev_text + " " + seg_text).strip()[-500:]
+                            for seg in seg_result.get("segments",[]):
+                                all_segments.append(seg)
+                            logger.info(f"  [{ri+1}/{len(regions)}] {seg_start:.1f}s-{seg_end:.1f}s: {seg_text[:60]}...")
+                        except Exception as e:
+                            logger.warning(f"Region {ri} failed: {e}")
+                    result = {
+                        "text": ". ".join(full_texts).strip(),
+                        "segments": all_segments,
+                        "language": "en",
+                        "n_segments": len(all_segments),
+                    }
                 else:
-                    logger.info(f"Filtered: [{s.get('start',0):.1f}-{s.get('end',0):.1f}] rms={rms:.6f}")
-            removed = before - len(filtered)
-            if removed:
-                logger.info(f"Hallucination filter: removed {removed}/{before} segments (energy < {hallu_th*0.01:.4f})")
-            result["segments"] = filtered
+                    result = {"text": "", "segments": [], "language": "en", "n_segments": 0}
+            else:
+                tp = {**tp_base, "offset_ms":0, "duration_ms":0}
+                try: result = wcpp.transcribe(audio_data, **tp)
+                except Exception as e: logger.error(f"Failed: {e}"); import traceback; traceback.print_exc(); return ("","","","","","","")
+        pbar.update(1)
         
         # --- Optional alignment (sherpa-onnx CTC) — default ON ---
         # Skipped if DTW is active (mutually exclusive)
