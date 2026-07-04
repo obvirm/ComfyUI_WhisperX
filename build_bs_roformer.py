@@ -18,6 +18,10 @@ elif IS_MAC: LIB_EXT = "dylib"
 else: LIB_EXT = "so"
 LIB_NAME = f"bs_roformer.{LIB_EXT}"
 
+def _check_vulkan() -> bool:
+    """Check if Vulkan is actually available (glslc installed)."""
+    return shutil.which("glslc") is not None
+
 
 def find_lib():
     """Cari hasil build library."""
@@ -72,7 +76,7 @@ def main():
 
     # GPU backends
     cuda_on = "ON" if args.cuda or args.gpu else "OFF"
-    vulkan_on = "ON" if (args.vulkan or args.gpu) and not IS_MAC else "OFF"
+    vulkan_on = "ON" if (args.vulkan or args.gpu) and not IS_MAC and _check_vulkan() else "OFF"
     opencl_on = "ON" if (args.opencl or args.gpu) and not IS_MAC else "OFF"
 
     # Auto-detect GPU if --gpu
