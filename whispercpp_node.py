@@ -327,15 +327,31 @@ class WhisperCPPNode:
             except Exception as e: logger.error(f"Failed: {e}"); import traceback; traceback.print_exc(); return ("","","","","","","")
         pbar.update(1)
         
-        # ── Hallucination filter: remove low-confidence segments ──
+        # ── Hallucination filter: remove segments with low audio energy ──
         do_hallu = self._get(kwargs,"hallu_filter",True)
         hallu_th = self._get(kwargs,"hallu_threshold",0.6)
         if do_hallu and "segments" in result:
+            sr = 16000
+            total_samples = len(audio_data)
             before = len(result["segments"])
-            filtered = [s for s in result["segments"] if s.get("no_speech_prob", 0) <= hallu_th]
+            filtered = []
+            for s in result["segments"]:
+                start_samp = int(s.get("start",0) * sr)
+                end_samp = int(s.get("end", total_samples/sr) * sr)
+                end_samp = min(end_samp, total_samples)
+                if start_samp >= end_samp:
+                    continue
+                chunk = audio_data[start_samp:end_samp]
+                rms = np.sqrt(np.mean(chunk**2)) if len(chunk) > 0 else 0
+                # Normalize RMS by overall peak
+                peak = np.max(np.abs(chunk)) if len(chunk) > 0 else 0
+                if rms > hallu_th * 0.01:  # hallu_th=0.6 -> rms > 0.006
+                    filtered.append(s)
+                else:
+                    logger.debug(f"  Filtered: [{s.get('start',0):.1f}-{s.get('end',0):.1f}] rms={rms:.6f} '{s.get('text','')[:30]}'")
             removed = before - len(filtered)
             if removed:
-                logger.info(f"Hallucination filter: removed {removed}/{before} segments (nsp > {hallu_th})")
+                logger.info(f"Hallucination filter: removed {removed}/{before} segments (energy < {hallu_th*0.01:.4f})")
             result["segments"] = filtered
         
         # --- Optional alignment (sherpa-onnx CTC) — default ON ---
