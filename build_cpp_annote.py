@@ -43,9 +43,13 @@ def download_ort(cuda=False, directml=False, coreml=False, rocm=False):
         return None
 
     ort_dir = ANNOTE_DIR / ort_name
-    if ort_dir.exists():
+    if ort_dir.exists() and (ort_dir / "include").exists():
         print(f"ONNX Runtime already present: {ort_name}")
         return ort_dir
+    # Clean up partial/empty directory
+    if ort_dir.exists():
+        import shutil
+        shutil.rmtree(ort_dir, ignore_errors=True)
 
     print(f"Downloading {ort_name}...")
     try:
