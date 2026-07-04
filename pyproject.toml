@@ -3,7 +3,7 @@ name = "obvirm-whispercpp"
 description = "WhisperCPP for ComfyUI - whisper.cpp with full CPP params, alignment, diarization"
 version = "1.0.0"
 license = {file = "LICENSE"}
-dependencies = ["numpy","tqdm","requests","huggingface-hub"]
+dependencies = ["numpy","tqdm","requests","huggingface-hub","scipy","sherpa-onnx"]
 
 [project.urls]
 Repository = "https://github.com/obvirm/ComfyUI-WhisperCPP"

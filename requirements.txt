@@ -2,4 +2,5 @@ numpy
 tqdm
 requests
 huggingface-hub
-# whisperx  # optional for alignment & diarization
+scipy
+sherpa-onnx
