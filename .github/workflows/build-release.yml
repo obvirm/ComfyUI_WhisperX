@@ -24,9 +24,17 @@ jobs:
       - name: Build whisper.cpp
         run: python build_whisper_cpp.py
 
-      # BSRoformer
+      # BSRoformer — CUDA if nvidia-smi available
       - name: Build BSRoformer
-        run: python build_bs_roformer.py
+        shell: bash
+        run: |
+          if command -v nvidia-smi &>/dev/null; then
+            echo "CUDA detected, building with --cuda"
+            python build_bs_roformer.py --cuda
+          else
+            echo "No CUDA, building CPU only"
+            python build_bs_roformer.py
+          fi
 
       # cpp-annote
       - name: Build cpp-annote
@@ -64,25 +72,17 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y cmake build-essential libcl-dev libvulkan-dev
 
-      # whisper.cpp — OpenCL + Vulkan + CPU
       - name: Build whisper.cpp
         run: python build_whisper_cpp.py
 
-      # BSRoformer
       - name: Build BSRoformer
         run: python build_bs_roformer.py
 
-      # cpp-annote — TODO: cross-platform build script
-      # - name: Build cpp-annote
-      #   run: python build_cpp_annote.py
-
-      # Package
       - name: Collect .so
         run: |
           mkdir -p release
-          cp libwhisper.so* release/ 2>/dev/null || true
-          cp libbs_roformer.so* release/ 2>/dev/null || true
-          # Find ggml .so files
+          find . -name "libwhisper.so*" -exec cp {} release/ \;
+          find . -name "libbs_roformer.so*" -exec cp {} release/ \;
           find . -name "libggml*.so*" -exec cp {} release/ \;
 
       - name: Upload artifact
@@ -111,8 +111,8 @@ jobs:
       - name: Collect dylib
         run: |
           mkdir -p release
-          cp libwhisper.dylib release/ 2>/dev/null || true
-          cp libbs_roformer.dylib release/ 2>/dev/null || true
+          find . -name "libwhisper.dylib*" -exec cp {} release/ \;
+          find . -name "libbs_roformer.dylib*" -exec cp {} release/ \;
           find . -name "libggml*.dylib*" -exec cp {} release/ \;
 
       - name: Upload artifact
