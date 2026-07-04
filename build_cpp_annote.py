@@ -30,7 +30,7 @@ def download_ort(cuda=False, directml=False, coreml=False, rocm=False):
             ort_name = f"onnxruntime-linux-x64-rocm-{ORT_VERSION}" if ORT_VERSION >= "1.16.0" else f"onnxruntime-linux-x64-{ORT_VERSION}"
         else:
             ort_name = f"onnxruntime-linux-x64-{ORT_VERSION}"
-        url = f"https://github.com/microsoft/onnxruntime/releases/download/v{ORT_VERSION}/{ort_name}.tar.gz"
+        url = f"https://github.com/microsoft/onnxruntime/releases/download/v{ORT_VERSION}/{ort_name}.tgz"
     elif IS_MAC:
         ort_name = f"onnxruntime-osx-arm64-{ORT_VERSION}" if platform.machine() == "arm64" else f"onnxruntime-osx-x86_64-{ORT_VERSION}"
         url = f"https://github.com/microsoft/onnxruntime/releases/download/v{ORT_VERSION}/{ort_name}.tgz"
