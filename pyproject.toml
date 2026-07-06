@@ -1,7 +1,7 @@
 [project]
 name = "obvirm-whisperxx"
 description = "WhisperCPP for ComfyUI - whisper.cpp with full CPP params, alignment, diarization"
-version = "2.1.0"
+version = "2.1.1"
 license = {file = "LICENSE"}
 dependencies = ["numpy","tqdm","requests","huggingface-hub","scipy","sherpa-onnx"]
 
@@ -15,3 +15,31 @@ PublisherId = "obvirm"
 DisplayName = "ComfyUI-WhisperCPP"
 Icon = ""
 includes = []
+
+[tool.black]
+line-length = 120
+target-version = ['py38', 'py39', 'py310', 'py311', 'py312']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+  | node_modules
+  | whisper.cpp
+  | bs_roformer.cpp
+  | cpp-annote
+)/
+'''
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
