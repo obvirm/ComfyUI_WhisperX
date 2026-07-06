@@ -47,6 +47,9 @@ def _check_version():
             print(f"")
             print(f"Current:  v{current_version}")
             print(f"Latest:   v{latest_version}")
+            print(f"")
+            print(f"❌ DO NOT open GitHub issues if you're on an outdated version!")
+            print(f"❌ Update first, then report if the problem persists.")
             print(f"{'='*60}\n")
             return False
         
