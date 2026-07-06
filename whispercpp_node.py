@@ -482,10 +482,17 @@ class WhisperCPPNode:
         full_text = " ".join([s.get("text","").strip() for s in result.get("segments",[])])
         seg_json = json.dumps(result.get("segments",[]), indent=2, ensure_ascii=False)
         segs = result.get("segments",[])
-        srt = self._segs_to_srt(segs)
-        vtt = self._segs_to_vtt(segs)
-        tsv = self._segs_to_tsv(segs)
-        aud = self._segs_to_aud(segs)
+        
+        # Auto-detect word-level: use if any segment has words with timestamps
+        has_words = any(
+            s.get("words") and len(s["words"]) > 0 and "start" in s["words"][0]
+            for s in segs
+        )
+        
+        srt = self._segs_to_srt(segs, word_level=has_words)
+        vtt = self._segs_to_vtt(segs, word_level=has_words)
+        tsv = self._segs_to_tsv(segs, word_level=has_words)
+        aud = self._segs_to_aud(segs, word_level=has_words)
         jr = json.dumps(result, indent=2, ensure_ascii=False)
         return (full_text, seg_json, srt, vtt, tsv, aud, jr)
 
@@ -499,20 +506,70 @@ class WhisperCPPNode:
 
     def _segs_to_srt(self, segs):
         lines = []
-        for i,s in enumerate(segs,1):
-            lines.append(str(i)); lines.append(f"{self._ts(s['start'],'srt')} --> {self._ts(s['end'],'srt')}"); lines.append(s.get("text","").strip()); lines.append("")
+        counter = 1
+        for seg in segs:
+            words = seg.get("words", [])
+            if word_level and words:
+                for w in words:
+                    word_text = w.get("word", "").strip()
+                    if not word_text:
+                        continue
+                    lines.append(str(counter))
+                    lines.append(f"{self._ts(w.get('start', 0), 'srt')} --> {self._ts(w.get('end', 0), 'srt')}")
+                    lines.append(word_text)
+                    lines.append("")
+                    counter += 1
+            else:
+                lines.append(str(counter))
+                lines.append(f"{self._ts(seg['start'], 'srt')} --> {self._ts(seg['end'], 'srt')}")
+                lines.append(seg.get("text", "").strip())
+                lines.append("")
+                counter += 1
         return "\n".join(lines)
-    def _segs_to_vtt(self, segs):
-        lines = ["WEBVTT",""]
-        for s in segs:
-            lines.append(f"{self._ts(s['start'],'vtt')} --> {self._ts(s['end'],'vtt')}"); lines.append(s.get("text","").strip()); lines.append("")
+    def _segs_to_vtt(self, segs, word_level=False):
+        lines = ["WEBVTT", ""]
+        for seg in segs:
+            words = seg.get("words", [])
+            if word_level and words:
+                for w in words:
+                    word_text = w.get("word", "").strip()
+                    if not word_text:
+                        continue
+                    lines.append(f"{self._ts(w.get('start', 0), 'vtt')} --> {self._ts(w.get('end', 0), 'vtt')}")
+                    lines.append(word_text)
+                    lines.append("")
+            else:
+                lines.append(f"{self._ts(seg['start'], 'vtt')} --> {self._ts(seg['end'], 'vtt')}")
+                lines.append(seg.get("text", "").strip())
+                lines.append("")
         return "\n".join(lines)
-    def _segs_to_tsv(self, segs):
+    def _segs_to_tsv(self, segs, word_level=False):
         lines = ["start\tend\ttext"]
-        for s in segs: lines.append(f"{s['start']:.3f}\t{s['end']:.3f}\t{s.get('text','').strip()}")
+        for seg in segs:
+            words = seg.get("words", [])
+            if word_level and words:
+                for w in words:
+                    word_text = w.get("word", "").strip()
+                    if not word_text:
+                        continue
+                    lines.append(f"{w.get('start', 0):.3f}\t{w.get('end', 0):.3f}\t{word_text}")
+            else:
+                lines.append(f"{seg['start']:.3f}\t{seg['end']:.3f}\t{seg.get('text', '').strip()}")
         return "\n".join(lines)
-    def _segs_to_aud(self, segs):
-        return "\n".join(f"{s['start']:.3f},{s['end']:.3f},{s.get('text','').strip()}" for s in segs)
+    def _segs_to_aud(self, segs, word_level=False):
+        lines = []
+        for seg in segs:
+            speaker = seg.get("speaker", 0)
+            words = seg.get("words", [])
+            if word_level and words:
+                for w in words:
+                    word_text = w.get("word", "").strip()
+                    if not word_text:
+                        continue
+                    lines.append(f"{w.get('start', 0):.3f},{w.get('end', 0):.3f},{word_text},{speaker}")
+            else:
+                lines.append(f"{seg['start']:.3f},{seg['end']:.3f},{seg.get('text', '').strip()},{speaker}")
+        return "\n".join(lines)
 
 NODE_CLASS_MAPPINGS = {"WhisperCPPNode": WhisperCPPNode}
 NODE_DISPLAY_NAME_MAPPINGS = {"WhisperCPPNode": "WhisperCPP Transcription"}
