@@ -11,14 +11,12 @@ whisper.cpp/build/
 models/
 .DS_Store
 Thumbs.db
-nwhisper.dlln*.pdbn*.dllcpp-annote/onnxruntime-win-x64-1.27.0/
+node.zip
+.mcp.json
 
-# cpp-annote large SDK files
-cpp-annote/onnxruntime-win-x64-1.27.0/
+# cpp-annote
+cpp-annote/onnxruntime-*/
 cpp-annote/zlib/build/
 cpp-annote/build/
-cpp-annote/.mcp.json
-node.zip
 cpp-annote/*.exe
 cpp-annote/audio/
-.mcp.json
