@@ -65,9 +65,6 @@ except ImportError:
     pass
 
 NODE_DIR = os.path.dirname(os.path.abspath(__file__))
-CONFIG_PATH = os.path.join(NODE_DIR, "whispercpp.json")
-
-load_custom_models(CONFIG_PATH)
 GGML_MODEL_KEYS = get_model_keys()
 
 class ColoredLogger:
@@ -211,7 +208,7 @@ class WhisperCPPNode:
         pbar.update(1)
 
         model_key = self._get(kwargs,"model","large-v3-turbo")
-        mgr = self._ensure_mgr(); mgr.ensure_custom_config(CONFIG_PATH)
+        mgr = self._ensure_mgr()
         model_path = mgr.get_model_path(model_key)
         if not model_path:
             logger.info(f"Downloading {model_key}...")
