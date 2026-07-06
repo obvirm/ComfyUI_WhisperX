@@ -15,10 +15,23 @@ import hashlib
 import os
 import platform
 import shutil
+import tempfile
 import urllib.request
 import logging
 
 logger = logging.getLogger("WhisperCPP")
+
+# Simple file lock for race condition prevention
+import threading
+_file_locks = {}
+_file_locks_lock = threading.Lock()
+
+def _get_file_lock(filepath: str) -> threading.Lock:
+    """Get or create a lock for a specific file."""
+    with _file_locks_lock:
+        if filepath not in _file_locks:
+            _file_locks[filepath] = threading.Lock()
+        return _file_locks[filepath]
 
 GITHUB_REPO = "obvirm/ComfyUI-WhisperCPP"
 CURRENT_VERSION = "v2.0.9"
@@ -111,10 +124,24 @@ def _verify_checksum(filepath: str, expected_sha256: str = None) -> bool:
 def download_file(url: str, dest: str, timeout: int = 120, retries: int = 2,
                   expected_size: int = None, expected_sha256: str = None) -> bool:
     """Download a single file with safety checks. Returns True on success."""
+    # Prevent race condition: only one thread downloads to same file
+    file_lock = _get_file_lock(dest)
+    with file_lock:
+        return _download_file_internal(url, dest, timeout, retries, expected_size, expected_sha256)
+
+
+def _download_file_internal(url: str, dest: str, timeout: int, retries: int,
+                           expected_size: int, expected_sha256: str) -> bool:
+    """Internal download function (must be called with file_lock held)."""
+    # Safety: Check for symlink attacks
+    if os.path.islink(dest):
+        logger.warning(f"  Symlink detected: {dest} — removing")
+        os.remove(dest)
+    
     for attempt in range(retries + 1):
         try:
             # Skip if already exists and valid
-            if os.path.isfile(dest) and os.path.getsize(dest) > 0:
+            if os.path.isfile(dest) and not os.path.islink(dest) and os.path.getsize(dest) > 0:
                 if _verify_checksum(dest, expected_sha256):
                     return True
                 else:
@@ -130,42 +157,60 @@ def download_file(url: str, dest: str, timeout: int = 120, retries: int = 2,
             else:
                 logger.info(f"  Downloading {os.path.basename(dest)}...")
             
-            # Download with timeout
-            req = urllib.request.Request(url, headers={"User-Agent": "ComfyUI-WhisperCPP"})
-            with urllib.request.urlopen(req, timeout=timeout) as response:
-                # Check for rate limiting (403/429)
-                if response.status == 403:
-                    logger.warning("  GitHub rate limit hit. Wait and retry.")
-                    import time
-                    time.sleep(60)
-                    continue
+            # Download to TEMP file first (prevents partial file corruption)
+            dest_dir = os.path.dirname(dest) or "."
+            fd, tmp_path = tempfile.mkstemp(dir=dest_dir, suffix=".tmp")
+            os.close(fd)
+            
+            try:
+                req = urllib.request.Request(url, headers={"User-Agent": "ComfyUI-WhisperCPP"})
+                with urllib.request.urlopen(req, timeout=timeout) as response:
+                    # Check for rate limiting (403/429)
+                    if response.status == 403:
+                        logger.warning("  GitHub rate limit hit. Wait and retry.")
+                        import time
+                        time.sleep(60)
+                        os.remove(tmp_path)
+                        continue
+                    
+                    with open(tmp_path, "wb") as f:
+                        while True:
+                            chunk = response.read(8192)
+                            if not chunk:
+                                break
+                            f.write(chunk)
                 
-                with open(dest, "wb") as f:
-                    while True:
-                        chunk = response.read(8192)
-                        if not chunk:
-                            break
-                        f.write(chunk)
-            
-            # Verify file was downloaded
-            if os.path.getsize(dest) == 0:
-                os.remove(dest)
-                raise Exception("Empty file")
-            
-            # Verify size if provided
-            if expected_size and os.path.getsize(dest) != expected_size:
-                logger.warning(f"  Size mismatch: expected {expected_size}, got {os.path.getsize(dest)}")
-                # Don't fail, just warn (size might differ slightly)
-            
-            # Verify checksum
-            if not _verify_checksum(dest, expected_sha256):
-                os.remove(dest)
-                raise Exception("Checksum mismatch")
-            
-            # Set executable permission on Linux/macOS
-            if not IS_WIN:
-                os.chmod(dest, 0o755)
-            return True
+                # Verify file was downloaded
+                if os.path.getsize(tmp_path) == 0:
+                    raise Exception("Empty file")
+                
+                # Verify size if provided
+                if expected_size and os.path.getsize(tmp_path) != expected_size:
+                    logger.warning(f"  Size mismatch: expected {expected_size}, got {os.path.getsize(tmp_path)}")
+                
+                # Verify checksum
+                if not _verify_checksum(tmp_path, expected_sha256):
+                    raise Exception("Checksum mismatch")
+                
+                # Set executable permission on Linux/macOS
+                if not IS_WIN:
+                    os.chmod(tmp_path, 0o755)
+                
+                # ATOMIC MOVE: Rename temp → dest (prevents partial file on crash)
+                if os.path.exists(dest):
+                    os.remove(dest)
+                os.rename(tmp_path, dest)
+                return True
+                
+            except Exception as e:
+                # Clean up temp file on failure
+                try:
+                    if os.path.isfile(tmp_path):
+                        os.remove(tmp_path)
+                except OSError:
+                    pass
+                raise  # Re-raise to outer handler
+                
         except urllib.error.HTTPError as e:
             if e.code == 404:
                 logger.warning(f"  File not found: {os.path.basename(dest)}")
@@ -180,10 +225,12 @@ def download_file(url: str, dest: str, timeout: int = 120, retries: int = 2,
         except Exception as e:
             logger.warning(f"  Download failed ({os.path.basename(dest)}): {e}")
         
-        # Clean up partial download
+        # Clean up partial destination file
         try:
-            if os.path.isfile(dest):
-                os.remove(dest)
+            if os.path.isfile(dest) and not os.path.islink(dest):
+                # Check if it's a valid file before removing
+                if os.path.getsize(dest) == 0:
+                    os.remove(dest)
         except OSError:
             pass
         
