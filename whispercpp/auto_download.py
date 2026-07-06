@@ -58,6 +58,12 @@ ASSETS = {
         "Linux":   ["libcpp_annote.so", "libonnxruntime.so", "libonnxruntime_providers_shared.so"],
         "Darwin":  ["libcpp_annote.dylib"],
     },
+    # ONNX models (platform-independent)
+    "cpp_annote_models": {
+        "Windows": ["community1-segmentation.onnx", "community1-embedding.onnx"],
+        "Linux":   ["community1-segmentation.onnx", "community1-embedding.onnx"],
+        "Darwin":  ["community1-segmentation.onnx", "community1-embedding.onnx"],
+    },
 }
 
 # GPU-specific assets (only needed when GPU is available)
@@ -248,7 +254,7 @@ def download_module(module: str, target_dir: str, version: str = None,
     Download all files for a module (whisper/bs_roformer/cpp_annote).
     
     Args:
-        module: "whisper", "bs_roformer", or "cpp_annote"
+        module: "whisper", "bs_roformer", "cpp_annote", or "cpp_annote_models"
         target_dir: Directory to save files to
         version: Release tag (default: CURRENT_VERSION)
         has_gpu: Whether to include GPU-specific assets
@@ -265,6 +271,10 @@ def download_module(module: str, target_dir: str, version: str = None,
     if has_gpu:
         gpu_files = GPU_ASSETS.get(module, {}).get(system, [])
         files.extend(gpu_files)
+
+    # ONNX models go to cpp-annote/artifacts/
+    if module == "cpp_annote_models":
+        target_dir = os.path.join(target_dir, "cpp-annote", "artifacts")
 
     os.makedirs(target_dir, exist_ok=True)
 

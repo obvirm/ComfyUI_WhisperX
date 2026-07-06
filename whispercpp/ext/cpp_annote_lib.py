@@ -180,6 +180,23 @@ class CppAnnoteContext:
             _lib.cpp_annote_free_string(c_json)
 
 
+def _auto_download_models():
+    """Download ONNX models if missing."""
+    try:
+        from ..auto_download import download_module, check_module_files
+        from ..gpu_detect import detect_gpu
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        gpu = detect_gpu()
+        has_gpu = gpu["backend"] != "cpu"
+        # Skip if already present
+        if check_module_files("cpp_annote_models", base_dir, has_gpu=has_gpu):
+            return True
+        return download_module("cpp_annote_models", base_dir, has_gpu=has_gpu)
+    except Exception as e:
+        logger.warning(f"Auto-download models failed: {e}")
+        return False
+
+
 def cpp_annote_init(seg_path=None, emb_path=None):
     """
     Load VAD/diarization engine. Paths default ke artifacts/.
@@ -192,6 +209,11 @@ def cpp_annote_init(seg_path=None, emb_path=None):
         seg_path = str(ARTIFACTS_DIR / "community1-segmentation.onnx")
     if emb_path is None:
         emb_path = str(ARTIFACTS_DIR / "community1-embedding.onnx")
+
+    # Auto-download ONNX models if missing
+    if not os.path.isfile(seg_path) or not os.path.isfile(emb_path):
+        logger.info("ONNX models missing, downloading...")
+        _auto_download_models()
 
     ctx_ptr = lib.cpp_annote_init(seg_path.encode("utf-8"), emb_path.encode("utf-8"))
     if ctx_ptr is None:
