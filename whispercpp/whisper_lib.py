@@ -72,7 +72,9 @@ class WhisperFullParams(ctypes.Structure):
 
 class WhisperCPP:
     def __init__(self, lib_path=None):
+        import threading
         self._lib = None; self._ctx = None; self._lib_path = lib_path; self._model_path = None
+        self._lock = threading.Lock()  # Thread safety for transcribe()
 
     def _find_library(self):
         if self._lib_path and os.path.isfile(self._lib_path):
@@ -203,18 +205,20 @@ class WhisperCPP:
 
     def load_model(self, model_path, use_gpu=True, gpu_device=0, flash_attn=False, dtw_token_timestamps=False, dtw_aheads_preset=0, dtw_n_top=-1):
         if self._lib is None: self.load_library()
-        self.free_model()
-        if not os.path.isfile(model_path): raise FileNotFoundError(f"Model not found: {model_path}")
-        cparams = self._lib.whisper_context_default_params()
-        cparams.use_gpu = use_gpu; cparams.gpu_device = gpu_device; cparams.flash_attn = flash_attn
-        cparams.dtw_token_timestamps = dtw_token_timestamps; cparams.dtw_aheads_preset = dtw_aheads_preset; cparams.dtw_n_top = dtw_n_top
-        ctx = self._lib.whisper_init_from_file_with_params(model_path.encode("utf-8"), cparams)
-        if not ctx: raise RuntimeError(f"Failed to init whisper from {model_path}")
-        self._ctx = ctx; self._model_path = model_path
+        with self._lock:
+            self.free_model()
+            if not os.path.isfile(model_path): raise FileNotFoundError(f"Model not found: {model_path}")
+            cparams = self._lib.whisper_context_default_params()
+            cparams.use_gpu = use_gpu; cparams.gpu_device = gpu_device; cparams.flash_attn = flash_attn
+            cparams.dtw_token_timestamps = dtw_token_timestamps; cparams.dtw_aheads_preset = dtw_aheads_preset; cparams.dtw_n_top = dtw_n_top
+            ctx = self._lib.whisper_init_from_file_with_params(model_path.encode("utf-8"), cparams)
+            if not ctx: raise RuntimeError(f"Failed to init whisper from {model_path}")
+            self._ctx = ctx; self._model_path = model_path
 
     def free_model(self):
-        if self._ctx is not None:
-            self._lib.whisper_free(self._ctx); self._ctx = None; self._model_path = None
+        with self._lock:
+            if self._ctx is not None:
+                self._lib.whisper_free(self._ctx); self._ctx = None; self._model_path = None
 
     def __del__(self): self.free_model()
 
@@ -261,7 +265,14 @@ class WhisperCPP:
         import numpy as np
         if self._lib is None: self.load_library()
         if self._ctx is None: raise RuntimeError("No model loaded")
+        
+        # Validate audio input
         audio = np.asarray(audio_data, dtype=np.float32).ravel()
+        if len(audio) == 0:
+            raise ValueError("Audio input is empty")
+        if len(audio) < 1600:  # Less than 0.1s at 16kHz
+            raise ValueError(f"Audio too short: {len(audio)} samples ({len(audio)/16000:.2f}s)")
+        
         task = kwargs.pop("task", None)
         if task == "translate": kwargs["translate"] = True
         elif task == "transcribe": kwargs["translate"] = False
@@ -269,7 +280,10 @@ class WhisperCPP:
         if "n_threads" not in kwargs or kwargs["n_threads"] is None: kwargs["n_threads"] = max(1, os.cpu_count() or 4)
         params = self._build_full_params(**kwargs)
         audio_ptr = audio.ctypes.data_as(ctypes.POINTER(ctypes.c_float))
-        ret = self._lib.whisper_full(self._ctx, params, audio_ptr, len(audio))
+        
+        # Thread safety: whisper_full() is NOT thread-safe
+        with self._lock:
+            ret = self._lib.whisper_full(self._ctx, params, audio_ptr, len(audio))
         if ret != 0: raise RuntimeError(f"whisper_full failed: {ret}")
         n_seg = self._lib.whisper_full_n_segments(self._ctx)
         lang_id = self._lib.whisper_full_lang_id(self._ctx)

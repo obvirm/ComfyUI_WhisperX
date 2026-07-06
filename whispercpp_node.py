@@ -247,6 +247,14 @@ class WhisperCPPNode:
 
         audio_data = AudioProcessor.process_comfy_audio(kwargs.get("audio"))
         
+        # Validate audio input
+        if audio_data is None or len(audio_data) == 0:
+            logger.error("Audio input is empty")
+            return ("", "", "", "", "", "", "")
+        if len(audio_data) < 1600:  # Less than 0.1s at 16kHz
+            logger.error(f"Audio too short: {len(audio_data)} samples ({len(audio_data)/16000:.2f}s)")
+            return ("", "", "", "", "", "", "")
+        
         # --- Optional UVR vocal separation (BSRoformer) ---
         if self._get(kwargs,"separate_vocals",False):
             separate_model = self._get(kwargs,"separate_model","voc_fv6-Q8_0.gguf")
