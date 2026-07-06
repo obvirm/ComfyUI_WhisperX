@@ -268,6 +268,7 @@ def download_module(module: str, target_dir: str, version: str = None,
 
     os.makedirs(target_dir, exist_ok=True)
 
+    total = len(files)
     success_count = 0
     for fname in files:
         url = _get_download_url(fname, version)
