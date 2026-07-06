@@ -46,12 +46,19 @@ jobs:
         shell: bash
         run: |
           mkdir -p release
-          # Copy whisper DLLs (each with || true so missing files don't fail the build)
+          # Copy whisper DLLs from root + build output
           for f in whisper.dll ggml-base.dll ggml-cpu.dll ggml-opencl.dll ggml-vulkan.dll ggml.dll; do
             cp "$f" release/ 2>/dev/null || true
+            cp "whisper.cpp/build/bin/Release/$f" release/ 2>/dev/null || true
+            cp "whisper.cpp/build/bin/$f" release/ 2>/dev/null || true
+            cp "whisper.cpp/build/$f" release/ 2>/dev/null || true
           done
           cp bs_roformer.dll release/ 2>/dev/null || true
+          cp bs_roformer.cpp/build/Release/bs_roformer.dll release/ 2>/dev/null || true
+          cp bs_roformer.cpp/build/bs_roformer.dll release/ 2>/dev/null || true
           cp cpp_annote.dll release/ 2>/dev/null || true
+          cp cpp-annote/build/Release/cpp_annote.dll release/ 2>/dev/null || true
+          cp cpp-annote/build/cpp_annote.dll release/ 2>/dev/null || true
           # Copy all ONNX Runtime DLLs (CPU + CUDA)
           cp onnxruntime*.dll release/ 2>/dev/null || true
           cp cpp-annote/onnxruntime*/lib/onnxruntime*.dll release/ 2>/dev/null || true
