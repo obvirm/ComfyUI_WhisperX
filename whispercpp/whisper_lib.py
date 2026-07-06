@@ -123,11 +123,20 @@ class WhisperCPP:
         except RuntimeError:
             # Step 1: Try auto-download from GitHub Releases
             if self._auto_download():
-                lib = self._find_library()
+                try:
+                    lib = self._find_library()
+                except RuntimeError:
+                    logger.warning("Download succeeded but library not found")
+                    lib = None
             else:
                 # Step 2: Try auto-build (requires CMake + compiler)
                 self._auto_build()
-                lib = self._find_library()
+                try:
+                    lib = self._find_library()
+                except RuntimeError:
+                    lib = None
+        if lib is None:
+            raise RuntimeError("whisper library not found. Build: python build_whisper_cpp.py")
         self._lib = ctypes.cdll.LoadLibrary(lib)
         self._setup_functions()
 
@@ -139,6 +148,9 @@ class WhisperCPP:
             from .auto_download import download_module, check_module_files
             gpu = detect_gpu()
             has_gpu = gpu["backend"] != "cpu"
+            # Skip if already present
+            if check_module_files("whisper", base_dir, has_gpu=has_gpu):
+                return True
             return download_module("whisper", base_dir, has_gpu=has_gpu)
         except Exception as e:
             logger.warning(f"Auto-download failed: {e}")

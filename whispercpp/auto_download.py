@@ -12,7 +12,7 @@ import logging
 logger = logging.getLogger("WhisperCPP")
 
 GITHUB_REPO = "obvirm/ComfyUI-WhisperCPP"
-CURRENT_VERSION = "v2.0.7"
+CURRENT_VERSION = "v2.0.9"
 
 IS_WIN = platform.system() == "Windows"
 IS_LINUX = platform.system() == "Linux"
@@ -39,11 +39,12 @@ ASSETS = {
 }
 
 # GPU-specific assets (only needed when GPU is available)
+# Note: Only include files that actually exist in the release!
 GPU_ASSETS = {
     "whisper": {
-        "Windows": ["ggml-vulkan.dll"],
-        "Linux":   ["libggml-vulkan.so", "libggml-opencl.so"],
-        "Darwin":  [],  # Metal is built-in via ggml-metal
+        "Windows": [],  # No GPU DLLs in release (CPU only)
+        "Linux":   ["libggml-opencl.so"],  # OpenCL available
+        "Darwin":  [],  # Metal is built-in via libggml-metal.dylib (in ASSETS)
     },
 }
 # fmt: on
@@ -70,27 +71,58 @@ def _get_download_url(asset_name: str, version: str = None) -> str:
     return f"https://github.com/{GITHUB_REPO}/releases/download/{v}/{asset_name}"
 
 
-def download_file(url: str, dest: str, timeout: int = 120) -> bool:
-    """Download a single file. Returns True on success."""
-    try:
-        # Skip if already exists
-        if os.path.isfile(dest) and os.path.getsize(dest) > 0:
-            return True
-        logger.info(f"  Downloading {os.path.basename(dest)}...")
-        urllib.request.urlretrieve(url, dest)
-        # Set executable permission on Linux/macOS
-        if not IS_WIN:
-            os.chmod(dest, 0o755)
-        return True
-    except Exception as e:
-        logger.warning(f"  Failed to download {os.path.basename(dest)}: {e}")
-        # Clean up partial download
+def download_file(url: str, dest: str, timeout: int = 120, retries: int = 2) -> bool:
+    """Download a single file with retry logic. Returns True on success."""
+    import socket
+    for attempt in range(retries + 1):
         try:
-            if os.path.isfile(dest):
+            # Skip if already exists
+            if os.path.isfile(dest) and os.path.getsize(dest) > 0:
+                return True
+            
+            if attempt > 0:
+                logger.info(f"  Retry {attempt}/{retries} for {os.path.basename(dest)}...")
+            else:
+                logger.info(f"  Downloading {os.path.basename(dest)}...")
+            
+            # Use urlopen with timeout for better control
+            req = urllib.request.Request(url, headers={"User-Agent": "ComfyUI-WhisperCPP"})
+            with urllib.request.urlopen(req, timeout=timeout) as response:
+                with open(dest, "wb") as f:
+                    while True:
+                        chunk = response.read(8192)
+                        if not chunk:
+                            break
+                        f.write(chunk)
+            
+            # Verify file was downloaded
+            if os.path.getsize(dest) == 0:
                 os.remove(dest)
-        except OSError:
-            pass
-        return False
+                raise Exception("Empty file")
+            
+            # Set executable permission on Linux/macOS
+            if not IS_WIN:
+                os.chmod(dest, 0o755)
+            return True
+        except Exception as e:
+            logger.warning(f"  Download failed ({os.path.basename(dest)}): {e}")
+            # Clean up partial download
+            try:
+                if os.path.isfile(dest):
+                    os.remove(dest)
+            except OSError:
+                pass
+            
+            # Don't retry on 404 (file not found)
+            if "HTTP Error 404" in str(e):
+                return False
+            
+            # Wait before retry (exponential backoff)
+            if attempt < retries:
+                import time
+                time.sleep(2 ** attempt)  # 1s, 2s, 4s
+    
+    return False
 
 
 def download_module(module: str, target_dir: str, version: str = None,
@@ -126,24 +158,39 @@ def download_module(module: str, target_dir: str, version: str = None,
         if download_file(url, dest):
             success_count += 1
 
-    total = len(files)
-    if success_count == total:
+    # Core files (non-GPU) must all succeed
+    core_files = ASSETS[module][system]
+    core_ok = all(
+        os.path.isfile(os.path.join(target_dir, f))
+        for f in core_files
+    )
+    
+    if core_ok:
         logger.info(f"  {module}: {success_count}/{total} files downloaded")
         return True
     else:
-        logger.warning(f"  {module}: only {success_count}/{total} files downloaded")
+        logger.warning(f"  {module}: core files missing ({success_count}/{total})")
         return False
 
 
-def check_module_files(module: str, target_dir: str) -> bool:
+def check_module_files(module: str, target_dir: str, has_gpu: bool = False) -> bool:
     """Check if all required files for a module exist."""
     system = platform.system()
     if system not in ASSETS.get(module, {}):
         return False
 
+    # Check core files
     for fname in ASSETS[module][system]:
         if not os.path.isfile(os.path.join(target_dir, fname)):
             return False
+    
+    # Check GPU files if requested
+    if has_gpu:
+        gpu_files = GPU_ASSETS.get(module, {}).get(system, [])
+        for fname in gpu_files:
+            if not os.path.isfile(os.path.join(target_dir, fname)):
+                return False
+    
     return True
 
 

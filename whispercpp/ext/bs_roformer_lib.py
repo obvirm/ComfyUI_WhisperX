@@ -65,11 +65,14 @@ def _find_library():
 def _auto_download():
     """Download bs_roformer from GitHub Releases."""
     try:
-        from ..auto_download import download_module
+        from ..auto_download import download_module, check_module_files
         from ..gpu_detect import detect_gpu
         base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         gpu = detect_gpu()
         has_gpu = gpu["backend"] != "cpu"
+        # Skip if already present
+        if check_module_files("bs_roformer", base_dir, has_gpu=has_gpu):
+            return
         download_module("bs_roformer", base_dir, has_gpu=has_gpu)
     except Exception as e:
         logger.warning(f"Auto-download failed: {e}")
