@@ -3,9 +3,18 @@ Auto-download DLLs/SOs from GitHub Releases.
 
 All 3 modules (whisper, bs_roformer, cpp_annote) use this.
 Downloads individual files based on platform + GPU detection.
+
+Safety checks:
+  - Disk space validation before download
+  - Retry with exponential backoff on network errors
+  - Skip 404 (file not found) immediately
+  - SHA256 checksum verification (if available)
+  - GitHub rate limit handling
 """
+import hashlib
 import os
 import platform
+import shutil
 import urllib.request
 import logging
 
@@ -71,23 +80,66 @@ def _get_download_url(asset_name: str, version: str = None) -> str:
     return f"https://github.com/{GITHUB_REPO}/releases/download/{v}/{asset_name}"
 
 
-def download_file(url: str, dest: str, timeout: int = 120, retries: int = 2) -> bool:
-    """Download a single file with retry logic. Returns True on success."""
-    import socket
+def _check_disk_space(dest: str, min_mb: int = 50) -> bool:
+    """Check if there's enough disk space for download."""
+    try:
+        dir_path = os.path.dirname(dest) or "."
+        usage = shutil.disk_usage(dir_path)
+        free_mb = usage.free / (1024 * 1024)
+        if free_mb < min_mb:
+            logger.warning(f"Low disk space: {free_mb:.0f}MB free (need {min_mb}MB)")
+            return False
+        return True
+    except Exception:
+        return True  # Can't check, assume OK
+
+
+def _verify_checksum(filepath: str, expected_sha256: str = None) -> bool:
+    """Verify file checksum if provided."""
+    if not expected_sha256:
+        return True  # No checksum to verify
+    try:
+        sha256 = hashlib.sha256()
+        with open(filepath, "rb") as f:
+            for chunk in iter(lambda: f.read(8192), b""):
+                sha256.update(chunk)
+        return sha256.hexdigest() == expected_sha256
+    except Exception:
+        return False
+
+
+def download_file(url: str, dest: str, timeout: int = 120, retries: int = 2,
+                  expected_size: int = None, expected_sha256: str = None) -> bool:
+    """Download a single file with safety checks. Returns True on success."""
     for attempt in range(retries + 1):
         try:
-            # Skip if already exists
+            # Skip if already exists and valid
             if os.path.isfile(dest) and os.path.getsize(dest) > 0:
-                return True
+                if _verify_checksum(dest, expected_sha256):
+                    return True
+                else:
+                    logger.warning(f"  Checksum mismatch, re-downloading {os.path.basename(dest)}...")
+                    os.remove(dest)
+            
+            # Check disk space
+            if not _check_disk_space(dest, min_mb=50):
+                return False
             
             if attempt > 0:
                 logger.info(f"  Retry {attempt}/{retries} for {os.path.basename(dest)}...")
             else:
                 logger.info(f"  Downloading {os.path.basename(dest)}...")
             
-            # Use urlopen with timeout for better control
+            # Download with timeout
             req = urllib.request.Request(url, headers={"User-Agent": "ComfyUI-WhisperCPP"})
             with urllib.request.urlopen(req, timeout=timeout) as response:
+                # Check for rate limiting (403/429)
+                if response.status == 403:
+                    logger.warning("  GitHub rate limit hit. Wait and retry.")
+                    import time
+                    time.sleep(60)
+                    continue
+                
                 with open(dest, "wb") as f:
                     while True:
                         chunk = response.read(8192)
@@ -100,27 +152,45 @@ def download_file(url: str, dest: str, timeout: int = 120, retries: int = 2) -> 
                 os.remove(dest)
                 raise Exception("Empty file")
             
+            # Verify size if provided
+            if expected_size and os.path.getsize(dest) != expected_size:
+                logger.warning(f"  Size mismatch: expected {expected_size}, got {os.path.getsize(dest)}")
+                # Don't fail, just warn (size might differ slightly)
+            
+            # Verify checksum
+            if not _verify_checksum(dest, expected_sha256):
+                os.remove(dest)
+                raise Exception("Checksum mismatch")
+            
             # Set executable permission on Linux/macOS
             if not IS_WIN:
                 os.chmod(dest, 0o755)
             return True
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                logger.warning(f"  File not found: {os.path.basename(dest)}")
+                return False
+            elif e.code == 403 or e.code == 429:
+                logger.warning(f"  Rate limited ({e.code}). Waiting...")
+                import time
+                time.sleep(30)
+                continue
+            else:
+                logger.warning(f"  HTTP error {e.code}: {e}")
         except Exception as e:
             logger.warning(f"  Download failed ({os.path.basename(dest)}): {e}")
-            # Clean up partial download
-            try:
-                if os.path.isfile(dest):
-                    os.remove(dest)
-            except OSError:
-                pass
-            
-            # Don't retry on 404 (file not found)
-            if "HTTP Error 404" in str(e):
-                return False
-            
-            # Wait before retry (exponential backoff)
-            if attempt < retries:
-                import time
-                time.sleep(2 ** attempt)  # 1s, 2s, 4s
+        
+        # Clean up partial download
+        try:
+            if os.path.isfile(dest):
+                os.remove(dest)
+        except OSError:
+            pass
+        
+        # Exponential backoff
+        if attempt < retries:
+            import time
+            time.sleep(2 ** attempt)
     
     return False
 
