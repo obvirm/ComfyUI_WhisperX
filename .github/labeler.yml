@@ -1,0 +1,63 @@
+# Labeler configuration
+# Auto-label PRs based on files changed
+
+# Feature
+feature:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'whispercpp_node.py'
+          - 'whispercpp/*.py'
+
+# Bug fix
+fix:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/*.py'
+          - '**/*.js'
+
+# Dependencies
+dependencies:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'requirements.txt'
+          - 'pyproject.toml'
+          - '.github/dependabot.yml'
+
+# Documentation
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '*.md'
+          - 'docs/**'
+          - 'ROADMAP.md'
+          - 'AGENTS.md'
+
+# CI/CD
+ci:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '.github/**'
+          - '.github/workflows/*.yml'
+
+# Build
+build:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'build_*.py'
+          - 'CMakeLists.txt'
+          - '**/CMakeLists.txt'
+
+# GPU/CUDA
+gpu:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/*cuda*'
+          - '**/*vulkan*'
+          - '**/*opencl*'
+
+# Auto-download
+auto-download:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'whispercpp/auto_download.py'
+          - 'whispercpp/gpu_detect.py'
