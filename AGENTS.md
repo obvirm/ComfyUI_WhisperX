@@ -114,3 +114,71 @@ lib.function_name.restype = ctypes.c_int
 - Kalo ragu: **TANYA DULU**. Jangan asumsi.
 - Tujuan: konsisten, bukan cepet selesai.
 - Jangan pikir "ini cukup buat user senang" — pikir "ini bener apa enggak".
+
+### 17. AUDIT METHODOLOGY
+
+#### Static Analysis (Code Review)
+```bash
+# Cari patterns berbahaya
+grep -rn "eval(\|exec(" --include="*.py"
+grep -rn "password\|secret\|token" --include="*.py"
+grep -rn "os.system\|subprocess" --include="*.py"
+```
+
+#### Runtime Testing (Actual Run)
+```python
+# Import dan test
+from whispercpp.whisper_lib import WhisperCPP
+from whispercpp.auto_download import _get_version
+from whispercpp.gpu_detect import detect_gpu
+
+print(f'Version: {_get_version()}')
+print(f'GPU: {detect_gpu()}')
+```
+
+#### Memory Analysis
+```python
+import tracemalloc
+tracemalloc.start()
+
+# Run code
+from whispercpp.whisper_lib import WhisperCPP
+wcpp = WhisperCPP()
+
+# Check memory
+snapshot = tracemalloc.take_snapshot()
+for stat in snapshot.statistics('lineno')[:5]:
+    print(stat)
+```
+
+#### Thread Safety Test
+```python
+import threading
+from whispercpp.whisper_lib import WhisperCPP
+
+def test_concurrent():
+    wcpp = WhisperCPP()
+    threads = []
+    for _ in range(10):
+        t = threading.Thread(target=lambda: wcpp._lock.acquire())
+        threads.append(t)
+        t.start()
+    for t in threads:
+        t.join()
+```
+
+#### Code Smell Detection
+```bash
+# Cari code smells
+grep -rn "TODO\|FIXME\|HACK\|XXX" --include="*.py"
+grep -rn "bare except\|except:" --include="*.py"
+```
+
+#### Audit Checklist
+| Category | Method | Tools |
+|---|---|---|
+| Security | Static + Runtime | grep, Python |
+| Memory | Runtime | tracemalloc |
+| Thread | Runtime | threading |
+| Performance | Static + Runtime | cProfile |
+| Code Quality | Static | flake8, black |
