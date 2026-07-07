@@ -26,3 +26,6 @@ jobs:
           workflow_filenames: 'stress_test.json'
           comfyui_flags: '--cpu'
           timeout: '900'
+          skip_quickci: 'true'
+          gcs_bucket_name: ''
+          google_credentials: ''
