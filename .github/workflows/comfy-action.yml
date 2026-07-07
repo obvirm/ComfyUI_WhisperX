@@ -1,6 +1,12 @@
 name: Comfy-Action Test
 
 on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
@@ -21,3 +27,6 @@ jobs:
           comfyui_flags: '--cpu'
           timeout: '900'
           skip_quickci: 'true'
+          # GCS credentials - add to GitHub Secrets:
+          # google_credentials: ${{ secrets.GCS_CREDENTIALS }}
+          # gcs_bucket_name: ${{ secrets.GCS_BUCKET_NAME }}
