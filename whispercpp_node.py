@@ -517,7 +517,7 @@ class WhisperCPPNode:
         if fmt=="vtt": return f"{h:02d}:{m:02d}:{s:06.3f}"
         ms = int((s-int(s))*1000); return f"{h:02d}:{m:02d}:{int(s):02d},{ms:03d}"
 
-    def _segs_to_srt(self, segs):
+    def _segs_to_srt(self, segs, word_level=False):
         lines = []
         counter = 1
         for seg in segs:
