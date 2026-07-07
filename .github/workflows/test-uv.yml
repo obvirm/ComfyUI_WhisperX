@@ -52,7 +52,7 @@ jobs:
           from whispercpp.gpu_detect import detect_gpu
           print(f'Version: {_get_version()}')
           gpu = detect_gpu()
-          print(f'GPU: {gpu["backend"]}')
+          print(f'GPU: {gpu.get("backend", "unknown")}')
           
           # Test WhisperCPP (may fail without DLLs)
           try:
