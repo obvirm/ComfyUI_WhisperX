@@ -46,6 +46,23 @@ jobs:
           cd ComfyUI/custom_nodes/ComfyUI-WhisperCPP
           uv pip install -r requirements.txt --system || true
 
+      - name: Download test audio
+        run: |
+          mkdir -p ComfyUI/input
+          curl -L -o ComfyUI/input/test.wav "https://upload.wikimedia.org/wikipedia/commons/4/40/Nl-ogg-The_Rain.wav" 2>/dev/null || \
+          curl -L -o ComfyUI/input/test.wav "https://www.voiptroubleshooter.com/open_speech/american/OSR_us_000_0010_8k.wav" 2>/dev/null || \
+          python -c "
+          import wave, struct, math
+          sr = 16000; dur = 3; freq = 440
+          frames = [struct.pack('<h', int(32767 * 0.5 * math.sin(2 * math.pi * freq * t / sr))) for t in range(sr * dur)]
+          with wave.open('ComfyUI/input/test.wav', 'w') as w:
+              w.setnchannels(1); w.setsampwidth(2); w.setframerate(sr)
+              w.writeframes(b''.join(frames))
+          print('Generated test.wav (sine wave 440Hz 3s)')
+          "
+          echo "Test audio ready:"
+          ls -la ComfyUI/input/test.wav
+
       - name: Start ComfyUI
         run: |
           source .venv/bin/activate
