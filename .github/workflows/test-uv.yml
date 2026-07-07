@@ -36,9 +36,8 @@ jobs:
 
       - name: '[Unix] Install custom node'
         run: |
-          cd ComfyUI/custom_nodes
-          ln -s $GITHUB_WORKSPACE ComfyUI-WhisperCPP
-          cd ComfyUI-WhisperCPP
+          ln -s $GITHUB_WORKSPACE ComfyUI/custom_nodes/ComfyUI-WhisperCPP
+          cd ComfyUI/custom_nodes/ComfyUI-WhisperCPP
           uv pip install -r requirements.txt --system
 
       - name: '[Unix] Run ComfyUI'
