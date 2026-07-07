@@ -115,9 +115,8 @@ def _load():
     if IS_WINDOWS:
         os.add_dll_directory(deps_dir)
     else:
-        # Pre-load by SONAME (libggml.so.0) not base name (libggml.so)
-        # because bs_roformer was linked against versioned SONAMEs
-        for dep in ["libggml.so.0", "libggml-base.so.0", "libggml-cpu.so.0"]:
+        # Pre-load by SONAME in DEPENDENCY ORDER (leaf dependencies first)
+        for dep in ["libggml-cpu.so.0", "libggml-base.so.0", "libggml.so.0"]:
             dep_path = os.path.join(deps_dir, dep)
             if os.path.isfile(dep_path):
                 try:
