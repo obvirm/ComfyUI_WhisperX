@@ -122,7 +122,7 @@ def _load():
             dep_path = os.path.join(deps_dir, dep)
             if os.path.isfile(dep_path):
                 try:
-                    ctypes.CDLL(dep_path)
+                    ctypes.CDLL(dep_path, mode=ctypes.RTLD_GLOBAL)
                 except Exception:
                     pass
 
