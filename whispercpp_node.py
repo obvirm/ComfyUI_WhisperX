@@ -243,9 +243,11 @@ class WhisperCPPNode:
         if not isinstance(dtw_preset_str, str) or dtw_preset_str not in {"none","n_top_most","custom","tiny_en","tiny","base_en","base","small_en","small","medium_en","medium","large_v1","large_v2","large_v3","large_v3_turbo"}:
             dtw_preset_str = "large_v3_turbo"
         dtw_preset = {"none":0,"n_top_most":1,"custom":2,"tiny_en":3,"tiny":4,"base_en":5,"base":6,"small_en":7,"small":8,"medium_en":9,"medium":10,"large_v1":11,"large_v2":12,"large_v3":13,"large_v3_turbo":14}[dtw_preset_str]
+        logger.info("Step 10: Loading whisper model (may take time)...")
         try: wcpp.load_model(model_path, use_gpu=use_gpu, gpu_device=gpu_device, flash_attn=self._get(kwargs,"flash_attn",False),
             dtw_token_timestamps=self._get(kwargs,"dtw_token_timestamps",False), dtw_aheads_preset=dtw_preset, dtw_n_top=self._get(kwargs,"dtw_n_top",-1))
         except RuntimeError as e: logger.error(f"Load failed: {e}"); return ("","","","","","","")
+        logger.info("Step 11: Model loaded successfully")
         pbar.update(1)
 
         audio_data = AudioProcessor.process_comfy_audio(kwargs.get("audio"))
