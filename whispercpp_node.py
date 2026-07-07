@@ -261,11 +261,14 @@ class WhisperCPPNode:
                 # Audio is 16kHz from process_comfy_audio; resample to 44.1kHz for BSRoformer
                 t = torch.from_numpy(audio_data).float().unsqueeze(0)
                 audio_44k = torchaudio.transforms.Resample(WHISPER_SAMPLE_RATE, 44100)(t).squeeze().numpy().astype(np.float32)
+                del t  # Free torch tensor
                 audio_44k = separate_vocals(audio_44k, sr=44100,
                     model_name=separate_model, chunk_size=separate_chunk_size, overlap=separate_overlap, use_gpu=use_gpu)
                 # UVR outputs 44.1kHz; resample back to 16kHz for whisper
                 t2 = torch.from_numpy(audio_44k).float().unsqueeze(0)
+                del audio_44k  # Free intermediate array
                 audio_data = torchaudio.transforms.Resample(44100, WHISPER_SAMPLE_RATE)(t2).squeeze().numpy().astype(np.float32)
+                del t2  # Free torch tensor
                 logger.info(f"UVR done: {len(audio_data)} samples")
             except Exception as e:
                 logger.error(f"UVR failed: {e}")
@@ -346,6 +349,8 @@ class WhisperCPPNode:
                 "vad_segments": [(s,e) for s,e in speech_segs],
                 "model_type": wcpp._lib.whisper_model_type_readable(wcpp._ctx).decode() if wcpp._ctx else "unknown",
             }
+            # Free intermediate lists
+            del full_texts, all_segments, speech_segs
         else:
             # ── RMS-based pre-filter (lightweight VAD, no ML model) ──
             do_hallu = self._get(kwargs,"hallu_filter",True)
