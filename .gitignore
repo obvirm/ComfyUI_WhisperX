@@ -21,3 +21,11 @@ cpp-annote/build/
 cpp-annote/*.exe
 cpp-annote/audio/
 tmpxha4gc93.tmp
+*.dll
+*.so
+*.dylib
+*.exe
+*.mp3
+*.zip
+*.onnx
+node.zip
