@@ -110,31 +110,24 @@ def _load():
         _available = False
         return None
 
-    # Load dependency DLLs (ggml*.dll on Windows, preload on Linux/macOS)
+    # Load dependency DLLs (ggml*.dll on Windows, LD_LIBRARY_PATH on Linux/macOS)
     deps_dir = str(Path(dll_path).parent.resolve())
     if IS_WINDOWS:
         os.add_dll_directory(deps_dir)
     else:
-        # Pre-load dependencies — try base names first, then versioned SONAMEs
-        deps_dir = str(Path(dll_path).parent.resolve())
-        # Round 1: load base names (no version suffix, might have fewer deps)
+        # Add deps dir to linker search path so NEEDED dependencies are found
+        old_ld = os.environ.get("LD_LIBRARY_PATH", "")
+        if deps_dir not in old_ld:
+            os.environ["LD_LIBRARY_PATH"] = deps_dir + (":" + old_ld if old_ld else "")
+        # Preload ALL ggml files by base name first (no version suffix requires exact search)
         for dep in ["libggml-cpu.so", "libggml-base.so", "libggml.so"]:
             dep_path = os.path.join(deps_dir, dep)
             if os.path.isfile(dep_path):
                 try:
                     ctypes.CDLL(dep_path, mode=ctypes.RTLD_GLOBAL)
                     logger.info(f"  Pre-loaded: {dep}")
-                except:
-                    pass
-        # Round 2: load versioned SONAMEs (for proper NEEDED matching)
-        for dep in ["libggml-cpu.so.0", "libggml-base.so.0", "libggml.so.0"]:
-            dep_path = os.path.join(deps_dir, dep)
-            if os.path.isfile(dep_path):
-                try:
-                    ctypes.CDLL(dep_path, mode=ctypes.RTLD_GLOBAL)
-                    logger.info(f"  Pre-loaded: {dep}")
                 except Exception as e:
-                    logger.warning(f"  Pre-load failed: {dep}")
+                    logger.warning(f"  Pre-load failed: {dep} - {e}")
 
     logger.info(f"Loading bs_roformer: {dll_path}")
     try:
