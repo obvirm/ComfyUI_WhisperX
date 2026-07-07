@@ -120,9 +120,11 @@ class WhisperCPP:
     def load_library(self, lib_path=None):
         if self._lib is not None: return
         if lib_path: self._lib_path = lib_path
+        logger.info("Step 7: Finding whisper library")
         try:
             lib = self._find_library()
         except RuntimeError:
+            logger.info("Step 7a: Library not found, trying auto-download")
             # Step 1: Try auto-download from GitHub Releases
             if self._auto_download():
                 try:
@@ -132,6 +134,7 @@ class WhisperCPP:
                     lib = None
             else:
                 # Step 2: Try auto-build (requires CMake + compiler)
+                logger.info("Step 7b: Trying auto-build")
                 self._auto_build()
                 try:
                     lib = self._find_library()
@@ -139,7 +142,9 @@ class WhisperCPP:
                     lib = None
         if lib is None:
             raise RuntimeError("whisper library not found. Build: python build_whisper_cpp.py")
+        logger.info(f"Step 8: Loading whisper library: {lib}")
         self._lib = ctypes.cdll.LoadLibrary(lib)
+        logger.info("Step 9: Setting up functions")
         self._setup_functions()
 
     def _auto_download(self) -> bool:
