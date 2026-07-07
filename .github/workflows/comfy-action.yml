@@ -11,7 +11,10 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -22,6 +25,7 @@ jobs:
         uses: astral-sh/setup-uv@v4
 
       - name: Setup Python
+        shell: bash
         run: |
           uv python install 3.11
           uv python pin 3.11
@@ -29,47 +33,49 @@ jobs:
           source .venv/bin/activate
 
       - name: Clone ComfyUI
-        run: |
-          git clone --depth 1 https://github.com/comfyanonymous/ComfyUI.git ComfyUI
+        shell: bash
+        run: git clone --depth 1 https://github.com/comfyanonymous/ComfyUI.git ComfyUI
 
-      - name: Install ComfyUI dependencies
+      - name: Install dependencies
+        shell: bash
         run: |
           source .venv/bin/activate
           cd ComfyUI
           uv pip install -r requirements.txt
-
-      - name: Install custom node
-        run: |
-          source .venv/bin/activate
-          mkdir -p ComfyUI/custom_nodes/ComfyUI-WhisperCPP
-          rsync -av --exclude='ComfyUI' --exclude='.git' --exclude='*.exe' . ComfyUI/custom_nodes/ComfyUI-WhisperCPP/
-          cd ComfyUI/custom_nodes/ComfyUI-WhisperCPP
+          mkdir -p custom_nodes/ComfyUI-WhisperCPP
+          if command -v rsync &> /dev/null; then
+            rsync -av --exclude=ComfyUI --exclude=.git --exclude='*.exe' ../../ custom_nodes/ComfyUI-WhisperCPP/
+          else
+            cp -r ../../* custom_nodes/ComfyUI-WhisperCPP/
+          fi
+          cd custom_nodes/ComfyUI-WhisperCPP
           uv pip install -r requirements.txt
           uv pip install sherpa-onnx
 
       - name: Download test audio
+        shell: bash
         run: |
           mkdir -p ComfyUI/input
           curl -L -o ComfyUI/input/test.mp3 "https://data.freetouse.com/music/tracks/f6a131e6-388d-f4d1-e784-04aeba2896ff/file/mp3"
           ls -la ComfyUI/input/test.mp3
 
       - name: Start ComfyUI
+        shell: bash
         run: |
           source .venv/bin/activate
           cd ComfyUI
           python main.py --cpu > application.log 2>&1 &
-          echo $! > .comfyui.pid
-          for i in $(seq 1 30); do
+          for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do
             if curl -s http://127.0.0.1:8188/system_stats > /dev/null 2>&1; then
               echo "Server ready after ${i}s"
               break
             fi
-            echo "Waiting for server... ${i}s"
             sleep 5
           done
 
       - name: Run stress test
         if: always()
+        shell: bash
         run: |
           source .venv/bin/activate
           cd ComfyUI
@@ -113,5 +119,5 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: comfyui-logs
+          name: comfyui-logs-${{ matrix.os }}
           path: ComfyUI/application.log
