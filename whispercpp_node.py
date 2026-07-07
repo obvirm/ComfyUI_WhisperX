@@ -201,15 +201,21 @@ class WhisperCPPNode:
 
     def transcribe(self, **kwargs):
         logger.info("="*60); logger.info("  WhisperCPP Node starting"); logger.info("="*60)
+        logger.info("Step 1: Creating ProgressBar")
         pbar = comfy.utils.ProgressBar(7)
+        logger.info("Step 2: Creating cache directory")
 
         hf_cache = os.path.join(folder_paths.models_dir, "whispercpp")
         os.makedirs(hf_cache, exist_ok=True)
         pbar.update(1)
+        logger.info("Step 3: Getting model key")
 
         model_key = self._get(kwargs,"model","large-v3-turbo")
+        logger.info(f"Step 4: Model key = {model_key}")
         mgr = self._ensure_mgr()
+        logger.info("Step 5: Getting model path")
         model_path = mgr.get_model_path(model_key)
+        logger.info(f"Step 6: Model path = {model_path}")
         if not model_path:
             logger.info(f"Downloading {model_key}...")
             model_path = mgr.download_model(model_key)
