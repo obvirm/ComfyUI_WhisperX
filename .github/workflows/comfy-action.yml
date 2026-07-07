@@ -77,8 +77,8 @@ jobs:
           python -c "
           import json, urllib.request, time
           
-          # Load stress test workflow
-          with open('../workflows/stress_test.json') as f:
+          # Load test workflow
+          with open('../workflows/test.json') as f:
               workflow = json.load(f)
           
           # Queue prompt
