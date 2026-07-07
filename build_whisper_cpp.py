@@ -199,6 +199,8 @@ def main():
                         default="auto", help="GPU backend (default: auto-detect all)")
     parser.add_argument("--build-type", choices=["Release","Debug"], default="Release")
     parser.add_argument("--no-copy", action="store_true")
+    parser.add_argument("--native", choices=["ON","OFF"], default="ON",
+                        help="CPU-native optimization (ON=fast but machine-specific, OFF=portable)")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
@@ -277,7 +279,7 @@ def main():
         "-DBUILD_SHARED_LIBS=ON",
         "-DWHISPER_BUILD_TESTS=OFF",
         "-DWHISPER_BUILD_EXAMPLES=OFF",
-        "-DGGML_NATIVE=ON",
+        f"-DGGML_NATIVE={args.native}",
         "-DGGML_OPENMP=ON",
         "-DGGML_LLAMAFILE=ON",
     ]

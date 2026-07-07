@@ -28,7 +28,7 @@ jobs:
 
       # whisper.cpp — Vulkan + OpenCL + CPU
       - name: Build whisper.cpp
-        run: python build_whisper_cpp.py
+        run: python build_whisper_cpp.py --native OFF
 
       # BSRoformer — CPU only (no GPU SDKs in CI)
       - name: Build BSRoformer
@@ -92,7 +92,7 @@ jobs:
           sudo apt-get install -y cmake build-essential ocl-icd-opencl-dev libvulkan-dev
 
       - name: Build whisper.cpp
-        run: python build_whisper_cpp.py
+        run: python build_whisper_cpp.py --native OFF
 
       - name: Build BSRoformer
         run: python build_bs_roformer.py
@@ -130,7 +130,7 @@ jobs:
           python-version: '3.12'
 
       - name: Build whisper.cpp
-        run: python build_whisper_cpp.py
+        run: python build_whisper_cpp.py --native OFF
 
       - name: Build BSRoformer
         run: python build_bs_roformer.py
