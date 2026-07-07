@@ -1,0 +1,19 @@
+{
+  "1": {
+    "class_type": "WhisperCPPNode",
+    "inputs": {
+      "audio": ["2", 0],
+      "model": "large-v3-turbo",
+      "language": "en",
+      "hallu_filter": true,
+      "align": true,
+      "device": "cpu"
+    }
+  },
+  "2": {
+    "class_type": "LoadAudio",
+    "inputs": {
+      "audio": "test.wav"
+    }
+  }
+}
