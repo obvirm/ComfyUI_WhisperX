@@ -53,7 +53,8 @@ jobs:
           python -c "
           import sys
           sys.path.insert(0, '.')
-          from custom_nodes.ComfyUI_WhisperCPP import WhisperCPPNode
+          sys.path.insert(0, 'custom_nodes')
+          from ComfyUI_WhisperCPP import WhisperCPPNode
           print('Node loaded successfully!')
           node = WhisperCPPNode()
           print(f'Node class: {node.__class__.__name__}')
