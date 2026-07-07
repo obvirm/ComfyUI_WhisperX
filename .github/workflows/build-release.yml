@@ -95,9 +95,9 @@ jobs:
         run: python build_whisper_cpp.py
 
       - name: Build BSRoformer
-        run: python build_bs_roformer.py --gpu
+        run: python build_bs_roformer.py
 
-      - name: Build cpp-annote
+      - name: Build cpp-annote%
         run: python build_cpp_annote.py
 
       - name: Collect .so
@@ -133,7 +133,7 @@ jobs:
         run: python build_whisper_cpp.py
 
       - name: Build BSRoformer
-        run: python build_bs_roformer.py --gpu
+        run: python build_bs_roformer.py
 
       - name: Build cpp-annote
         run: python build_cpp_annote.py

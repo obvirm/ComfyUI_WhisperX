@@ -54,8 +54,7 @@ ASSETS = {
     },
     "bs_roformer": {
         "Windows": ["bs_roformer.dll", "ggml.dll", "ggml-base.dll", "ggml-cpu.dll"],
-        "Linux":   ["libbs_roformer.so", "libggml.so", "libggml-base.so", "libggml-cpu.so",
-                     "libggml-opencl.so"],
+        "Linux":   ["libbs_roformer.so", "libggml.so", "libggml-base.so", "libggml-cpu.so"],
         "Darwin":  ["libbs_roformer.dylib", "libggml.dylib", "libggml-base.dylib", "libggml-cpu.dylib"],
     },
     "cpp_annote": {
@@ -384,7 +383,6 @@ def _create_linux_symlinks(target_dir: str):
         "libggml.so": "libggml.so.0",
         "libggml-base.so": "libggml-base.so.0",
         "libggml-cpu.so": "libggml-cpu.so.0",
-        "libggml-opencl.so": "libggml-opencl.so.0",
         "libonnxruntime.so": "libonnxruntime.so.1",
         "libonnxruntime_providers_shared.so": "libonnxruntime_providers_shared.so.1",
     }
