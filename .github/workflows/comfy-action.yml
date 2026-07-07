@@ -45,6 +45,7 @@ jobs:
           rsync -av --exclude='ComfyUI' --exclude='.git' --exclude='*.exe' . ComfyUI/custom_nodes/ComfyUI-WhisperCPP/
           cd ComfyUI/custom_nodes/ComfyUI-WhisperCPP
           uv pip install -r requirements.txt --system || true
+          uv pip install sherpa-onnx --system || true
 
       - name: Download test audio
         run: |
