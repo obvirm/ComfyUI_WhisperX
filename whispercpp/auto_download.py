@@ -54,7 +54,7 @@ ASSETS = {
     },
     "bs_roformer": {
         "Windows": ["bs_roformer.dll", "ggml.dll", "ggml-base.dll", "ggml-cpu.dll"],
-        "Linux":   ["libbs_roformer.so", "libggml.so", "libggml-base.so", "libggml-cpu.so", "libggml-vulkan.so", "libggml-opencl.so"],
+        "Linux":   ["libbs_roformer.so", "libggml.so", "libggml-base.so", "libggml-cpu.so"],
         "Darwin":  ["libbs_roformer.dylib", "libggml.dylib", "libggml-base.dylib", "libggml-cpu.dylib"],
     },
     "cpp_annote": {
