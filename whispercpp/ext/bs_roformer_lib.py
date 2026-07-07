@@ -117,12 +117,6 @@ def _load():
     else:
         # Pre-load versioned filenames
         deps_dir = str(Path(dll_path).parent.resolve())
-        # List files for debugging
-        try:
-            all_files = sorted(os.listdir(deps_dir))
-            logger.info(f"  Files in {deps_dir}: {len(all_files)} items")
-        except Exception:
-            pass
         for dep in ["libggml-base.so.0", "libggml-cpu.so.0", "libggml.so.0"]:
             dep_path = os.path.join(deps_dir, dep)
             if os.path.isfile(dep_path):
@@ -130,9 +124,7 @@ def _load():
                     ctypes.CDLL(dep_path, mode=ctypes.RTLD_GLOBAL)
                     logger.info(f"  Pre-loaded: {dep}")
                 except BaseException as e:
-                    logger.warning(f"  Pre-load failed: {dep} - {e}")
-            else:
-                logger.warning(f"  File not found: {dep}")
+                    logger.warning(f"  Pre-load failed: {dep}")
 
     logger.info(f"Loading bs_roformer: {dll_path}")
     try:
