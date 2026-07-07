@@ -498,6 +498,13 @@ class WhisperCPPNode:
         except Exception:
             pass
         
+        # Cleanup alignment cache
+        try:
+            from .whispercpp.ext.alignment_sherpa import cleanup as align_cleanup
+            align_cleanup()
+        except Exception:
+            pass
+        
         return outputs
 
     def _make_outputs(self, result):

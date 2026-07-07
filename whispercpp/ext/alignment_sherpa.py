@@ -51,11 +51,26 @@ def ensure_model():
     logger.info("Model downloaded and extracted")
     return str(model_file), str(tokens_file)
 
+# Cache recognizer — sekali load, reusable
+cache = {}  # {device: recognizer}
+
+def cleanup():
+    """Free cached recognizer."""
+    global cache
+    cache.clear()
+    logger.info("Alignment sherpa cache cleaned up")
+
 
 def load_align_model(device="cpu"):
-    """Load sherpa-onnx CTC recognizer for alignment."""
+    """Load sherpa-onnx CTC recognizer for alignment. Cached per device."""
+    global cache
     if not SHERPA_AVAILABLE:
         raise ImportError("sherpa-onnx not installed")
+
+    # Return cached if available
+    if device in cache:
+        logger.debug(f"Alignment recognizer cached for {device}")
+        return cache[device]
 
     model_path, tokens_path = ensure_model()
     logger.info(f"Loading sherpa CTC model: {model_path}")
@@ -66,6 +81,7 @@ def load_align_model(device="cpu"):
         provider=provider,
         debug=False,
     )
+    cache[device] = recognizer
     return recognizer
 
 
