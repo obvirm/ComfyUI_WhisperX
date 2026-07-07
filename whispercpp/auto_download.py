@@ -380,23 +380,21 @@ def download_module(module: str, target_dir: str, version: str = None,
 def _create_linux_symlinks(target_dir: str):
     """Create versioned symlinks for .so files on Linux."""
     symlink_map = {
-        "libggml.so": ["libggml.so.0"],
-        "libggml-base.so": ["libggml-base.so.0"],
-        "libggml-cpu.so": ["libggml-cpu.so.0"],
-        "libonnxruntime.so": ["libonnxruntime.so.1"],
-        "libonnxruntime_providers_shared.so": ["libonnxruntime_providers_shared.so.1"],
+        "libggml.so": "libggml.so.0",
+        "libggml-base.so": "libggml-base.so.0",
+        "libggml-cpu.so": "libggml-cpu.so.0",
+        "libonnxruntime.so": "libonnxruntime.so.1",
+        "libonnxruntime_providers_shared.so": "libonnxruntime_providers_shared.so.1",
     }
-    for src, dst_list in symlink_map.items():
+    for src, dst in symlink_map.items():
         src_path = os.path.join(target_dir, src)
-        if os.path.isfile(src_path):
-            for dst in dst_list:
-                dst_path = os.path.join(target_dir, dst)
-                if not os.path.exists(dst_path):
-                    try:
-                        os.symlink(src, dst_path)
-                        logger.info(f"  Symlink created: {dst} -> {src}")
-                    except OSError as e:
-                        logger.warning(f"  Symlink failed: {e}")
+        dst_path = os.path.join(target_dir, dst)
+        if os.path.isfile(src_path) and not os.path.exists(dst_path):
+            try:
+                os.symlink(src, dst_path)
+                logger.info(f"  Symlink: {dst} -> {src}")
+            except OSError as e:
+                logger.warning(f"  Symlink failed: {e}")
 
 
 def _create_mac_symlinks(target_dir: str):

@@ -103,11 +103,16 @@ jobs:
       - name: Collect .so
         run: |
           mkdir -p release
-          find . -name "libwhisper.so*" -exec cp {} release/ \;
-          find . -name "libbs_roformer.so*" -exec cp {} release/ \;
-          find . -name "libcpp_annote.so*" -exec cp {} release/ \;
-          find . -name "libggml*.so*" -exec cp {} release/ \;
-          find . -name "libonnxruntime*.so*" -exec cp {} release/ \;
+          # Find all .so* including versioned SONAMES (libggml.so, libggml.so.0, etc.)
+          cp -a whisper.cpp/build/bin/Release/*.so* release/ 2>/dev/null || true
+          cp -a whisper.cpp/build/bin/*.so* release/ 2>/dev/null || true
+          find whisper.cpp/build -name "libggml*.so*" -exec cp -P {} release/ \;
+          find whisper.cpp/build -name "libwhisper.so*" -exec cp -P {} release/ \;
+          find bs_roformer.cpp/build -name "libbs_roformer.so*" -exec cp -P {} release/ \;
+          find bs_roformer.cpp/build -name "libggml*.so*" -exec cp -P {} release/ \;
+          find cpp-annote/build -name "libcpp_annote.so*" -exec cp -P {} release/ \;
+          find cpp-annote -path "*/onnxruntime-*/lib/*.so*" -exec cp -P {} release/ \;
+          ls -la release/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
