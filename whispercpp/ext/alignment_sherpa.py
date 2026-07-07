@@ -51,26 +51,42 @@ def ensure_model():
     logger.info("Model downloaded and extracted")
     return str(model_file), str(tokens_file)
 
-# Cache recognizer — sekali load, reusable
-cache = {}  # {device: recognizer}
+# Cache recognizer — auto-cleanup after 10 min inactive
+import time
+cache = {}  # {device: (recognizer, last_used)}
+CACHE_TTL = 600  # 10 menit
+
+def _cleanup_stale():
+    """Remove entries unused for >10 minutes."""
+    global cache
+    now = time.time()
+    stale = [k for k, (_, ts) in cache.items() if now - ts > CACHE_TTL]
+    for k in stale:
+        del cache[k]
+        logger.info(f"Alignment recognizer expired for {k}")
 
 def cleanup():
-    """Free cached recognizer."""
+    """Free all cached recognizers."""
     global cache
     cache.clear()
     logger.info("Alignment sherpa cache cleaned up")
 
 
 def load_align_model(device="cpu"):
-    """Load sherpa-onnx CTC recognizer for alignment. Cached per device."""
+    """Load sherpa-onnx CTC recognizer. Cached with 10min TTL."""
     global cache
     if not SHERPA_AVAILABLE:
         raise ImportError("sherpa-onnx not installed")
 
+    # Clean expired entries
+    _cleanup_stale()
+
     # Return cached if available
     if device in cache:
+        recognizer, _ = cache[device]
+        cache[device] = (recognizer, time.time())  # refresh TTL
         logger.debug(f"Alignment recognizer cached for {device}")
-        return cache[device]
+        return recognizer
 
     model_path, tokens_path = ensure_model()
     logger.info(f"Loading sherpa CTC model: {model_path}")
@@ -81,7 +97,7 @@ def load_align_model(device="cpu"):
         provider=provider,
         debug=False,
     )
-    cache[device] = recognizer
+    cache[device] = (recognizer, time.time())
     return recognizer
 
 
