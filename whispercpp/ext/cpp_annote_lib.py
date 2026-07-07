@@ -102,7 +102,6 @@ def _load():
     if IS_WINDOWS:
         deps_dir = Path(dll_path).parent.resolve()
         # Pre-load onnxruntime.dll 1.27.0 BEFORE cpp_annote.dll
-        # so Windows doesn't use the already-loaded system version
         ort_dll = deps_dir / "onnxruntime.dll"
         if ort_dll.exists():
             try:
@@ -111,6 +110,16 @@ def _load():
             except Exception as e:
                 logger.warning(f"Failed to pre-load onnxruntime: {e}")
         os.add_dll_directory(str(deps_dir))
+    else:
+        # Pre-load dependencies so dynamic linker can find them
+        deps_dir = str(Path(dll_path).parent.resolve())
+        for dep in ["libonnxruntime.so", "libonnxruntime_providers_shared.so"]:
+            dep_path = os.path.join(deps_dir, dep)
+            if os.path.isfile(dep_path):
+                try:
+                    ctypes.CDLL(dep_path)
+                except Exception:
+                    pass
     logger.info(f"Loading cpp_annote: {dll_path}")
     try:
         _lib = ctypes.CDLL(str(dll_path))

@@ -110,10 +110,21 @@ def _load():
         _available = False
         return None
 
-    # Load dependency DLLs (ggml*.dll on Windows)
+    # Load dependency DLLs (ggml*.dll on Windows, preload on Linux/macOS)
+    deps_dir = str(Path(dll_path).parent.resolve())
     if IS_WINDOWS:
-        deps_dir = Path(dll_path).parent.resolve()
-        os.add_dll_directory(str(deps_dir))
+        os.add_dll_directory(deps_dir)
+    else:
+        # Pre-load ggml dependencies so main library can find them
+        ggml_deps = ["libggml.so", "libggml-base.so", "libggml-cpu.so",
+                      "libonnxruntime.so", "libonnxruntime_providers_shared.so"]
+        for dep in ggml_deps:
+            dep_path = os.path.join(deps_dir, dep)
+            if os.path.isfile(dep_path):
+                try:
+                    ctypes.CDLL(dep_path)
+                except Exception:
+                    pass
 
     logger.info(f"Loading bs_roformer: {dll_path}")
     try:
