@@ -111,21 +111,16 @@ def _load():
                 logger.warning(f"Failed to pre-load onnxruntime: {e}")
         os.add_dll_directory(str(deps_dir))
     else:
-        # Change to deps dir for dlopen to find NEEDED deps
+        # Pre-load dependencies by versioned symlink (register as .so.1 for linker)
         deps_dir = str(Path(dll_path).parent.resolve())
-        orig_cwd = os.getcwd()
-        os.chdir(deps_dir)
-        try:
-            for dep in ["libonnxruntime.so", "libonnxruntime_providers_shared.so"]:
-                dep_path = os.path.join(deps_dir, dep)
-                if os.path.isfile(dep_path):
-                    try:
-                        ctypes.CDLL(dep, mode=ctypes.RTLD_GLOBAL)
-                        logger.info(f"  Pre-loaded: {dep}")
-                    except Exception as e:
-                        logger.warning(f"  Pre-load failed: {dep}")
-        finally:
-            os.chdir(orig_cwd)
+        for dep in ["libonnxruntime.so.1", "libonnxruntime_providers_shared.so.1"]:
+            dep_path = os.path.join(deps_dir, dep)
+            if os.path.isfile(dep_path):
+                try:
+                    ctypes.CDLL(dep_path, mode=ctypes.RTLD_GLOBAL)
+                    logger.info(f"  Pre-loaded: {dep}")
+                except Exception as e:
+                    logger.warning(f"  Pre-load failed: {dep}")
     logger.info(f"Loading cpp_annote: {dll_path}")
     try:
         _lib = ctypes.CDLL(str(dll_path))

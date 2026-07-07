@@ -115,25 +115,36 @@ def _load():
     if IS_WINDOWS:
         os.add_dll_directory(deps_dir)
     else:
-        # Change to deps dir so dlopen finds NEEDED dependencies in same dir
-        orig_cwd = os.getcwd()
-        os.chdir(deps_dir)
-        try:
-            # Load by base name (dlopen searches current dir + LD_LIBRARY_PATH)
-            for dep in ["libggml-cpu.so", "libggml-base.so", "libggml.so"]:
-                if os.path.isfile(os.path.join(deps_dir, dep)):
+        # Pre-load versioned symlinks with RTLD_GLOBAL — retry for circular deps
+        deps_dir = str(Path(dll_path).parent.resolve())
+        all_deps = ["libggml-cpu.so.0", "libggml-base.so.0", "libggml.so.0"]
+        # First pass: load base names (no version suffix)
+        for dep in ["libggml-cpu.so", "libggml-base.so", "libggml.so"]:
+            dep_path = os.path.join(deps_dir, dep)
+            if os.path.isfile(dep_path):
+                try:
+                    ctypes.CDLL(dep_path, mode=ctypes.RTLD_GLOBAL)
+                    logger.info(f"  Pre-loaded: {dep}")
+                except Exception as e:
+                    logger.debug(f"  Base preload failed: {dep}")
+        # Second pass: load versioned symlinks (register as .so.0)
+        remaining = list(all_deps)
+        for attempt in range(5):
+            still = []
+            for dep in remaining:
+                dep_path = os.path.join(deps_dir, dep)
+                if os.path.isfile(dep_path):
                     try:
-                        ctypes.CDLL(dep, mode=ctypes.RTLD_GLOBAL)
+                        ctypes.CDLL(dep_path, mode=ctypes.RTLD_GLOBAL)
                         logger.info(f"  Pre-loaded: {dep}")
-                    except Exception as e:
-                        logger.warning(f"  Pre-load failed: {dep}")
-        finally:
-            os.chdir(orig_cwd)
+                    except Exception:
+                        still.append(dep)
+            if not still or len(still) == len(remaining):
+                break
+            remaining = still
 
     logger.info(f"Loading bs_roformer: {dll_path}")
     try:
-        if not IS_WINDOWS:
-            os.chdir(deps_dir)
         _lib = ctypes.CDLL(str(dll_path))
     except Exception as e:
         logger.error(f"Failed to load bs_roformer: {e}")
