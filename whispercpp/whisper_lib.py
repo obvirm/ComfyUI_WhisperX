@@ -226,9 +226,8 @@ class WhisperCPP:
             self._ctx = ctx; self._model_path = model_path
 
     def free_model(self):
-        with self._lock:
-            if self._ctx is not None:
-                self._lib.whisper_free(self._ctx); self._ctx = None; self._model_path = None
+        if self._ctx is not None:
+            self._lib.whisper_free(self._ctx); self._ctx = None; self._model_path = None
 
     def __del__(self): self.free_model()
 
