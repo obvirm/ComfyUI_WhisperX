@@ -23,6 +23,6 @@ jobs:
         with:
           os: linux
           cuda_version: '12.1'
-          workflow_filenames: 'auto'
+          workflow_filenames: 'stress_test.json'
           comfyui_flags: '--cpu'
-          timeout: '600'
+          timeout: '900'

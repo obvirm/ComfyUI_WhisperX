@@ -1,0 +1,243 @@
+{
+  "1": {
+    "class_type": "WhisperCPPNode",
+    "_meta": {"title": "Stress Test: All Features"},
+    "inputs": {
+      "audio": ["2", 0],
+      "model": "large-v3-turbo",
+      "language": "en",
+      "device": "cpu",
+      "hallu_filter": true,
+      "align": true,
+      "separate_vocals": false,
+      "vad": false,
+      "dtw_token_timestamps": false,
+      "sampling_strategy": "greedy",
+      "beam_size": 5,
+      "best_of": 5,
+      "temperature": 0.0,
+      "temperature_inc": 0.4,
+      "entropy_thold": 2.0,
+      "logprob_thold": -0.5,
+      "no_speech_thold": 0.6,
+      "show_advance_cpp": false,
+      "show_advance_ext": false
+    }
+  },
+  "2": {
+    "class_type": "LoadAudio",
+    "inputs": {
+      "audio": "test.wav"
+    }
+  },
+  "3": {
+    "class_type": "WhisperCPPNode",
+    "_meta": {"title": "Stress Test: VAD + Diarization"},
+    "inputs": {
+      "audio": ["2", 0],
+      "model": "large-v3-turbo",
+      "language": "en",
+      "device": "cpu",
+      "hallu_filter": true,
+      "align": true,
+      "separate_vocals": false,
+      "vad": true,
+      "dtw_token_timestamps": false,
+      "sampling_strategy": "greedy",
+      "beam_size": 5,
+      "best_of": 5,
+      "temperature": 0.0,
+      "temperature_inc": 0.4,
+      "entropy_thold": 2.0,
+      "logprob_thold": -0.5,
+      "no_speech_thold": 0.6,
+      "show_advance_cpp": false,
+      "show_advance_ext": false
+    }
+  },
+  "4": {
+    "class_type": "WhisperCPPNode",
+    "_meta": {"title": "Stress Test: DTW Token Timestamps"},
+    "inputs": {
+      "audio": ["2", 0],
+      "model": "large-v3-turbo",
+      "language": "en",
+      "device": "cpu",
+      "hallu_filter": true,
+      "align": false,
+      "separate_vocals": false,
+      "vad": false,
+      "dtw_token_timestamps": true,
+      "dtw_aheads_preset": "large_v3_turbo",
+      "dtw_n_top": -1,
+      "sampling_strategy": "greedy",
+      "beam_size": 5,
+      "best_of": 5,
+      "temperature": 0.0,
+      "temperature_inc": 0.4,
+      "entropy_thold": 2.0,
+      "logprob_thold": -0.5,
+      "no_speech_thold": 0.6,
+      "show_advance_cpp": false,
+      "show_advance_ext": false
+    }
+  },
+  "5": {
+    "class_type": "WhisperCPPNode",
+    "_meta": {"title": "Stress Test: Beam Search"},
+    "inputs": {
+      "audio": ["2", 0],
+      "model": "large-v3-turbo",
+      "language": "en",
+      "device": "cpu",
+      "hallu_filter": true,
+      "align": true,
+      "separate_vocals": false,
+      "vad": false,
+      "dtw_token_timestamps": false,
+      "sampling_strategy": "beam_search",
+      "beam_size": 10,
+      "best_of": 10,
+      "patience": 2.0,
+      "temperature": 0.0,
+      "temperature_inc": 0.4,
+      "entropy_thold": 2.0,
+      "logprob_thold": -0.5,
+      "no_speech_thold": 0.6,
+      "show_advance_cpp": false,
+      "show_advance_ext": false
+    }
+  },
+  "6": {
+    "class_type": "WhisperCPPNode",
+    "_meta": {"title": "Stress Test: Translate Mode"},
+    "inputs": {
+      "audio": ["2", 0],
+      "model": "large-v3-turbo",
+      "language": "id",
+      "device": "cpu",
+      "hallu_filter": true,
+      "align": true,
+      "separate_vocals": false,
+      "vad": false,
+      "dtw_token_timestamps": false,
+      "sampling_strategy": "greedy",
+      "beam_size": 5,
+      "best_of": 5,
+      "temperature": 0.0,
+      "temperature_inc": 0.4,
+      "entropy_thold": 2.0,
+      "logprob_thold": -0.5,
+      "no_speech_thold": 0.6,
+      "show_advance_cpp": false,
+      "show_advance_ext": false
+    }
+  },
+  "7": {
+    "class_type": "WhisperCPPNode",
+    "_meta": {"title": "Stress Test: High Temperature"},
+    "inputs": {
+      "audio": ["2", 0],
+      "model": "large-v3-turbo",
+      "language": "en",
+      "device": "cpu",
+      "hallu_filter": false,
+      "align": true,
+      "separate_vocals": false,
+      "vad": false,
+      "dtw_token_timestamps": false,
+      "sampling_strategy": "greedy",
+      "beam_size": 5,
+      "best_of": 5,
+      "temperature": 0.8,
+      "temperature_inc": 0.2,
+      "entropy_thold": 1.0,
+      "logprob_thold": -1.0,
+      "no_speech_thold": 0.3,
+      "show_advance_cpp": false,
+      "show_advance_ext": false
+    }
+  },
+  "8": {
+    "class_type": "WhisperCPPNode",
+    "_meta": {"title": "Stress Test: Low Confidence Thresholds"},
+    "inputs": {
+      "audio": ["2", 0],
+      "model": "large-v3-turbo",
+      "language": "en",
+      "device": "cpu",
+      "hallu_filter": true,
+      "align": true,
+      "separate_vocals": false,
+      "vad": false,
+      "dtw_token_timestamps": false,
+      "sampling_strategy": "greedy",
+      "beam_size": 5,
+      "best_of": 5,
+      "temperature": 0.0,
+      "temperature_inc": 0.4,
+      "entropy_thold": 0.5,
+      "logprob_thold": -2.0,
+      "no_speech_thold": 0.1,
+      "show_advance_cpp": false,
+      "show_advance_ext": false
+    }
+  },
+  "9": {
+    "class_type": "WhisperCPPNode",
+    "_meta": {"title": "Stress Test: Multiple Languages"},
+    "inputs": {
+      "audio": ["2", 0],
+      "model": "large-v3-turbo",
+      "language": "auto",
+      "device": "cpu",
+      "hallu_filter": true,
+      "align": true,
+      "separate_vocals": false,
+      "vad": false,
+      "dtw_token_timestamps": false,
+      "sampling_strategy": "greedy",
+      "beam_size": 5,
+      "best_of": 5,
+      "temperature": 0.0,
+      "temperature_inc": 0.4,
+      "entropy_thold": 2.0,
+      "logprob_thold": -0.5,
+      "no_speech_thold": 0.6,
+      "show_advance_cpp": false,
+      "show_advance_ext": false
+    }
+  },
+  "10": {
+    "class_type": "WhisperCPPNode",
+    "_meta": {"title": "Stress Test: All Advanced Options"},
+    "inputs": {
+      "audio": ["2", 0],
+      "model": "large-v3-turbo",
+      "language": "en",
+      "device": "cpu",
+      "hallu_filter": true,
+      "align": true,
+      "separate_vocals": false,
+      "vad": true,
+      "dtw_token_timestamps": false,
+      "sampling_strategy": "beam_search",
+      "beam_size": 10,
+      "best_of": 10,
+      "patience": 2.0,
+      "temperature": 0.2,
+      "temperature_inc": 0.3,
+      "entropy_thold": 1.5,
+      "logprob_thold": -1.0,
+      "no_speech_thold": 0.3,
+      "show_advance_cpp": true,
+      "show_advance_ext": true
+    }
+  },
+  "2": {
+    "class_type": "LoadAudio",
+    "inputs": {
+      "audio": "test.wav"
+    }
+  }
+}
