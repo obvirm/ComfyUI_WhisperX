@@ -1,12 +1,6 @@
 name: Comfy-Action Test
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
   workflow_dispatch:
 
 jobs:
@@ -27,5 +21,3 @@ jobs:
           comfyui_flags: '--cpu'
           timeout: '900'
           skip_quickci: 'true'
-          gcs_bucket_name: ''
-          google_credentials: ''
