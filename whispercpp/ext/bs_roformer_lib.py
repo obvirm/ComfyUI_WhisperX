@@ -116,7 +116,6 @@ def _load():
         os.add_dll_directory(deps_dir)
     else:
         # Pre-load versioned filenames
-        deps_dir = str(Path(dll_path).parent.resolve())
         for dep in ["libggml-base.so.0", "libggml-cpu.so.0", "libggml.so.0"]:
             dep_path = os.path.join(deps_dir, dep)
             if os.path.isfile(dep_path):
@@ -125,6 +124,22 @@ def _load():
                     logger.info(f"  Pre-loaded: {dep}")
                 except BaseException as e:
                     logger.warning(f"  Pre-load failed: {dep}")
+        # If files not found, try to download to deps_dir directly
+        if not any(os.path.isfile(os.path.join(deps_dir, dep)) for dep in ["libggml-base.so.0", "libggml-cpu.so.0"]):
+            try:
+                from ..auto_download import download_module
+                download_module("bs_roformer", deps_dir)
+                # Retry preload after download
+                for dep in ["libggml-base.so.0", "libggml-cpu.so.0", "libggml.so.0"]:
+                    dep_path = os.path.join(deps_dir, dep)
+                    if os.path.isfile(dep_path):
+                        try:
+                            ctypes.CDLL(dep_path, mode=ctypes.RTLD_GLOBAL)
+                            logger.info(f"  Pre-loaded: {dep}")
+                        except BaseException as e:
+                            logger.warning(f"  Pre-load failed: {dep}")
+            except Exception as e:
+                logger.warning(f"  Download to deps_dir failed: {e}")
 
     logger.info(f"Loading bs_roformer: {dll_path}")
     try:
