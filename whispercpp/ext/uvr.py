@@ -60,6 +60,17 @@ def ensure_model(model_name=DEFAULT_MODEL):
 # Cache model context — init sekali, reuse
 _ctx_cache = {}
 
+def cleanup():
+    """Free all cached BSRoformer contexts."""
+    global _ctx_cache
+    for path, ctx in _ctx_cache.items():
+        try:
+            ctx.free()
+        except Exception:
+            pass
+    _ctx_cache.clear()
+    logger.info("BSRoformer cache cleaned up")
+
 
 def separate_vocals(audio_data, sr=44100, model_name=DEFAULT_MODEL, chunk_size=-1, overlap=-1, use_gpu=True):
     """

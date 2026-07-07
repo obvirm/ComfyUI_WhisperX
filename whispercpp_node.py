@@ -489,7 +489,16 @@ class WhisperCPPNode:
                 logger.warning(f"Diarization skipped: {e}")
         pbar.update(1)
         
-        return self._make_outputs(result)
+        outputs = self._make_outputs(result)
+        
+        # Cleanup BSRoformer cache to free memory
+        try:
+            from .whispercpp.ext.uvr import cleanup as uvr_cleanup
+            uvr_cleanup()
+        except Exception:
+            pass
+        
+        return outputs
 
     def _make_outputs(self, result):
         full_text = " ".join([s.get("text","").strip() for s in result.get("segments",[])])
