@@ -70,8 +70,7 @@
   },
   "2": {
     "inputs": {
-      "audio": "arlow-freefall.mp3",
-      "audioUI": "/api/view?filename=arlow-freefall.mp3&type=input&subfolder=&rand=0.10178329105396533"
+      "audio": "test.mp3"
     },
     "class_type": "LoadAudio",
     "_meta": {
