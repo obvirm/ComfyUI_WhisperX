@@ -59,7 +59,16 @@ jobs:
           python main.py --cpu > application.log 2>&1 &
           echo $! > .comfyui.pid
           echo "ComfyUI PID: $(cat .comfyui.pid)"
-          sleep 15
+          # Wait for server to be ready
+          for i in $(seq 1 30); do
+            if curl -s http://127.0.0.1:8188/system_stats > /dev/null 2>&1; then
+              echo "Server ready after ${i}s"
+              break
+            fi
+            echo "Waiting for server... ${i}s"
+            sleep 5
+          done
+          curl -s http://127.0.0.1:8188/system_stats || echo "Server not ready after 150s"
 
       - name: Check server
         run: |
