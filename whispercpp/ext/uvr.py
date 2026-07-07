@@ -58,6 +58,7 @@ def ensure_model(model_name=DEFAULT_MODEL):
 
 
 # Cache model context — TTL auto-cleanup
+# TODO: cleanup dipanggil dari whispercpp_node.py setelah transcribe
 import time as _time
 _ctx_cache = {}  # {model_path: (ctx, last_used)}
 _CTX_TTL = 600  # 10 menit

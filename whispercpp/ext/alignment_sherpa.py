@@ -52,6 +52,7 @@ def ensure_model():
     return str(model_file), str(tokens_file)
 
 # Cache recognizer — auto-cleanup after 10 min inactive
+# TODO: cleanup dipanggil dari whispercpp_node.py setelah transcribe
 import time
 cache = {}  # {device: (recognizer, last_used)}
 CACHE_TTL = 600  # 10 menit
