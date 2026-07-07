@@ -57,13 +57,28 @@ def ensure_model(model_name=DEFAULT_MODEL):
     return str(model_path)
 
 
-# Cache model context — init sekali, reuse
-_ctx_cache = {}
+# Cache model context — TTL auto-cleanup
+import time as _time
+_ctx_cache = {}  # {model_path: (ctx, last_used)}
+_CTX_TTL = 600  # 10 menit
+
+def _cleanup_stale():
+    """Remove BSRoformer contexts unused for >10 min."""
+    global _ctx_cache
+    now = _time.time()
+    stale = [k for k, (_, ts) in _ctx_cache.items() if now - ts > _CTX_TTL]
+    for k in stale:
+        try:
+            _ctx_cache[k][0].free()
+        except Exception:
+            pass
+        del _ctx_cache[k]
+        logger.info(f"BSRoformer context expired: {k}")
 
 def cleanup():
     """Free all cached BSRoformer contexts."""
     global _ctx_cache
-    for path, ctx in _ctx_cache.items():
+    for path, (ctx, _) in _ctx_cache.items():
         try:
             ctx.free()
         except Exception:
@@ -100,15 +115,21 @@ def separate_vocals(audio_data, sr=44100, model_name=DEFAULT_MODEL, chunk_size=-
 
     model_path = ensure_model(model_name)
 
+    # Clean expired entries
+    _cleanup_stale()
+
     # Get or create cached context
-    ctx = _ctx_cache.get(model_path)
-    if ctx is None:
+    cached = _ctx_cache.get(model_path)
+    if cached is not None:
+        ctx, _ = cached
+        _ctx_cache[model_path] = (ctx, _time.time())  # refresh TTL
+    else:
         logger.info(f"Loading BSRoformer model: {model_name}")
         ctx = bs_roformer_init(model_path)
         if ctx is None:
             logger.error(f"Gagal load model: {model_path}")
             return audio_data
-        _ctx_cache[model_path] = ctx
+        _ctx_cache[model_path] = (ctx, _time.time())
         logger.info(f"Model loaded: {ctx.num_stems} stem(s), sample rate={ctx.sample_rate}")
 
     try:
