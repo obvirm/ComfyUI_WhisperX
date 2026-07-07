@@ -41,7 +41,7 @@ If applicable, add screenshots to help explain your problem.
 - OS: [e.g., Windows 10, Ubuntu 22.04]
 - Python version: [e.g., 3.10]
 - ComfyUI version: [e.g., 0.2.0]
-- Node version: {{version}}
+- Node version: [e.g., v2.1.5]
 
 ## Additional Context
 
