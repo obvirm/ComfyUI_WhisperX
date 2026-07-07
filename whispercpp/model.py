@@ -72,7 +72,7 @@ class ModelManager:
                 logger.info(f"Resuming download from {resume_pos/1e6:.1f}MB")
         logger.info(f"Downloading {key} ({info['size_mb']/1000:.1f}GB)...")
         try:
-            resp = requests.get(info["url"], stream=True, headers=headers)
+            resp = requests.get(info["url"], stream=True, headers=headers, timeout=(30, 60))  # 30s connect, 60s read
             resp.raise_for_status()
             total = int(resp.headers.get("content-length", 0))
             mode = "ab" if resume_pos > 0 else "wb"
