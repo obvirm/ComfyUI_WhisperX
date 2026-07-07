@@ -53,9 +53,9 @@ ASSETS = {
         "Darwin":  ["libwhisper.dylib", "libggml-base.dylib", "libggml-cpu.dylib", "libggml.dylib"],
     },
     "bs_roformer": {
-        "Windows": ["bs_roformer.dll"],
+        "Windows": ["bs_roformer.dll", "ggml.dll", "ggml-base.dll", "ggml-cpu.dll"],
         "Linux":   ["libbs_roformer.so", "libggml.so", "libggml-base.so", "libggml-cpu.so"],
-        "Darwin":  ["libbs_roformer.dylib"],
+        "Darwin":  ["libbs_roformer.dylib", "libggml.dylib", "libggml-base.dylib", "libggml-cpu.dylib"],
     },
     "cpp_annote": {
         "Windows": ["cpp_annote.dll", "onnxruntime.dll", "onnxruntime_providers_shared.dll"],
