@@ -1,0 +1,38 @@
+{
+  "3": {
+    "class_type": "LoadAudio",
+    "inputs": {
+      "audio": "test.mp3"
+    }
+  },
+  "4": {
+    "class_type": "WhisperCPPNode",
+    "inputs": {
+      "audio": ["3", 0],
+      "model": "large-v3-turbo",
+      "language": "en",
+      "device": "cpu",
+      "hallu_filter": true,
+      "align": false,
+      "separate_vocals": false,
+      "vad": false,
+      "dtw_token_timestamps": false,
+      "sampling_strategy": "greedy",
+      "beam_size": 5,
+      "best_of": 5,
+      "temperature": 0.0,
+      "temperature_inc": 0.4,
+      "entropy_thold": 2.0,
+      "logprob_thold": -0.5,
+      "no_speech_thold": 0.6,
+      "show_advance_cpp": false,
+      "show_advance_ext": false
+    }
+  },
+  "5": {
+    "class_type": "PreviewAny",
+    "inputs": {
+      "source": ["4", 0]
+    }
+  }
+}
