@@ -223,14 +223,12 @@ class BSRoformerContext:
         nol = num_overlap if num_overlap >= 0 else self.default_num_overlap
 
         audio_f = np.ascontiguousarray(audio, dtype=np.float32)
-        # n_samples for C API = mono count (interleaved stereo / 2)
-        mono_samples = n_samples // 2
         output = np.zeros(num_stems * n_samples, dtype=np.float32)
 
         ret = _lib.bs_roformer_process(
             self._ctx,
             audio_f.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
-            mono_samples,
+            n_samples,
             output.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
             cs, nol,
         )
