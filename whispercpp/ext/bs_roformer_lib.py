@@ -115,16 +115,16 @@ def _load():
     if IS_WINDOWS:
         os.add_dll_directory(deps_dir)
     else:
-        # Pre-load ggml dependencies so main library can find them
-        ggml_deps = ["libggml.so", "libggml-base.so", "libggml-cpu.so",
-                      "libonnxruntime.so", "libonnxruntime_providers_shared.so"]
-        for dep in ggml_deps:
+        # Pre-load by SONAME (libggml.so.0) not base name (libggml.so)
+        # because bs_roformer was linked against versioned SONAMEs
+        for dep in ["libggml.so.0", "libggml-base.so.0", "libggml-cpu.so.0"]:
             dep_path = os.path.join(deps_dir, dep)
             if os.path.isfile(dep_path):
                 try:
                     ctypes.CDLL(dep_path, mode=ctypes.RTLD_GLOBAL)
-                except Exception:
-                    pass
+                    logger.info(f"  Pre-loaded: {dep}")
+                except Exception as e:
+                    logger.warning(f"  Pre-load failed: {dep} - {e}")
 
     logger.info(f"Loading bs_roformer: {dll_path}")
     try:
