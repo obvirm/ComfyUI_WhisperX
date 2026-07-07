@@ -103,15 +103,13 @@ jobs:
       - name: Collect .so
         run: |
           mkdir -p release
-          # Find all .so* including versioned SONAMES (libggml.so, libggml.so.0, etc.)
-          cp -a whisper.cpp/build/bin/Release/*.so* release/ 2>/dev/null || true
-          cp -a whisper.cpp/build/bin/*.so* release/ 2>/dev/null || true
-          find whisper.cpp/build -name "libggml*.so*" -exec cp -P {} release/ \;
-          find whisper.cpp/build -name "libwhisper.so*" -exec cp -P {} release/ \;
-          find bs_roformer.cpp/build -name "libbs_roformer.so*" -exec cp -P {} release/ \;
-          find bs_roformer.cpp/build -name "libggml*.so*" -exec cp -P {} release/ \;
-          find cpp-annote/build -name "libcpp_annote.so*" -exec cp -P {} release/ \;
-          find cpp-annote -path "*/onnxruntime-*/lib/*.so*" -exec cp -P {} release/ \;
+          # Find all .so* including versioned SONAMES, copy content (follow symlinks)
+          find whisper.cpp/build -name "libggml*.so*" -exec cp -L {} release/ \;
+          find whisper.cpp/build -name "libwhisper.so*" -exec cp -L {} release/ \;
+          find bs_roformer.cpp/build -name "libbs_roformer.so*" -exec cp -L {} release/ \;
+          find bs_roformer.cpp/build -name "libggml*.so*" -exec cp -L {} release/ \;
+          find cpp-annote/build -name "libcpp_annote.so*" -exec cp -L {} release/ \;
+          find cpp-annote -path "*/onnxruntime-*/lib/*.so*" -exec cp -L {} release/ \;
           ls -la release/
 
       - name: Upload artifact
