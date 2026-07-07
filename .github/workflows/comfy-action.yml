@@ -85,7 +85,7 @@ jobs:
           source .venv/bin/activate
           cd ComfyUI
           python -c "
-          import json, urllib.request, time
+          import json, urllib.request, urllib.error, time
           
           # Load test workflow
           with open('../workflows/test.json') as f:
@@ -97,6 +97,9 @@ jobs:
           try:
               resp = urllib.request.urlopen(req)
               print(f'Prompt queued: {resp.read().decode()}')
+          except urllib.error.HTTPError as e:
+              body = e.read().decode()
+              print(f'HTTP Error {e.code}: {body}')
           except Exception as e:
               print(f'Error: {e}')
           " 2>&1 || echo "Workflow test skipped"
