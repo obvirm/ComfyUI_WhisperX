@@ -34,7 +34,7 @@ def _get_file_lock(filepath: str) -> threading.Lock:
         return _file_locks[filepath]
 
 GITHUB_REPO = "obvirm/ComfyUI-WhisperCPP"
-CURRENT_VERSION = "v2.0.9"
+CURRENT_VERSION = "v2.1.1"
 
 IS_WIN = platform.system() == "Windows"
 IS_LINUX = platform.system() == "Linux"
