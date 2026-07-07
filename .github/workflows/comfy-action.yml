@@ -19,7 +19,7 @@ jobs:
           submodules: true
 
       - name: '[Unix] Setup ComfyUI'
-        uses: Comfy-Org/comfy-action@main
+        uses: obvirm/comfy-action@main
         with:
           os: linux
           cuda_version: '12.1'
