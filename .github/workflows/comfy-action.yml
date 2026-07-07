@@ -49,11 +49,8 @@ jobs:
       - name: Download test audio
         run: |
           mkdir -p ComfyUI/input
-          # Public domain speech audio samples
-          curl -L -o ComfyUI/input/test.wav "https://www.voiptroubleshooter.com/open_speech/american/OSR_us_000_0010_8k.wav" 2>/dev/null || \
-          curl -L -o ComfyUI/input/test.wav "https://upload.wikimedia.org/wikipedia/commons/2/21/En-us-how_are_you.ogg" 2>/dev/null || \
-          echo "WARNING: Could not download test audio, WhisperCPP may skip test"
-          ls -la ComfyUI/input/test.wav 2>/dev/null || echo "No test audio available"
+          curl -L -o ComfyUI/input/test.mp3 "https://data.freetouse.com/music/tracks/f6a131e6-388d-f4d1-e784-04aeba2896ff/file/mp3"
+          ls -la ComfyUI/input/test.mp3
 
       - name: Start ComfyUI
         run: |
