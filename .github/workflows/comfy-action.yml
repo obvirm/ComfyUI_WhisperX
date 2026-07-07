@@ -27,5 +27,6 @@ jobs:
           comfyui_flags: '--cpu'
           timeout: '900'
           skip_quickci: 'true'
-          google_credentials: 'dummy'
-          gcs_bucket_name: 'dummy'
+          # GCS not configured - skip upload
+          # google_credentials: ${{ secrets.GCS_CREDENTIALS }}
+          # gcs_bucket_name: comfy-ci-results
