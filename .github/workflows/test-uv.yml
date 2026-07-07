@@ -30,33 +30,44 @@ jobs:
 
       - name: '[Unix] Install ComfyUI'
         run: |
-          git clone https://github.com/comfyanonymous/ComfyUI.git
+          git clone --depth 1 https://github.com/comfyanonymous/ComfyUI.git
           cd ComfyUI
           uv pip install -r requirements.txt --system
 
       - name: '[Unix] Install custom node'
         run: |
-          ln -s $GITHUB_WORKSPACE ComfyUI/custom_nodes/ComfyUI-WhisperCPP
+          cp -r $GITHUB_WORKSPACE ComfyUI/custom_nodes/ComfyUI-WhisperCPP
           cd ComfyUI/custom_nodes/ComfyUI-WhisperCPP
           uv pip install -r requirements.txt --system
 
-      - name: '[Unix] Run ComfyUI'
-        run: |
-          cd ComfyUI
-          python main.py --cpu --dont-print-server &
-          sleep 10
-
-      - name: '[Unix] Test workflow'
+      - name: '[Unix] Test node import'
         run: |
           cd ComfyUI
           python -c "
+          import sys, importlib.util
+          sys.path.insert(0, '.')
+          spec = importlib.util.spec_from_file_location('node', 'custom_nodes/ComfyUI-WhisperCPP/__init__.py')
+          mod = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(mod)
+          print('Node module loaded successfully!')
+          print(f'NODE_CLASS_MAPPINGS: {list(mod.NODE_CLASS_MAPPINGS.keys())}')
+          "
+
+      - name: '[Unix] Test WhisperCPP import'
+        run: |
+          cd ComfyUI/custom_nodes/ComfyUI-WhisperCPP
+          python -c "
           import sys
           sys.path.insert(0, '.')
-          sys.path.insert(0, 'custom_nodes')
-          from ComfyUI_WhisperCPP import WhisperCPPNode
-          print('Node loaded successfully!')
-          node = WhisperCPPNode()
-          print(f'Node class: {node.__class__.__name__}')
+          from whispercpp.auto_download import _get_version
+          from whispercpp.gpu_detect import detect_gpu
+          from whispercpp.whisper_lib import WhisperCPP
+          print(f'Version: {_get_version()}')
+          gpu = detect_gpu()
+          print(f'GPU: {gpu[\"backend\"]}')
+          wcpp = WhisperCPP()
+          print(f'WhisperCPP created, lock: {type(wcpp._lock).__name__}')
+          print('All imports successful!')
           "
 
       - name: '[Unix] Upload artifacts'
