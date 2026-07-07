@@ -379,7 +379,6 @@ def download_module(module: str, target_dir: str, version: str = None,
 
 def _create_linux_symlinks(target_dir: str):
     """Create versioned symlinks for .so files on Linux."""
-    # {file: [symlink_names]}
     symlink_map = {
         "libggml.so": ["libggml.so.0"],
         "libggml-base.so": ["libggml-base.so.0"],
@@ -395,9 +394,9 @@ def _create_linux_symlinks(target_dir: str):
                 if not os.path.exists(dst_path):
                     try:
                         os.symlink(src, dst_path)
-                        logger.debug(f"  Symlink: {dst} -> {src}")
+                        logger.info(f"  Symlink created: {dst} -> {src}")
                     except OSError as e:
-                        logger.debug(f"  Symlink failed: {e}")
+                        logger.warning(f"  Symlink failed: {e}")
 
 
 def _create_mac_symlinks(target_dir: str):
