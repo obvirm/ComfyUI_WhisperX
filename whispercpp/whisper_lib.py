@@ -210,13 +210,18 @@ class WhisperCPP:
 
     def load_model(self, model_path, use_gpu=True, gpu_device=0, flash_attn=False, dtw_token_timestamps=False, dtw_aheads_preset=0, dtw_n_top=-1):
         if self._lib is None: self.load_library()
+        logger.info("Step 10a: Acquiring model lock")
         with self._lock:
+            logger.info("Step 10b: Freeing old model")
             self.free_model()
             if not os.path.isfile(model_path): raise FileNotFoundError(f"Model not found: {model_path}")
+            logger.info("Step 10c: Setting context params")
             cparams = self._lib.whisper_context_default_params()
             cparams.use_gpu = use_gpu; cparams.gpu_device = gpu_device; cparams.flash_attn = flash_attn
             cparams.dtw_token_timestamps = dtw_token_timestamps; cparams.dtw_aheads_preset = dtw_aheads_preset; cparams.dtw_n_top = dtw_n_top
+            logger.info("Step 10d: Calling whisper_init_from_file_with_params (heavy operation)...")
             ctx = self._lib.whisper_init_from_file_with_params(model_path.encode("utf-8"), cparams)
+            logger.info("Step 10e: whisper_init completed")
             if not ctx: raise RuntimeError(f"Failed to init whisper from {model_path}")
             self._ctx = ctx; self._model_path = model_path
 
