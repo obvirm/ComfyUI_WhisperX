@@ -24,6 +24,13 @@ _available = False
 _lib = None
 
 
+def cleanup():
+    """Unload cpp-annote library and reset global state."""
+    global _lib, _available
+    _lib = None
+    _available = False
+
+
 def _find_library():
     base = NODE_DIR
     search = []

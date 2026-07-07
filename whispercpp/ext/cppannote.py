@@ -28,6 +28,17 @@ def ensure_loaded():
     return _ctx
 
 
+def cleanup():
+    """Free cpp-annote context and reset global state."""
+    global _ctx
+    if _ctx is not None:
+        try:
+            _ctx.free()
+        except Exception:
+            pass
+        _ctx = None
+
+
 def segment(audio, sr=16000):
     """
     VAD — return list of (start_sec, end_sec) speech segments.

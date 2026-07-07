@@ -25,6 +25,13 @@ _available = False
 _lib = None
 
 
+def cleanup():
+    """Unload bs_roformer library and reset global state."""
+    global _lib, _available
+    _lib = None
+    _available = False
+
+
 def _find_library():
     """Cari bs_roformer library di semua platform."""
     base = NODE_DIR
