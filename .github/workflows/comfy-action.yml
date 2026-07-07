@@ -46,20 +46,6 @@ jobs:
           cd ComfyUI/custom_nodes/ComfyUI-WhisperCPP
           uv pip install -r requirements.txt --system || true
 
-      - name: Auto-download DLLs
-        run: |
-          source .venv/bin/activate
-          cd ComfyUI/custom_nodes/ComfyUI-WhisperCPP
-          python -c "
-          from whispercpp.auto_download import auto_download_all
-          from whispercpp.gpu_detect import detect_gpu
-          gpu = detect_gpu()
-          has_gpu = gpu.get('backend', 'cpu') != 'cpu'
-          results = auto_download_all('.', has_gpu=has_gpu)
-          print(f'Download results: {results}')
-          "
-          ls -la *.so *.dll 2>/dev/null || echo 'No DLLs found'
-
       - name: Download test audio
         run: |
           mkdir -p ComfyUI/input
