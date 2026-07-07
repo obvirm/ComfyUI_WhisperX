@@ -120,6 +120,17 @@ class WhisperCPP:
     def load_library(self, lib_path=None):
         if self._lib is not None: return
         if lib_path: self._lib_path = lib_path
+        
+        # Check version & update if outdated
+        try:
+            from .auto_download import check_version_and_update
+            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            from .gpu_detect import detect_gpu
+            gpu = detect_gpu()
+            check_version_and_update(base_dir, has_gpu=gpu["backend"] != "cpu")
+        except Exception as e:
+            logger.debug(f"Version check skipped: {e}")
+        
         logger.info("Step 7: Finding whisper library")
         try:
             lib = self._find_library()
@@ -146,6 +157,12 @@ class WhisperCPP:
         self._lib = ctypes.cdll.LoadLibrary(lib)
         logger.info("Step 9: Setting up functions")
         self._setup_functions()
+        # Log version
+        try:
+            ver = self._lib.whisper_version().decode()
+            logger.info(f"Step 9b: whisper version = {ver}")
+        except Exception:
+            logger.debug("Could not get whisper version")
 
     def _auto_download(self) -> bool:
         """Download DLLs from GitHub Releases based on detected GPU."""

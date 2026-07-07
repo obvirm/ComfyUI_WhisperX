@@ -79,6 +79,17 @@ def _auto_download():
 def _load():
     global _lib, _available
     if _lib is not None: return _lib
+    
+    # Check version & update if outdated
+    try:
+        from ..auto_download import check_version_and_update
+        from ..gpu_detect import detect_gpu
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        gpu = detect_gpu()
+        check_version_and_update(base_dir, has_gpu=gpu["backend"] != "cpu")
+    except Exception as e:
+        logger.debug(f"Version check skipped: {e}")
+    
     dll_path = _find_library()
     if dll_path is None:
         # Try auto-download

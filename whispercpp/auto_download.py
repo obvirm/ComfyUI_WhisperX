@@ -36,6 +36,10 @@ def _get_file_lock(filepath: str) -> threading.Lock:
 GITHUB_REPO = "obvirm/ComfyUI-WhisperCPP"
 CURRENT_VERSION = "v2.1.1"
 
+# Cached latest version from GitHub (1x query per session)
+_latest_version_cache = None
+_latest_version_checked = False
+
 IS_WIN = platform.system() == "Windows"
 IS_LINUX = platform.system() == "Linux"
 IS_MAC = platform.system() == "Darwin"
@@ -97,6 +101,60 @@ def _get_download_url(asset_name: str, version: str = None) -> str:
     """Build GitHub release download URL."""
     v = version or _get_version()
     return f"https://github.com/{GITHUB_REPO}/releases/download/{v}/{asset_name}"
+
+
+def get_latest_version() -> str:
+    """Query GitHub API for latest release version. Cached 1x per session."""
+    global _latest_version_cache, _latest_version_checked
+    if _latest_version_checked:
+        return _latest_version_cache or _get_version()
+    _latest_version_checked = True
+    try:
+        url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
+        req = urllib.request.Request(url, headers={
+            "User-Agent": "ComfyUI-WhisperCPP",
+            "Accept": "application/vnd.github.v3+json"
+        })
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            import json
+            data = json.loads(resp.read())
+            tag = data.get("tag_name", "")
+            if tag:
+                _latest_version_cache = tag
+                logger.info(f"GitHub latest release: {tag}")
+                return tag
+    except Exception as e:
+        logger.debug(f"GitHub API check failed: {e}")
+    _latest_version_cache = _get_version()
+    return _latest_version_cache
+
+
+def check_version_and_update(target_dir: str, has_gpu: bool = False) -> bool:
+    """
+    Check if local DLLs match latest release. Re-download if outdated.
+    Returns True if DLLs are up to date (or successfully updated).
+    """
+    local_ver = _get_version()
+    remote_ver = get_latest_version()
+    
+    if local_ver == remote_ver:
+        logger.info(f"DLLs version OK: {local_ver}")
+        return True
+    
+    logger.warning(f"DLLs outdated! Local: {local_ver}, Latest: {remote_ver}")
+    logger.info(f"Re-downloading DLLs from {remote_ver}...")
+    
+    # Download all modules with new version
+    results = auto_download_all(target_dir, version=remote_ver, has_gpu=has_gpu)
+    all_ok = all(results.values())
+    
+    if all_ok:
+        logger.info(f"DLLs updated to {remote_ver} successfully!")
+    else:
+        failed = [k for k, v in results.items() if not v]
+        logger.error(f"Failed to update: {failed}")
+    
+    return all_ok
 
 
 def _check_disk_space(dest: str, min_mb: int = 50) -> bool:
