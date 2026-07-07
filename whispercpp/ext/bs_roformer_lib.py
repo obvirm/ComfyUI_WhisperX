@@ -115,25 +115,26 @@ def _load():
     if IS_WINDOWS:
         os.add_dll_directory(deps_dir)
     else:
-        # Pre-load dependencies with RTLD_GLOBAL — retry to handle circular deps
+        # Pre-load dependencies — try base names first, then versioned SONAMEs
         deps_dir = str(Path(dll_path).parent.resolve())
-        all_deps = ["libggml-cpu.so.0", "libggml-base.so.0", "libggml.so.0"]
-        remaining = list(all_deps)
-        for attempt in range(5):  # Max 5 retry rounds for circular deps
-            still = []
-            for dep in remaining:
-                dep_path = os.path.join(deps_dir, dep)
-                if os.path.isfile(dep_path):
-                    try:
-                        ctypes.CDLL(dep_path, mode=ctypes.RTLD_GLOBAL)
-                        logger.info(f"  Pre-loaded: {dep}")
-                    except Exception as e:
-                        still.append(dep)
-            if not still:
-                break  # All loaded
-            if len(still) == len(remaining):
-                break  # No progress
-            remaining = still
+        # Round 1: load base names (no version suffix, might have fewer deps)
+        for dep in ["libggml-cpu.so", "libggml-base.so", "libggml.so"]:
+            dep_path = os.path.join(deps_dir, dep)
+            if os.path.isfile(dep_path):
+                try:
+                    ctypes.CDLL(dep_path, mode=ctypes.RTLD_GLOBAL)
+                    logger.info(f"  Pre-loaded: {dep}")
+                except:
+                    pass
+        # Round 2: load versioned SONAMEs (for proper NEEDED matching)
+        for dep in ["libggml-cpu.so.0", "libggml-base.so.0", "libggml.so.0"]:
+            dep_path = os.path.join(deps_dir, dep)
+            if os.path.isfile(dep_path):
+                try:
+                    ctypes.CDLL(dep_path, mode=ctypes.RTLD_GLOBAL)
+                    logger.info(f"  Pre-loaded: {dep}")
+                except Exception as e:
+                    logger.warning(f"  Pre-load failed: {dep}")
 
     logger.info(f"Loading bs_roformer: {dll_path}")
     try:
