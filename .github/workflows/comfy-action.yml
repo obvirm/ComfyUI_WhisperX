@@ -1,0 +1,29 @@
+name: Comfy-Action Test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: '[Unix] Checkout'
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: '[Unix] Setup ComfyUI'
+        uses: obvirm/comfy-action@main
+        with:
+          os: linux
+          cuda_version: '12.1'
+          workflow_filenames: 'stress_test.json'
+          comfyui_flags: '--cpu'
+          timeout: '900'
+          skip_quickci: 'true'
