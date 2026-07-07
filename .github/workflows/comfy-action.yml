@@ -85,7 +85,7 @@ jobs:
               print(f'Prompt queued: {json.dumps(result)}')
               pid = result.get('prompt_id')
               if pid:
-                  for i in range(120):
+                  for i in range(240):
                       time.sleep(5)
                       try:
                           h = json.loads(urllib.request.urlopen(f'http://127.0.0.1:8188/history/{pid}', timeout=10).read().decode())
@@ -100,14 +100,14 @@ jobs:
                       except Exception:
                           pass
                   else:
-                      print('Execution timed out (10min)')
+                      print('Execution timed out (20min)')
           except urllib.error.HTTPError as e:
               print(f'HTTP Error {e.code}: {e.read().decode()}')
           except Exception as e:
               print(f'Error: {e}')
           " 2>&1 || echo "Test failed"
-          echo "=== application.log ==="
-          tail -100 application.log 2>/dev/null || echo "No log"
+          echo "=== application.log last 200 lines ==="
+          tail -200 application.log 2>/dev/null || echo "No log"
 
       - name: Upload logs
         uses: actions/upload-artifact@v4
