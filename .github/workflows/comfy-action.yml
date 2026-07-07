@@ -56,9 +56,13 @@ jobs:
       - name: Start ComfyUI
         shell: bash
         run: |
-          source .venv/bin/activate 2>/dev/null || . .venv/Scripts/activate 2>/dev/null || true
+          .venv/bin/python --version 2>/dev/null || python --version
           cd ComfyUI
           python main.py --cpu > application.log 2>&1 &
+          PID=$!
+          echo "PID: $PID"
+          sleep 5
+          if kill -0 $PID 2>/dev/null; then echo "Process running"; else echo "Process died"; cat application.log; exit 1; fi
           for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do
             if curl -s http://127.0.0.1:8188/system_stats > /dev/null 2>&1; then
               echo "Server ready after ${i}s"
@@ -66,6 +70,8 @@ jobs:
             fi
             sleep 5
           done
+          echo "=== application.log ==="
+          cat application.log 2>/dev/null || echo "No log"
 
       - name: Run stress test
         if: always()
