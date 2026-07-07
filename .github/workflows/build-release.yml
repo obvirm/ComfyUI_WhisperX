@@ -7,24 +7,15 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to build (auto-reads from version.py)'
-        required: false
+        description: 'Tag to build (e.g., v2.1.1)'
+        required: true
+        default: 'v2.1.1'
 
 permissions:
   contents: write
 
 jobs:
-  version:
-    runs-on: ubuntu-latest
-    outputs:
-      tag: ${{ steps.v.outputs.tag }}
-    steps:
-      - uses: actions/checkout@v4
-      - id: v
-        run: echo "tag=$(python whispercpp/version.py)" >> $GITHUB_OUTPUT
-
   build-windows:
-    needs: version
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -179,6 +170,7 @@ jobs:
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ inputs.tag || github.ref_name }}
           files: |
             windows-dlls/*
             linux-so/*

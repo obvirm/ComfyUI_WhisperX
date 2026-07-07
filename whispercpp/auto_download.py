@@ -82,10 +82,16 @@ GPU_ASSETS = {
 
 
 def _get_version() -> str:
-    """Read version from pyproject.toml via version.py (single source of truth)."""
+    """Read version from pyproject.toml (single source of truth)."""
     try:
-        from .version import get_version
-        return get_version()
+        import tomllib
+        pyproject = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "pyproject.toml"
+        )
+        with open(pyproject, "rb") as f:
+            data = tomllib.load(f)
+        return "v" + data["project"]["version"]
     except Exception:
         return "v2.1.5"
 
