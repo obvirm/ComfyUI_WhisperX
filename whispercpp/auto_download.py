@@ -34,7 +34,6 @@ def _get_file_lock(filepath: str) -> threading.Lock:
         return _file_locks[filepath]
 
 GITHUB_REPO = "obvirm/ComfyUI-WhisperCPP"
-CURRENT_VERSION = "v2.1.2"
 
 # Cached latest version from GitHub (1x query per session)
 _latest_version_cache = None
@@ -83,18 +82,12 @@ GPU_ASSETS = {
 
 
 def _get_version() -> str:
-    """Read version from pyproject.toml."""
+    """Read version from pyproject.toml via version.py (single source of truth)."""
     try:
-        import tomllib
-        pyproject = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-            "pyproject.toml"
-        )
-        with open(pyproject, "rb") as f:
-            data = tomllib.load(f)
-        return "v" + data["project"]["version"]
+        from .version import get_version
+        return get_version()
     except Exception:
-        return CURRENT_VERSION
+        return "v2.1.5"
 
 
 def _get_download_url(asset_name: str, version: str = None) -> str:

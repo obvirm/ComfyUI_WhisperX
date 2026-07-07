@@ -7,15 +7,24 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to build (e.g., v2.1.1)'
-        required: true
-        default: 'v2.1.1'
+        description: 'Tag to build (auto-reads from version.py)'
+        required: false
 
 permissions:
   contents: write
 
 jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.v.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: v
+        run: echo "tag=$(python whispercpp/version.py)" >> $GITHUB_OUTPUT
+
   build-windows:
+    needs: version
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
