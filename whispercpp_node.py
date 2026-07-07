@@ -505,6 +505,13 @@ class WhisperCPPNode:
         except Exception:
             pass
         
+        # Cleanup cpp-annote (VAD + diarization) cache
+        try:
+            from .whispercpp.ext.cppannote import cleanup as cppa_cleanup
+            cppa_cleanup()
+        except Exception:
+            pass
+        
         return outputs
 
     def _make_outputs(self, result):
