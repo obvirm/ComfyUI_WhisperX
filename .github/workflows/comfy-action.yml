@@ -27,5 +27,5 @@ jobs:
           comfyui_flags: '--cpu'
           timeout: '900'
           skip_quickci: 'true'
-        # GCS optional - skip for now, use GitHub Artifacts instead
-        # To enable GCS CI dashboard: https://ci.comfy.org
+          google_credentials: 'dummy'
+          gcs_bucket_name: 'dummy'
