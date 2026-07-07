@@ -129,7 +129,7 @@ def _load():
                 try:
                     ctypes.CDLL(dep_path, mode=ctypes.RTLD_GLOBAL)
                     logger.info(f"  Pre-loaded: {dep}")
-                except Exception as e:
+                except BaseException as e:
                     logger.warning(f"  Pre-load failed: {dep} - {e}")
             else:
                 logger.warning(f"  File not found: {dep}")
