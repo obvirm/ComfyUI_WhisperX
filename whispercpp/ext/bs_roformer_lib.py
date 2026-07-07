@@ -115,33 +115,17 @@ def _load():
     if IS_WINDOWS:
         os.add_dll_directory(deps_dir)
     else:
-        # Pre-load versioned symlinks with RTLD_GLOBAL — retry for circular deps
+        # Pre-load versioned filenames (released as real files, not symlinks)
+        # so dlopen registers by the versioned name that bs_roformer expects
         deps_dir = str(Path(dll_path).parent.resolve())
-        all_deps = ["libggml-cpu.so.0", "libggml-base.so.0", "libggml.so.0"]
-        # First pass: load base names (no version suffix)
-        for dep in ["libggml-cpu.so", "libggml-base.so", "libggml.so"]:
+        for dep in ["libggml-base.so.0", "libggml-cpu.so.0", "libggml.so.0"]:
             dep_path = os.path.join(deps_dir, dep)
             if os.path.isfile(dep_path):
                 try:
                     ctypes.CDLL(dep_path, mode=ctypes.RTLD_GLOBAL)
                     logger.info(f"  Pre-loaded: {dep}")
                 except Exception as e:
-                    logger.debug(f"  Base preload failed: {dep}")
-        # Second pass: load versioned symlinks (register as .so.0)
-        remaining = list(all_deps)
-        for attempt in range(5):
-            still = []
-            for dep in remaining:
-                dep_path = os.path.join(deps_dir, dep)
-                if os.path.isfile(dep_path):
-                    try:
-                        ctypes.CDLL(dep_path, mode=ctypes.RTLD_GLOBAL)
-                        logger.info(f"  Pre-loaded: {dep}")
-                    except Exception:
-                        still.append(dep)
-            if not still or len(still) == len(remaining):
-                break
-            remaining = still
+                    logger.warning(f"  Pre-load failed: {dep} - {e}")
 
     logger.info(f"Loading bs_roformer: {dll_path}")
     try:

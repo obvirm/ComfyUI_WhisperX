@@ -378,23 +378,25 @@ def download_module(module: str, target_dir: str, version: str = None,
 
 
 def _create_linux_symlinks(target_dir: str):
-    """Create versioned symlinks for .so files on Linux."""
-    symlink_map = {
+    """Rename .so files to versioned names (dlopen uses real filename, not symlink)."""
+    rename_map = {
         "libggml.so": "libggml.so.0",
         "libggml-base.so": "libggml-base.so.0",
         "libggml-cpu.so": "libggml-cpu.so.0",
         "libonnxruntime.so": "libonnxruntime.so.1",
         "libonnxruntime_providers_shared.so": "libonnxruntime_providers_shared.so.1",
     }
-    for src, dst in symlink_map.items():
+    for src, dst in rename_map.items():
         src_path = os.path.join(target_dir, src)
         dst_path = os.path.join(target_dir, dst)
         if os.path.isfile(src_path) and not os.path.exists(dst_path):
             try:
-                os.symlink(src, dst_path)
-                logger.info(f"  Symlink: {dst} -> {src}")
+                # Copy then remove original (rename doesn't work across filesystems)
+                import shutil
+                shutil.copy2(src_path, dst_path)
+                logger.info(f"  Copied: {src} -> {dst}")
             except OSError as e:
-                logger.warning(f"  Symlink failed: {e}")
+                logger.warning(f"  Copy failed: {e}")
 
 
 def _create_mac_symlinks(target_dir: str):
