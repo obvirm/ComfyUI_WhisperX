@@ -127,9 +127,13 @@ def _verify_checksum(filepath: str, expected_sha256: str = None) -> bool:
         return False
 
 
+_last_download_time = 0
+
+
 def download_file(url: str, dest: str, timeout: int = 120, retries: int = 2,
                   expected_size: int = None, expected_sha256: str = None) -> bool:
     """Download a single file with safety checks. Returns True on success."""
+    global _last_download_time
     # Rate limiting: max 5 downloads per minute
     import time
     now = time.time()
@@ -141,11 +145,8 @@ def download_file(url: str, dest: str, timeout: int = 120, retries: int = 2,
     with file_lock:
         result = _download_file_internal(url, dest, timeout, retries, expected_size, expected_sha256)
         if result:
-            global _last_download_time
             _last_download_time = time.time()
         return result
-
-_last_download_time = 0
 
 
 def _download_file_internal(url: str, dest: str, timeout: int, retries: int,
