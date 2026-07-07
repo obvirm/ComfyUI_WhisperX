@@ -27,6 +27,5 @@ jobs:
           comfyui_flags: '--cpu'
           timeout: '900'
           skip_quickci: 'true'
-          # GCS credentials - add to GitHub Secrets:
-          # google_credentials: ${{ secrets.GCS_CREDENTIALS }}
-          # gcs_bucket_name: ${{ secrets.GCS_BUCKET_NAME }}
+        # GCS optional - skip for now, use GitHub Artifacts instead
+        # To enable GCS CI dashboard: https://ci.comfy.org
