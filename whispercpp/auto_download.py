@@ -247,21 +247,26 @@ def _download_file_internal(url: str, dest: str, timeout: int, retries: int,
             os.close(fd)
             
             try:
-                req = urllib.request.Request(url, headers={"User-Agent": "ComfyUI-WhisperCPP"})
-                with urllib.request.urlopen(req, timeout=timeout) as response:
-                    # Check for rate limiting (403/429)
-                    if response.status == 403:
-                        logger.warning("  GitHub rate limit hit. Wait and retry.")
-                        import time
-                        time.sleep(60)
-                        os.remove(tmp_path)
-                        continue
-                    
-                    with open(tmp_path, "wb") as f:
-                        while True:
-                            chunk = response.read(8192)
-                            if not chunk:
-                                break
+                # Use requests (handles redirect headers properly)
+                import requests as _requests
+                resp = _requests.get(url, stream=True, timeout=timeout, headers={"User-Agent": "ComfyUI-WhisperCPP"})
+                if resp.status_code == 403 or resp.status_code == 429:
+                    logger.warning(f"  Rate limited ({resp.status_code}). Waiting...")
+                    import time
+                    time.sleep(60)
+                    os.remove(tmp_path)
+                    continue
+                if resp.status_code == 404:
+                    logger.warning(f"  File not found: {os.path.basename(dest)} (retrying)")
+                    import time
+                    time.sleep(10)
+                    os.remove(tmp_path)
+                    continue
+                resp.raise_for_status()
+                
+                with open(tmp_path, "wb") as f:
+                    for chunk in resp.iter_content(chunk_size=8192):
+                        if chunk:
                             f.write(chunk)
                 
                 # Verify file was downloaded
