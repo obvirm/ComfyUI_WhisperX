@@ -42,13 +42,10 @@ jobs:
           source .venv/bin/activate
           cd ComfyUI
           uv pip install -r requirements.txt
-          mkdir -p custom_nodes/ComfyUI-WhisperCPP
-          if command -v rsync &> /dev/null; then
-            rsync -av --exclude=ComfyUI --exclude=.git --exclude='*.exe' ../../ custom_nodes/ComfyUI-WhisperCPP/
-          else
-            cp -r ../../* custom_nodes/ComfyUI-WhisperCPP/
-          fi
-          cd custom_nodes/ComfyUI-WhisperCPP
+          cd ..
+          mkdir -p ComfyUI/custom_nodes/ComfyUI-WhisperCPP
+          rsync -av --exclude=ComfyUI --exclude=.venv --exclude=.git --exclude='*.exe' . ComfyUI/custom_nodes/ComfyUI-WhisperCPP/
+          cd ComfyUI/custom_nodes/ComfyUI-WhisperCPP
           uv pip install -r requirements.txt
           uv pip install sherpa-onnx
 
