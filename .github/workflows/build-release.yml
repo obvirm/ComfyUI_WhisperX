@@ -171,16 +171,11 @@ jobs:
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ inputs.tag || github.ref_name }}
-          files: |")" >> $GITHUB_OUTPUT
-
-      - name: Create release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.ver.outputs.tag }}
+          tag_name: ${{ env.VERSION }}
           files: |
             windows-dlls/*
             linux-so/*
             macos-dylib/*
             cpp-annote/artifacts/*.onnx
           generate_release_notes: true
+
