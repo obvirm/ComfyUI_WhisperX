@@ -54,6 +54,7 @@ def main():
     parser.add_argument("--vulkan", action="store_true", help="Enable Vulkan backend")
     parser.add_argument("--opencl", action="store_true", help="Enable OpenCL backend")
     parser.add_argument("--gpu", action="store_true", help="Enable all available GPU backends")
+    parser.add_argument("--no-metal", action="store_true", help="Disable Metal on macOS")
     args = parser.parse_args()
 
     if not BSR_DIR.is_dir() or not (BSR_DIR / "CMakeLists.txt").is_file():
@@ -100,6 +101,9 @@ def main():
         f"-DBSR_BUILD_TESTS=OFF",
         f"-DGGML_DIR={GGML_DIR}",
     ]
+    if args.no_metal:
+        cmd.append("-DGGML_METAL=OFF")
+        print("  - GGML_METAL (disabled)")
     print(f"  {' '.join(str(c) for c in cmd)}")
     if subprocess.run(cmd).returncode != 0:
         print("CONFIGURATION FAILED")

@@ -133,7 +133,7 @@ jobs:
         run: python build_whisper_cpp.py --native OFF
 
       - name: Build BSRoformer
-        run: python build_bs_roformer.py
+        run: python build_bs_roformer.py --no-metal
 
       - name: Build cpp-annote
         run: python build_cpp_annote.py
