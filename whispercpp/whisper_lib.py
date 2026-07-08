@@ -154,6 +154,20 @@ class WhisperCPP:
         if lib is None:
             raise RuntimeError("whisper library not found. Build: python build_whisper_cpp.py")
         logger.info(f"Step 8: Loading whisper library: {lib}")
+        
+        # Preload ggml deps on macOS/Linux (same as bs_roformer)
+        if not IS_WINDOWS:
+            deps_dir = str(Path(lib).parent.resolve())
+            ggml_deps = ["libggml.0.dylib", "libggml-base.0.dylib", "libggml-cpu.0.dylib"] if IS_MACOS else ["libggml.so.0", "libggml-base.so.0", "libggml-cpu.so.0"]
+            for dep in ggml_deps:
+                dep_path = os.path.join(deps_dir, dep)
+                if os.path.isfile(dep_path):
+                    try:
+                        ctypes.CDLL(dep_path, mode=ctypes.RTLD_GLOBAL)
+                        logger.info(f"  Pre-loaded: {dep}")
+                    except BaseException:
+                        pass
+        
         self._lib = ctypes.cdll.LoadLibrary(lib)
         logger.info("Step 9: Setting up functions")
         self._setup_functions()

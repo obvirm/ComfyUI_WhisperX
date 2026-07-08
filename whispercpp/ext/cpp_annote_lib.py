@@ -111,9 +111,10 @@ def _load():
                 logger.warning(f"Failed to pre-load onnxruntime: {e}")
         os.add_dll_directory(str(deps_dir))
     else:
-        # Pre-load dependencies by versioned symlink (register as .so.1 for linker)
+        # Pre-load dependencies by versioned name (Linux: .so.1, macOS: .1.dylib)
         deps_dir = str(Path(dll_path).parent.resolve())
-        for dep in ["libonnxruntime.so.1", "libonnxruntime_providers_shared.so.1"]:
+        deps_cpp = ["libonnxruntime.so.1", "libonnxruntime_providers_shared.so.1"] if not IS_MACOS else ["libonnxruntime.1.dylib", "libonnxruntime_providers_shared.1.dylib"]
+        for dep in deps_cpp:
             dep_path = os.path.join(deps_dir, dep)
             if os.path.isfile(dep_path):
                 try:

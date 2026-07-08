@@ -399,25 +399,24 @@ def _create_linux_symlinks(target_dir: str):
 
 
 def _create_mac_symlinks(target_dir: str):
-    """Create versioned symlinks for .dylib files on macOS."""
-    symlink_map = {
-        "libggml.dylib": ["libggml.0.dylib"],
-        "libggml-base.dylib": ["libggml-base.0.dylib"],
-        "libggml-cpu.dylib": ["libggml-cpu.0.dylib"],
-        "libonnxruntime.dylib": ["libonnxruntime.1.dylib"],
-        "libonnxruntime_providers_shared.dylib": ["libonnxruntime_providers_shared.1.dylib"],
+    """Copy .dylib files to versioned names (dlopen uses real filename)."""
+    copy_map = {
+        "libggml.dylib": "libggml.0.dylib",
+        "libggml-base.dylib": "libggml-base.0.dylib",
+        "libggml-cpu.dylib": "libggml-cpu.0.dylib",
+        "libonnxruntime.dylib": "libonnxruntime.1.dylib",
+        "libonnxruntime_providers_shared.dylib": "libonnxruntime_providers_shared.1.dylib",
     }
-    for src, dst_list in symlink_map.items():
+    for src, dst in copy_map.items():
         src_path = os.path.join(target_dir, src)
-        if os.path.isfile(src_path):
-            for dst in dst_list:
-                dst_path = os.path.join(target_dir, dst)
-                if not os.path.exists(dst_path):
-                    try:
-                        os.symlink(src, dst_path)
-                        logger.debug(f"  Symlink: {dst} -> {src}")
-                    except OSError as e:
-                        logger.debug(f"  Symlink failed: {e}")
+        dst_path = os.path.join(target_dir, dst)
+        if os.path.isfile(src_path) and not os.path.exists(dst_path):
+            try:
+                import shutil
+                shutil.copy2(src_path, dst_path)
+                logger.info(f"  Copied: {src} -> {dst}")
+            except OSError as e:
+                logger.warning(f"  Copy failed: {e}")
 
 
 def check_module_files(module: str, target_dir: str, has_gpu: bool = False) -> bool:

@@ -115,8 +115,13 @@ def _load():
     if IS_WINDOWS:
         os.add_dll_directory(deps_dir)
     else:
-        # Pre-load versioned filenames
-        for dep in ["libggml-base.so.0", "libggml-cpu.so.0", "libggml.so.0"]:
+        # Pre-load versioned filenames (Linux: .so.0, macOS: .0.dylib)
+        deps_unix = []
+        if IS_MACOS:
+            deps_unix = ["libggml-base.0.dylib", "libggml-cpu.0.dylib", "libggml.0.dylib"]
+        else:
+            deps_unix = ["libggml-base.so.0", "libggml-cpu.so.0", "libggml.so.0"]
+        for dep in deps_unix:
             dep_path = os.path.join(deps_dir, dep)
             if os.path.isfile(dep_path):
                 try:
@@ -125,12 +130,12 @@ def _load():
                 except BaseException as e:
                     logger.warning(f"  Pre-load failed: {dep}")
         # If files not found, try to download to deps_dir directly
-        if not any(os.path.isfile(os.path.join(deps_dir, dep)) for dep in ["libggml-base.so.0", "libggml-cpu.so.0"]):
+        if not any(os.path.isfile(os.path.join(deps_dir, dep)) for dep in deps_unix):
             try:
                 from ..auto_download import download_module
                 download_module("bs_roformer", deps_dir)
                 # Retry preload after download
-                for dep in ["libggml-base.so.0", "libggml-cpu.so.0", "libggml.so.0"]:
+                for dep in deps_unix:
                     dep_path = os.path.join(deps_dir, dep)
                     if os.path.isfile(dep_path):
                         try:
