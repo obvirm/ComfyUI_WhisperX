@@ -2,6 +2,7 @@
 name = "obvirm-whisperxx"
 description = "WhisperCPP for ComfyUI - whisper.cpp with full CPP params, alignment, diarization"
 version = "2.1.5"
+requires-python = ">=3.11"
 license = {file = "LICENSE"}
 dependencies = ["numpy","tqdm","requests","huggingface-hub","scipy","sherpa-onnx"]
 
