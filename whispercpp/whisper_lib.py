@@ -160,7 +160,7 @@ class WhisperCPP:
             deps_dir = str(Path(lib).parent.resolve())
             # Ensure versioned copies exist
             if IS_MACOS:
-                for src, dst in [("libggml.dylib", "libggml.0.dylib"), ("libggml-base.dylib", "libggml-base.0.dylib"), ("libggml-cpu.dylib", "libggml-cpu.0.dylib"), ("libggml-blas.dylib", "libggml-blas.0.dylib")]:
+                for src, dst in [("libggml.dylib", "libggml.0.dylib"), ("libggml-base.dylib", "libggml-base.0.dylib"), ("libggml-cpu.dylib", "libggml-cpu.0.dylib"), ("libggml-blas.dylib", "libggml-blas.0.dylib"), ("libggml-metal.dylib", "libggml-metal.0.dylib")]:
                     s = os.path.join(deps_dir, src); d = os.path.join(deps_dir, dst)
                     if os.path.isfile(s) and not os.path.exists(d):
                         try:
@@ -172,7 +172,7 @@ class WhisperCPP:
                                            capture_output=True, timeout=10)
                         except:
                             pass
-            ggml_deps = ["libggml.0.dylib", "libggml-base.0.dylib", "libggml-cpu.0.dylib", "libggml-blas.0.dylib"] if IS_MACOS else ["libggml.so.0", "libggml-base.so.0", "libggml-cpu.so.0"]
+            ggml_deps = ["libggml.0.dylib", "libggml-base.0.dylib", "libggml-cpu.0.dylib", "libggml-blas.0.dylib", "libggml-metal.0.dylib"] if IS_MACOS else ["libggml.so.0", "libggml-base.so.0", "libggml-cpu.so.0"]
             for dep in ggml_deps:
                 dep_path = os.path.join(deps_dir, dep)
                 if os.path.isfile(dep_path):
@@ -186,7 +186,7 @@ class WhisperCPP:
         if IS_MACOS:
             try:
                 import subprocess
-                for ref in ["@rpath/libggml.0.dylib", "@rpath/libggml-base.0.dylib", "@rpath/libggml-cpu.0.dylib", "@rpath/libggml-blas.0.dylib"]:
+                for ref in ["@rpath/libggml.0.dylib", "@rpath/libggml-base.0.dylib", "@rpath/libggml-cpu.0.dylib", "@rpath/libggml-blas.0.dylib", "@rpath/libggml-metal.0.dylib"]:
                     loader_ref = ref.replace("@rpath/", "@loader_path/")
                     subprocess.run(["install_name_tool", "-change", ref, loader_ref, lib],
                                    capture_output=True, timeout=10)
