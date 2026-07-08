@@ -1,4 +1,4 @@
-version = 2.1.9  
+version = "2.1.10"  
 [project]
 name = "obvirm-whisperxx"
 description = "WhisperCPP for ComfyUI - whisper.cpp with full CPP params, alignment, diarization"

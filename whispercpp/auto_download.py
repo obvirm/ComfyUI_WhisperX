@@ -82,7 +82,10 @@ GPU_ASSETS = {
 
 
 def _get_version() -> str:
-    """Read version from pyproject.toml (single source of truth)."""
+    """Read version from VERSION env var, fallback pyproject.toml."""
+    env_ver = os.environ.get("VERSION")
+    if env_ver:
+        return "v" + env_ver.removeprefix("v") if not env_ver.startswith("v") else env_ver
     try:
         import tomllib
         pyproject = os.path.join(
