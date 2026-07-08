@@ -303,6 +303,22 @@ def main():
             cuda_root = os.environ["CUDA_PATH"]
             cmake_args.append(f"-DOpenCL_INCLUDE_DIR={cuda_root}/include")
             cmake_args.append(f"-DOpenCL_LIBRARY={cuda_root}/lib/x64/OpenCL.lib")
+        elif IS_WIN:
+            # Download OpenCL headers from Khronos (not available in GH Actions CI otherwise)
+            cl_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "build", "opencl-headers")
+            os.makedirs(os.path.join(cl_dir, "CL"), exist_ok=True)
+            cl_h = os.path.join(cl_dir, "CL", "cl.h")
+            if not os.path.isfile(cl_h):
+                import urllib.request
+                urllib.request.urlretrieve("https://raw.githubusercontent.com/KhronosGroup/OpenCL-Headers/main/CL/cl.h", cl_h)
+            cmake_args.append(f"-DOpenCL_INCLUDE_DIR={cl_dir}")
+            # OpenCL.lib is in Windows SDK; set fallback path
+            for sdk_ver in ["10.0.26100.0", "10.0.22621.0", "10.0.20348.0", "10.0.19041.0"]:
+                lib_path = f"C:/Program Files (x86)/Windows Kits/10/Lib/{sdk_ver}/um/x64/OpenCL.lib"
+                if os.path.isfile(lib_path):
+                    cmake_args.append(f"-DOpenCL_LIBRARY={lib_path}")
+                    print(f"Found OpenCL.lib: {lib_path}")
+                    break
         elif IS_LINUX:
             # OpenCL usually via system package: libOpenCL.so
             cmake_args.append("-DOpenCL_INCLUDE_DIR=/usr/include/CL")
