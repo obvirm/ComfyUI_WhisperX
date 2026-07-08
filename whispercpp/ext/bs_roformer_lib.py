@@ -26,7 +26,7 @@ def _ensure_dylib_copies(deps_dir):
     """Copy .dylib to versioned names + fix install_name for @loader_path."""
     import shutil
     import subprocess
-    for src, dst in [("libggml.dylib", "libggml.0.dylib"), ("libggml-base.dylib", "libggml-base.0.dylib"), ("libggml-cpu.dylib", "libggml-cpu.0.dylib")]:
+    for src, dst in [("libggml.dylib", "libggml.0.dylib"), ("libggml-base.dylib", "libggml-base.0.dylib"), ("libggml-cpu.dylib", "libggml-cpu.0.dylib"), ("libggml-blas.dylib", "libggml-blas.0.dylib")]:
         s = os.path.join(deps_dir, src)
         d = os.path.join(deps_dir, dst)
         if os.path.isfile(s) and not os.path.exists(d):
@@ -153,7 +153,7 @@ def _load():
         _ensure_dylib_copies(deps_dir) if IS_MACOS else _ensure_so_copies(deps_dir)
         deps_unix = []
         if IS_MACOS:
-            deps_unix = ["libggml-base.0.dylib", "libggml-cpu.0.dylib", "libggml.0.dylib"]
+            deps_unix = ["libggml-base.0.dylib", "libggml-cpu.0.dylib", "libggml-blas.0.dylib", "libggml.0.dylib"]
         else:
             deps_unix = ["libggml-base.so.0", "libggml-cpu.so.0", "libggml.so.0"]
         for dep in deps_unix:
@@ -186,7 +186,7 @@ def _load():
     if IS_MACOS:
         try:
             import subprocess
-            ggml_refs = ["@rpath/libggml.0.dylib", "@rpath/libggml-base.0.dylib", "@rpath/libggml-cpu.0.dylib"]
+            ggml_refs = ["@rpath/libggml.0.dylib", "@rpath/libggml-base.0.dylib", "@rpath/libggml-cpu.0.dylib", "@rpath/libggml-blas.0.dylib"]
             for ref in ggml_refs:
                 loader_ref = ref.replace("@rpath/", "@loader_path/")
                 subprocess.run(["install_name_tool", "-change", ref, loader_ref, str(dll_path)],
