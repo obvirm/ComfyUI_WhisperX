@@ -180,7 +180,7 @@ def _load():
                 except BaseException as e:
                     logger.warning(f"  Pre-load failed: {dep}")
         # If files not found, try to download to deps_dir directly
-        if not any(os.path.isfile(os.path.join(deps_dir, dep)) for dep in deps_unix):
+        if not all(os.path.isfile(os.path.join(deps_dir, dep)) for dep in deps_unix):
             try:
                 from ..auto_download import download_module, get_latest_version
                 ver = get_latest_version()

@@ -94,7 +94,7 @@ jobs:
               print(f'Prompt queued: {json.dumps(result)}')
               pid = result.get('prompt_id')
               if pid:
-                  for i in range(240):
+                  for i in range(480):
                       time.sleep(5)
                       try:
                           h = json.loads(urllib.request.urlopen(f'http://127.0.0.1:8188/history/{pid}', timeout=10).read().decode())
