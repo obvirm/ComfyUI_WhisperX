@@ -63,7 +63,7 @@ def _find_library():
 def _auto_download():
     """Download cpp_annote from GitHub Releases."""
     try:
-        from ..auto_download import download_module, check_module_files
+        from ..auto_download import download_module, check_module_files, get_latest_version
         from ..gpu_detect import detect_gpu
         base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         gpu = detect_gpu()
@@ -71,7 +71,8 @@ def _auto_download():
         # Skip if already present
         if check_module_files("cpp_annote", base_dir, has_gpu=has_gpu):
             return
-        download_module("cpp_annote", base_dir, has_gpu=has_gpu)
+        ver = get_latest_version()
+        download_module("cpp_annote", base_dir, version=ver, has_gpu=has_gpu)
     except Exception as e:
         logger.warning(f"Auto-download failed: {e}")
 
@@ -103,12 +104,19 @@ def _load():
         deps_dir = Path(dll_path).parent.resolve()
         # Pre-load onnxruntime.dll 1.27.0 BEFORE cpp_annote.dll
         ort_dll = deps_dir / "onnxruntime.dll"
+        ort_shared = deps_dir / "onnxruntime_providers_shared.dll"
         if ort_dll.exists():
             try:
                 ctypes.CDLL(str(ort_dll))
                 logger.info(f"Pre-loaded onnxruntime: {ort_dll}")
             except Exception as e:
                 logger.warning(f"Failed to pre-load onnxruntime: {e}")
+        if ort_shared.exists():
+            try:
+                ctypes.CDLL(str(ort_shared))
+                logger.info(f"Pre-loaded onnxruntime_providers_shared: {ort_shared}")
+            except Exception as e:
+                logger.warning(f"Failed to pre-load providers_shared: {e}")
         os.add_dll_directory(str(deps_dir))
     else:
         # Pre-load dependencies by versioned name

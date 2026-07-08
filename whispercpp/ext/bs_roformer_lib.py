@@ -100,7 +100,7 @@ def _find_library():
 def _auto_download():
     """Download bs_roformer from GitHub Releases."""
     try:
-        from ..auto_download import download_module, check_module_files
+        from ..auto_download import download_module, check_module_files, get_latest_version
         from ..gpu_detect import detect_gpu
         base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         gpu = detect_gpu()
@@ -108,7 +108,8 @@ def _auto_download():
         # Skip if already present
         if check_module_files("bs_roformer", base_dir, has_gpu=has_gpu):
             return
-        download_module("bs_roformer", base_dir, has_gpu=has_gpu)
+        ver = get_latest_version()
+        download_module("bs_roformer", base_dir, version=ver, has_gpu=has_gpu)
     except Exception as e:
         logger.warning(f"Auto-download failed: {e}")
 
@@ -162,8 +163,9 @@ def _load():
         # If files not found, try to download to deps_dir directly
         if not any(os.path.isfile(os.path.join(deps_dir, dep)) for dep in deps_unix):
             try:
-                from ..auto_download import download_module
-                download_module("bs_roformer", deps_dir)
+                from ..auto_download import download_module, get_latest_version
+                ver = get_latest_version()
+                download_module("bs_roformer", deps_dir, version=ver)
                 # Retry preload after download
                 for dep in deps_unix:
                     dep_path = os.path.join(deps_dir, dep)
