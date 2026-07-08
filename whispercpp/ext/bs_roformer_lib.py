@@ -151,6 +151,21 @@ def _load():
         # Pre-load versioned filenames (LEAF to ROOT order)
         # Ensure versioned copies exist (releases only have base names)
         _ensure_dylib_copies(deps_dir) if IS_MACOS else _ensure_so_copies(deps_dir)
+        if IS_MACOS:
+            # Fix @rpath references in ALL ggml dylibs before loading
+            try:
+                import subprocess
+                rpath_refs = ["@rpath/libggml-base.0.dylib", "@rpath/libggml-cpu.0.dylib", "@rpath/libggml-blas.0.dylib", "@rpath/libggml-metal.0.dylib", "@rpath/libggml.0.dylib"]
+                ggml_deps_mac = ["libggml-base.0.dylib", "libggml-cpu.0.dylib", "libggml-blas.0.dylib", "libggml-metal.0.dylib", "libggml.0.dylib"]
+                for dep in ggml_deps_mac:
+                    d = os.path.join(deps_dir, dep)
+                    if os.path.isfile(d):
+                        for ref in rpath_refs:
+                            loader_ref = ref.replace("@rpath/", "@loader_path/")
+                            subprocess.run(["install_name_tool", "-change", ref, loader_ref, d],
+                                           capture_output=True, timeout=10)
+            except Exception:
+                pass
         deps_unix = []
         if IS_MACOS:
             deps_unix = ["libggml-base.0.dylib", "libggml-cpu.0.dylib", "libggml-blas.0.dylib", "libggml-metal.0.dylib", "libggml.0.dylib"]

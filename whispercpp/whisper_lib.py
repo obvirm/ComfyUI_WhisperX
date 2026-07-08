@@ -173,6 +173,20 @@ class WhisperCPP:
                         except:
                             pass
             ggml_deps = ["libggml.0.dylib", "libggml-base.0.dylib", "libggml-cpu.0.dylib", "libggml-blas.0.dylib", "libggml-metal.0.dylib"] if IS_MACOS else ["libggml.so.0", "libggml-base.so.0", "libggml-cpu.so.0"]
+            if IS_MACOS:
+                # Fix @rpath references in ALL ggml dylibs before loading
+                try:
+                    import subprocess
+                    rpath_refs = ["@rpath/libggml-base.0.dylib", "@rpath/libggml-cpu.0.dylib", "@rpath/libggml-blas.0.dylib", "@rpath/libggml-metal.0.dylib", "@rpath/libggml.0.dylib"]
+                    for dep in ggml_deps:
+                        d = os.path.join(deps_dir, dep)
+                        if os.path.isfile(d):
+                            for ref in rpath_refs:
+                                loader_ref = ref.replace("@rpath/", "@loader_path/")
+                                subprocess.run(["install_name_tool", "-change", ref, loader_ref, d],
+                                               capture_output=True, timeout=10)
+                except Exception:
+                    pass
             for dep in ggml_deps:
                 dep_path = os.path.join(deps_dir, dep)
                 if os.path.isfile(dep_path):
