@@ -38,15 +38,6 @@ jobs:
         run: python build_bs_roformer.py
 
       # cpp-annote
-      - name: Install zlib (for cnpy)
-        if: runner.os == 'Windows'
-        shell: bash
-        run: |
-          vcpkg install zlib:x64-windows
-          echo "ZLIB_ROOT=C:/vcpkg/installed/x64-windows" >> $GITHUB_ENV
-          echo "ZLIB_INCLUDE_DIR=C:/vcpkg/installed/x64-windows/include" >> $GITHUB_ENV
-          echo "ZLIB_LIBRARY=C:/vcpkg/installed/x64-windows/lib/zlib.lib" >> $GITHUB_ENV
-
       - name: Build cpp-annote
         run: python build_cpp_annote.py
 
@@ -139,15 +130,6 @@ jobs:
 
       - name: Build BSRoformer
         run: python build_bs_roformer.py
-
-      - name: Install zlib (for cnpy)
-        if: runner.os == 'macOS'
-        shell: bash
-        run: |
-          brew install zlib
-          echo "ZLIB_ROOT=$(brew --prefix zlib)" >> $GITHUB_ENV
-          echo "ZLIB_INCLUDE_DIR=$(brew --prefix zlib)/include" >> $GITHUB_ENV
-          echo "ZLIB_LIBRARY=$(brew --prefix zlib)/lib/libz.a" >> $GITHUB_ENV
 
       - name: Build cpp-annote
         run: python build_cpp_annote.py
