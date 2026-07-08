@@ -30,3 +30,4 @@ tmpxha4gc93.tmp
 *.onnx
 node.zip
 application.log  
+.pi/  
