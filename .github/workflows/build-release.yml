@@ -145,9 +145,7 @@ jobs:
           find . -name "libbs_roformer.dylib*" -exec cp {} release/ \;
           find . -name "libcpp_annote.dylib*" -exec cp {} release/ \;
           find . -name "libggml*.dylib*" -exec cp {} release/ \;
-          find . -name "libwhisper.dylib*" -exec cp {} release/ \;
-          find . -name "libbs_roformer.dylib*" -exec cp {} release/ \;
-          find . -name "libggml*.dylib*" -exec cp {} release/ \;
+          find cpp-annote -path "*/onnxruntime-*/lib/*.dylib*" -exec cp {} release/ \;
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

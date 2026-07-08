@@ -59,7 +59,7 @@ ASSETS = {
     "cpp_annote": {
         "Windows": ["cpp_annote.dll", "onnxruntime.dll", "onnxruntime_providers_shared.dll"],
         "Linux":   ["libcpp_annote.so", "libonnxruntime.so", "libonnxruntime_providers_shared.so"],
-        "Darwin":  ["libcpp_annote.dylib"],
+        "Darwin":  ["libcpp_annote.dylib", "libonnxruntime.dylib", "libonnxruntime_providers_shared.dylib"],
     },
     # ONNX models (platform-independent)
     "cpp_annote_models": {
