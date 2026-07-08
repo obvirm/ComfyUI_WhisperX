@@ -1,278 +1,0 @@
-[32m[INFO][0m setup plugin alembic.autogenerate.schemas
-[32m[INFO][0m setup plugin alembic.autogenerate.tables
-[32m[INFO][0m setup plugin alembic.autogenerate.types
-[32m[INFO][0m setup plugin alembic.autogenerate.constraints
-[32m[INFO][0m setup plugin alembic.autogenerate.defaults
-[32m[INFO][0m setup plugin alembic.autogenerate.comments
-[32m[INFO][0m Found comfy_kitchen backend triton: {'available': False, 'disabled': True, 'unavailable_reason': "ImportError: No module named 'triton'", 'capabilities': []}
-[32m[INFO][0m Found comfy_kitchen backend cuda: {'available': False, 'disabled': True, 'unavailable_reason': 'CUDA not available on this system', 'capabilities': []}
-[32m[INFO][0m Found comfy_kitchen backend eager: {'available': True, 'disabled': False, 'unavailable_reason': None, 'capabilities': ['adaln', 'apply_rope', 'apply_rope1', 'apply_rope_split_half', 'apply_rope_split_half1', 'dequantize_int8_convrot_weight', 'dequantize_int8_convrot_weight_dtype', 'dequantize_int8_simple', 'dequantize_int8_simple_dtype', 'dequantize_mxfp8', 'dequantize_nvfp4', 'dequantize_per_tensor_fp8', 'gemv_awq_w4a16', 'int8_linear', 'quantize_and_rotate_rowwise', 'quantize_int8_convrot_weight', 'quantize_int8_rowwise', 'quantize_int8_tensorwise', 'quantize_mxfp8', 'quantize_nvfp4', 'quantize_per_tensor_fp8', 'quantize_svdquant_w4a4', 'scaled_mm_mxfp8', 'scaled_mm_nvfp4', 'scaled_mm_svdquant_w4a4', 'stochastic_rounding_fp8']}
-[32m[INFO][0m Checkpoint files will always be loaded safely.
-[32m[INFO][0m Total VRAM 16379 MB, total RAM 16379 MB
-[32m[INFO][0m pytorch version: 2.12.1+cpu
-[32m[INFO][0m Set vram state to: DISABLED
-[32m[INFO][0m Device: cpu
-[32m[INFO][0m Using sub quadratic optimization for attention, if you have memory or speed issues try using: --use-split-cross-attention
-[32m[INFO][0m Python version: 3.11.15 (main, Jun 23 2026, 15:20:37) [MSC v.1944 64 bit (AMD64)]
-[32m[INFO][0m ComfyUI version: 0.27.0
-[32m[INFO][0m comfy-aimdo version: 0.4.10
-[32m[INFO][0m comfy-kitchen version: 0.2.16
-[1m[33m[WARNING][0m ****** User settings have been changed to be stored on the server instead of browser storage. ******
-[1m[33m[WARNING][0m ****** For multi-user setups add the --multi-user CLI argument to enable multiple user profiles. ******
-[32m[INFO][0m comfyui-frontend-package version: 1.45.20
-[32m[INFO][0m comfyui-workflow-templates version: 0.11.2
-[32m[INFO][0m comfyui-embedded-docs version: 0.5.7
-[32m[INFO][0m comfy-kitchen version: 0.2.16
-[32m[INFO][0m comfy-aimdo version: 0.4.10
-[32m[INFO][0m [Prompt Server] web root: D:\a\ComfyUI-WhisperCPP\ComfyUI-WhisperCPP\.venv\Lib\site-packages\comfyui_frontend_package\static
-[32m[INFO][0m Asset seeder disabled
-[32m[INFO][0m No OpenGL_accelerate module loaded: No module named 'OpenGL_accelerate'
-[32m[INFO][0m sherpa-onnx available
-[32m[INFO][0m GitHub latest release: v2.1.13
-[32m[INFO][0m   Downloading bs_roformer.dll...
-[32m[INFO][0m   GET https://github.com/obvirm/ComfyUI-WhisperCPP/releases/download/v2.1.10/bs_roform...
-[1m[33m[WARNING][0m   HTTPError 404: Not Found
-[1m[33m[WARNING][0m   Body: b'\n\n\n\n\n\n\n\n<!DOCTYPE html>\n<html\n  lang="en"\n  \n  data-color-mode="auto" data-light-theme="light" data-dark-theme="dark"\n  data-a11y-animated-images="system" data-a11y-link-underlines="true"\n  \n  >\n\n\n\n\n '
-[1m[33m[WARNING][0m   File not found: bs_roformer.dll (retrying)
-[32m[INFO][0m   Retry 1/2 for bs_roformer.dll...
-[32m[INFO][0m   GET https://github.com/obvirm/ComfyUI-WhisperCPP/releases/download/v2.1.10/bs_roform...
-[1m[33m[WARNING][0m   HTTPError 404: Not Found
-[1m[33m[WARNING][0m   Body: b'\n\n\n\n\n\n\n\n<!DOCTYPE html>\n<html\n  lang="en"\n  \n  data-color-mode="auto" data-light-theme="light" data-dark-theme="dark"\n  data-a11y-animated-images="system" data-a11y-link-underlines="true"\n  \n  >\n\n\n\n\n '
-[1m[33m[WARNING][0m   File not found: bs_roformer.dll (retrying)
-[32m[INFO][0m   Retry 2/2 for bs_roformer.dll...
-[32m[INFO][0m   GET https://github.com/obvirm/ComfyUI-WhisperCPP/releases/download/v2.1.10/bs_roform...
-[1m[33m[WARNING][0m   HTTPError 404: Not Found
-[1m[33m[WARNING][0m   Body: b'\n\n\n\n\n\n\n\n<!DOCTYPE html>\n<html\n  lang="en"\n  \n  data-color-mode="auto" data-light-theme="light" data-dark-theme="dark"\n  data-a11y-animated-images="system" data-a11y-link-underlines="true"\n  \n  >\n\n\n\n\n '
-[1m[33m[WARNING][0m   File not found: bs_roformer.dll (retrying)
-[32m[INFO][0m   Downloading ggml.dll...
-[32m[INFO][0m   GET https://github.com/obvirm/ComfyUI-WhisperCPP/releases/download/v2.1.10/ggml.dll...
-[1m[33m[WARNING][0m   HTTPError 404: Not Found
-[1m[33m[WARNING][0m   Body: b'\n\n\n\n\n\n\n\n<!DOCTYPE html>\n<html\n  lang="en"\n  \n  data-color-mode="auto" data-light-theme="light" data-dark-theme="dark"\n  data-a11y-animated-images="system" data-a11y-link-underlines="true"\n  \n  >\n\n\n\n\n '
-[1m[33m[WARNING][0m   File not found: ggml.dll (retrying)
-[32m[INFO][0m   Retry 1/2 for ggml.dll...
-[32m[INFO][0m   GET https://github.com/obvirm/ComfyUI-WhisperCPP/releases/download/v2.1.10/ggml.dll...
-[1m[33m[WARNING][0m   HTTPError 404: Not Found
-[1m[33m[WARNING][0m   Body: b'\n\n\n\n\n\n\n\n<!DOCTYPE html>\n<html\n  lang="en"\n  \n  data-color-mode="auto" data-light-theme="light" data-dark-theme="dark"\n  data-a11y-animated-images="system" data-a11y-link-underlines="true"\n  \n  >\n\n\n\n\n '
-[1m[33m[WARNING][0m   File not found: ggml.dll (retrying)
-[32m[INFO][0m   Retry 2/2 for ggml.dll...
-[32m[INFO][0m   GET https://github.com/obvirm/ComfyUI-WhisperCPP/releases/download/v2.1.10/ggml.dll...
-[1m[33m[WARNING][0m   HTTPError 404: Not Found
-[1m[33m[WARNING][0m   Body: b'\n\n\n\n\n\n\n\n<!DOCTYPE html>\n<html\n  lang="en"\n  \n  data-color-mode="auto" data-light-theme="light" data-dark-theme="dark"\n  data-a11y-animated-images="system" data-a11y-link-underlines="true"\n  \n  >\n\n\n\n\n '
-[1m[33m[WARNING][0m   File not found: ggml.dll (retrying)
-[32m[INFO][0m   Downloading ggml-base.dll...
-[32m[INFO][0m   GET https://github.com/obvirm/ComfyUI-WhisperCPP/releases/download/v2.1.10/ggml-base...
-[1m[33m[WARNING][0m   HTTPError 404: Not Found
-[1m[33m[WARNING][0m   Body: b'\n\n\n\n\n\n\n\n<!DOCTYPE html>\n<html\n  lang="en"\n  \n  data-color-mode="auto" data-light-theme="light" data-dark-theme="dark"\n  data-a11y-animated-images="system" data-a11y-link-underlines="true"\n  \n  >\n\n\n\n\n '
-[1m[33m[WARNING][0m   File not found: ggml-base.dll (retrying)
-[32m[INFO][0m   Retry 1/2 for ggml-base.dll...
-[32m[INFO][0m   GET https://github.com/obvirm/ComfyUI-WhisperCPP/releases/download/v2.1.10/ggml-base...
-[1m[33m[WARNING][0m   HTTPError 404: Not Found
-[1m[33m[WARNING][0m   Body: b'\n\n\n\n\n\n\n\n<!DOCTYPE html>\n<html\n  lang="en"\n  \n  data-color-mode="auto" data-light-theme="light" data-dark-theme="dark"\n  data-a11y-animated-images="system" data-a11y-link-underlines="true"\n  \n  >\n\n\n\n\n '
-[1m[33m[WARNING][0m   File not found: ggml-base.dll (retrying)
-[32m[INFO][0m   Retry 2/2 for ggml-base.dll...
-[32m[INFO][0m   GET https://github.com/obvirm/ComfyUI-WhisperCPP/releases/download/v2.1.10/ggml-base...
-[1m[33m[WARNING][0m   HTTPError 404: Not Found
-[1m[33m[WARNING][0m   Body: b'\n\n\n\n\n\n\n\n<!DOCTYPE html>\n<html\n  lang="en"\n  \n  data-color-mode="auto" data-light-theme="light" data-dark-theme="dark"\n  data-a11y-animated-images="system" data-a11y-link-underlines="true"\n  \n  >\n\n\n\n\n '
-[1m[33m[WARNING][0m   File not found: ggml-base.dll (retrying)
-[32m[INFO][0m   Downloading ggml-cpu.dll...
-[32m[INFO][0m   GET https://github.com/obvirm/ComfyUI-WhisperCPP/releases/download/v2.1.10/ggml-cpu....
-[1m[33m[WARNING][0m   HTTPError 404: Not Found
-[1m[33m[WARNING][0m   Body: b'\n\n\n\n\n\n\n\n<!DOCTYPE html>\n<html\n  lang="en"\n  \n  data-color-mode="auto" data-light-theme="light" data-dark-theme="dark"\n  data-a11y-animated-images="system" data-a11y-link-underlines="true"\n  \n  >\n\n\n\n\n '
-[1m[33m[WARNING][0m   File not found: ggml-cpu.dll (retrying)
-[32m[INFO][0m   Retry 1/2 for ggml-cpu.dll...
-[32m[INFO][0m   GET https://github.com/obvirm/ComfyUI-WhisperCPP/releases/download/v2.1.10/ggml-cpu....
-[1m[33m[WARNING][0m   HTTPError 404: Not Found
-[1m[33m[WARNING][0m   Body: b'\n\n\n\n\n\n\n\n<!DOCTYPE html>\n<html\n  lang="en"\n  \n  data-color-mode="auto" data-light-theme="light" data-dark-theme="dark"\n  data-a11y-animated-images="system" data-a11y-link-underlines="true"\n  \n  >\n\n\n\n\n '
-[1m[33m[WARNING][0m   File not found: ggml-cpu.dll (retrying)
-[32m[INFO][0m   Retry 2/2 for ggml-cpu.dll...
-[32m[INFO][0m   GET https://github.com/obvirm/ComfyUI-WhisperCPP/releases/download/v2.1.10/ggml-cpu....
-[1m[33m[WARNING][0m   HTTPError 404: Not Found
-[1m[33m[WARNING][0m   Body: b'\n\n\n\n\n\n\n\n<!DOCTYPE html>\n<html\n  lang="en"\n  \n  data-color-mode="auto" data-light-theme="light" data-dark-theme="dark"\n  data-a11y-animated-images="system" data-a11y-link-underlines="true"\n  \n  >\n\n\n\n\n '
-[1m[33m[WARNING][0m   File not found: ggml-cpu.dll (retrying)
-[1m[33m[WARNING][0m   bs_roformer: core files missing (0/4)
-[1m[31m[ERROR][0m bs_roformer not found. Build: python build_bs_roformer.py
-[1m[33m[WARNING][0m BSRoformer DLL not found/available
-[32m[INFO][0m   Downloading cpp_annote.dll...
-[32m[INFO][0m   GET https://github.com/obvirm/ComfyUI-WhisperCPP/releases/download/v2.1.10/cpp_annot...
-[1m[33m[WARNING][0m   HTTPError 404: Not Found
-[1m[33m[WARNING][0m   Body: b'\n\n\n\n\n\n\n\n<!DOCTYPE html>\n<html\n  lang="en"\n  \n  data-color-mode="auto" data-light-theme="light" data-dark-theme="dark"\n  data-a11y-animated-images="system" data-a11y-link-underlines="true"\n  \n  >\n\n\n\n\n '
-[1m[33m[WARNING][0m   File not found: cpp_annote.dll (retrying)
-[32m[INFO][0m   Retry 1/2 for cpp_annote.dll...
-[32m[INFO][0m   GET https://github.com/obvirm/ComfyUI-WhisperCPP/releases/download/v2.1.10/cpp_annot...
-[1m[33m[WARNING][0m   HTTPError 404: Not Found
-[1m[33m[WARNING][0m   Body: b'\n\n\n\n\n\n\n\n<!DOCTYPE html>\n<html\n  lang="en"\n  \n  data-color-mode="auto" data-light-theme="light" data-dark-theme="dark"\n  data-a11y-animated-images="system" data-a11y-link-underlines="true"\n  \n  >\n\n\n\n\n '
-[1m[33m[WARNING][0m   File not found: cpp_annote.dll (retrying)
-[32m[INFO][0m   Retry 2/2 for cpp_annote.dll...
-[32m[INFO][0m   GET https://github.com/obvirm/ComfyUI-WhisperCPP/releases/download/v2.1.10/cpp_annot...
-[1m[33m[WARNING][0m   HTTPError 404: Not Found
-[1m[33m[WARNING][0m   Body: b'\n\n\n\n\n\n\n\n<!DOCTYPE html>\n<html\n  lang="en"\n  \n  data-color-mode="auto" data-light-theme="light" data-dark-theme="dark"\n  data-a11y-animated-images="system" data-a11y-link-underlines="true"\n  \n  >\n\n\n\n\n '
-[1m[33m[WARNING][0m   File not found: cpp_annote.dll (retrying)
-[32m[INFO][0m   Downloading onnxruntime.dll...
-[32m[INFO][0m   GET https://github.com/obvirm/ComfyUI-WhisperCPP/releases/download/v2.1.10/onnxrunti...
-[1m[33m[WARNING][0m   HTTPError 404: Not Found
-[1m[33m[WARNING][0m   Body: b'\n\n\n\n\n\n\n\n<!DOCTYPE html>\n<html\n  lang="en"\n  \n  data-color-mode="auto" data-light-theme="light" data-dark-theme="dark"\n  data-a11y-animated-images="system" data-a11y-link-underlines="true"\n  \n  >\n\n\n\n\n '
-[1m[33m[WARNING][0m   File not found: onnxruntime.dll (retrying)
-[32m[INFO][0m   Retry 1/2 for onnxruntime.dll...
-[32m[INFO][0m   GET https://github.com/obvirm/ComfyUI-WhisperCPP/releases/download/v2.1.10/onnxrunti...
-[1m[33m[WARNING][0m   HTTPError 404: Not Found
-[1m[33m[WARNING][0m   Body: b'\n\n\n\n\n\n\n\n<!DOCTYPE html>\n<html\n  lang="en"\n  \n  data-color-mode="auto" data-light-theme="light" data-dark-theme="dark"\n  data-a11y-animated-images="system" data-a11y-link-underlines="true"\n  \n  >\n\n\n\n\n '
-[1m[33m[WARNING][0m   File not found: onnxruntime.dll (retrying)
-[32m[INFO][0m   Retry 2/2 for onnxruntime.dll...
-[32m[INFO][0m   GET https://github.com/obvirm/ComfyUI-WhisperCPP/releases/download/v2.1.10/onnxrunti...
-[1m[33m[WARNING][0m   HTTPError 404: Not Found
-[1m[33m[WARNING][0m   Body: b'\n\n\n\n\n\n\n\n<!DOCTYPE html>\n<html\n  lang="en"\n  \n  data-color-mode="auto" data-light-theme="light" data-dark-theme="dark"\n  data-a11y-animated-images="system" data-a11y-link-underlines="true"\n  \n  >\n\n\n\n\n '
-[1m[33m[WARNING][0m   File not found: onnxruntime.dll (retrying)
-[32m[INFO][0m   Downloading onnxruntime_providers_shared.dll...
-[32m[INFO][0m   GET https://github.com/obvirm/ComfyUI-WhisperCPP/releases/download/v2.1.10/onnxrunti...
-[1m[33m[WARNING][0m   HTTPError 404: Not Found
-[1m[33m[WARNING][0m   Body: b'\n\n\n\n\n\n\n\n<!DOCTYPE html>\n<html\n  lang="en"\n  \n  data-color-mode="auto" data-light-theme="light" data-dark-theme="dark"\n  data-a11y-animated-images="system" data-a11y-link-underlines="true"\n  \n  >\n\n\n\n\n '
-[1m[33m[WARNING][0m   File not found: onnxruntime_providers_shared.dll (retrying)
-[32m[INFO][0m   Retry 1/2 for onnxruntime_providers_shared.dll...
-[32m[INFO][0m   GET https://github.com/obvirm/ComfyUI-WhisperCPP/releases/download/v2.1.10/onnxrunti...
-[1m[33m[WARNING][0m   HTTPError 404: Not Found
-[1m[33m[WARNING][0m   Body: b'\n\n\n\n\n\n\n\n<!DOCTYPE html>\n<html\n  lang="en"\n  \n  data-color-mode="auto" data-light-theme="light" data-dark-theme="dark"\n  data-a11y-animated-images="system" data-a11y-link-underlines="true"\n  \n  >\n\n\n\n\n '
-[1m[33m[WARNING][0m   File not found: onnxruntime_providers_shared.dll (retrying)
-[32m[INFO][0m   Retry 2/2 for onnxruntime_providers_shared.dll...
-[32m[INFO][0m   GET https://github.com/obvirm/ComfyUI-WhisperCPP/releases/download/v2.1.10/onnxrunti...
-[1m[33m[WARNING][0m   HTTPError 404: Not Found
-[1m[33m[WARNING][0m   Body: b'\n\n\n\n\n\n\n\n<!DOCTYPE html>\n<html\n  lang="en"\n  \n  data-color-mode="auto" data-light-theme="light" data-dark-theme="dark"\n  data-a11y-animated-images="system" data-a11y-link-underlines="true"\n  \n  >\n\n\n\n\n '
-[1m[33m[WARNING][0m   File not found: onnxruntime_providers_shared.dll (retrying)
-[1m[33m[WARNING][0m   cpp_annote: core files missing (0/3)
-[1m[31m[ERROR][0m cpp_annote not found. Build: build_cpp_annote.py
-[32m[INFO][0m 
-Import times for custom nodes:
-[32m[INFO][0m    0.0 seconds: D:\a\ComfyUI-WhisperCPP\ComfyUI-WhisperCPP\ComfyUI\custom_nodes\websocket_image_save.py
-[32m[INFO][0m  216.7 seconds: D:\a\ComfyUI-WhisperCPP\ComfyUI-WhisperCPP\ComfyUI\custom_nodes\ComfyUI-WhisperCPP
-[32m[INFO][0m 
-[32m[INFO][0m Context impl SQLiteImpl.
-[32m[INFO][0m Will assume non-transactional DDL.
-[32m[INFO][0m Context impl SQLiteImpl.
-[32m[INFO][0m Will assume non-transactional DDL.
-[32m[INFO][0m Running upgrade  -> 0001_assets, Initial assets schema
-Revision ID: 0001_assets
-Revises: None
-Create Date: 2025-12-10 00:00:00
-[32m[INFO][0m Running upgrade 0001_assets -> 0002_merge_to_asset_references, Merge AssetInfo and AssetCacheState into unified asset_references table.
-[32m[INFO][0m Running upgrade 0002_merge_to_asset_references -> 0003_add_metadata_job_id, Add system_metadata and job_id columns to asset_references.
-Change preview_id FK from assets.id to asset_references.id.
-[32m[INFO][0m Running upgrade 0003_add_metadata_job_id -> 0004_drop_tag_type, Drop the vestigial tags.tag_type column.
-[32m[INFO][0m Database upgraded from None to 0004_drop_tag_type
-[32m[INFO][0m Using RAM pressure cache.
-[32m[INFO][0m Starting server
-
-[32m[INFO][0m To see the GUI go to: http://127.0.0.1:8188
-[32m[INFO][0m got prompt
-[32m[INFO][0m Downloading large-v3-turbo (1.6GB)...
-
-============================================================
-[94m[WhisperCPPNode] UVR vocal separation available[0m
-[94m[WhisperCPPNode] ============================================================[0m
-[94m[WhisperCPPNode]   WhisperCPP Node starting[0m
-[94m[WhisperCPPNode] ============================================================[0m
-[94m[WhisperCPPNode] Step 1: Creating ProgressBar[0m
-[94m[WhisperCPPNode] Step 2: Creating cache directory[0m
-[94m[WhisperCPPNode] Step 3: Getting model key[0m
-[94m[WhisperCPPNode] Step 4: Model key = large-v3-turbo[0m
-[94m[WhisperCPPNode] Step 5: Getting model path[0m
-[94m[WhisperCPPNode] Step 6: Model path = None[0m
-[94m[WhisperCPPNode] Downloading large-v3-turbo...[0m
-large-v3-turbo:   0%|          | 0.00/1.62G [00:00<?, ?B/s]large-v3-turbo:   0%|          | 1.05M/1.62G [00:00<03:28, 7.78MB/s]large-v3-turbo:   1%|1         | 18.9M/1.62G [00:00<00:16, 95.1MB/s]large-v3-turbo:   3%|3         | 50.3M/1.62G [00:00<00:08, 187MB/s] large-v3-turbo:   4%|4         | 71.3M/1.62G [00:00<00:08, 173MB/s]large-v3-turbo:   6%|5         | 90.2M/1.62G [00:01<00:47, 32.0MB/s]large-v3-turbo:   6%|6         | 103M/1.62G [00:02<00:48, 31.3MB/s] large-v3-turbo:   7%|6         | 112M/1.62G [00:02<00:51, 29.1MB/s]large-v3-turbo:   7%|7         | 120M/1.62G [00:03<00:57, 26.2MB/s]large-v3-turbo:   8%|7         | 125M/1.62G [00:03<01:07, 22.4MB/s]large-v3-turbo:   8%|7         | 129M/1.62G [00:04<01:20, 18.6MB/s]large-v3-turbo:   9%|8         | 144M/1.62G [00:04<00:49, 29.9MB/s]large-v3-turbo:  10%|9         | 158M/1.62G [00:04<00:34, 42.4MB/s]large-v3-turbo:  10%|#         | 170M/1.62G [00:04<00:27, 52.3MB/s]large-v3-turbo:  11%|#1        | 185M/1.62G [00:04<00:21, 67.0MB/s]large-v3-turbo:  12%|#2        | 198M/1.62G [00:04<00:17, 79.8MB/s]large-v3-turbo:  13%|#2        | 210M/1.62G [00:04<00:17, 80.1MB/s]large-v3-turbo:  14%|#3        | 222M/1.62G [00:04<00:15, 88.6MB/s]large-v3-turbo:  15%|#4        | 237M/1.62G [00:04<00:13, 100MB/s] large-v3-turbo:  15%|#5        | 250M/1.62G [00:05<00:13, 98.6MB/s]large-v3-turbo:  16%|#6        | 262M/1.62G [00:05<00:12, 105MB/s] large-v3-turbo:  17%|#7        | 277M/1.62G [00:05<00:12, 108MB/s]large-v3-turbo:  18%|#7        | 288M/1.62G [00:05<00:13, 102MB/s]large-v3-turbo:  18%|#8        | 300M/1.62G [00:05<00:12, 103MB/s]large-v3-turbo:  19%|#9        | 312M/1.62G [00:05<00:12, 108MB/s]large-v3-turbo:  20%|#9        | 324M/1.62G [00:05<00:13, 95.4MB/s]large-v3-turbo:  21%|##        | 334M/1.62G [00:05<00:13, 93.3MB/s]large-v3-turbo:  21%|##1       | 345M/1.62G [00:06<00:13, 96.1MB/s]large-v3-turbo:  22%|##2       | 359M/1.62G [00:06<00:12, 101MB/s] large-v3-turbo:  23%|##2       | 369M/1.62G [00:06<00:14, 87.4MB/s]large-v3-turbo:  23%|##3       | 382M/1.62G [00:06<00:13, 95.2MB/s]large-v3-turbo:  24%|##4       | 395M/1.62G [00:06<00:11, 103MB/s] large-v3-turbo:  25%|##5       | 407M/1.62G [00:06<00:14, 85.6MB/s]large-v3-turbo:  26%|##5       | 417M/1.62G [00:06<00:13, 89.4MB/s]large-v3-turbo:  26%|##6       | 428M/1.62G [00:06<00:13, 89.9MB/s]large-v3-turbo:  27%|##6       | 437M/1.62G [00:07<00:14, 84.1MB/s]large-v3-turbo:  27%|##7       | 447M/1.62G [00:07<00:15, 76.5MB/s]large-v3-turbo:  28%|##8       | 456M/1.62G [00:07<00:14, 79.9MB/s]large-v3-turbo:  29%|##8       | 465M/1.62G [00:07<00:14, 78.8MB/s]large-v3-turbo:  29%|##9       | 474M/1.62G [00:07<00:13, 82.6MB/s]large-v3-turbo:  30%|##9       | 483M/1.62G [00:07<00:17, 64.4MB/s]large-v3-turbo:  30%|###       | 492M/1.62G [00:07<00:16, 68.7MB/s]large-v3-turbo:  31%|###       | 500M/1.62G [00:07<00:16, 69.8MB/s]large-v3-turbo:  32%|###1      | 513M/1.62G [00:08<00:14, 76.9MB/s]large-v3-turbo:  32%|###2      | 521M/1.62G [00:08<00:15, 70.0MB/s]large-v3-turbo:  33%|###2      | 528M/1.62G [00:08<00:17, 62.2MB/s]large-v3-turbo:  33%|###3      | 539M/1.62G [00:08<00:15, 71.6MB/s]large-v3-turbo:  34%|###4      | 553M/1.62G [00:08<00:13, 80.6MB/s]large-v3-turbo:  35%|###4      | 561M/1.62G [00:08<00:14, 74.0MB/s]large-v3-turbo:  35%|###5      | 569M/1.62G [00:08<00:16, 65.9MB/s]large-v3-turbo:  36%|###5      | 579M/1.62G [00:09<00:15, 69.3MB/s]large-v3-turbo:  36%|###6      | 591M/1.62G [00:09<00:13, 77.9MB/s]large-v3-turbo:  37%|###6      | 600M/1.62G [00:09<00:15, 65.7MB/s]large-v3-turbo:  37%|###7      | 607M/1.62G [00:09<00:16, 60.6MB/s]large-v3-turbo:  38%|###8      | 618M/1.62G [00:09<00:14, 69.6MB/s]large-v3-turbo:  39%|###8      | 631M/1.62G [00:09<00:12, 78.9MB/s]large-v3-turbo:  39%|###9      | 640M/1.62G [00:09<00:14, 66.2MB/s]large-v3-turbo:  40%|###9      | 647M/1.62G [00:10<00:17, 57.1MB/s]large-v3-turbo:  40%|####      | 657M/1.62G [00:10<00:15, 62.4MB/s]large-v3-turbo:  41%|####1     | 671M/1.62G [00:10<00:13, 70.7MB/s]large-v3-turbo:  42%|####1     | 679M/1.62G [00:10<00:15, 61.9MB/s]large-v3-turbo:  42%|####2     | 687M/1.62G [00:10<00:17, 55.0MB/s]large-v3-turbo:  43%|####2     | 697M/1.62G [00:10<00:15, 60.6MB/s]large-v3-turbo:  44%|####3     | 710M/1.62G [00:11<00:13, 67.6MB/s]large-v3-turbo:  44%|####4     | 717M/1.62G [00:11<00:15, 57.0MB/s]large-v3-turbo:  45%|####4     | 724M/1.62G [00:11<00:18, 48.7MB/s]large-v3-turbo:  45%|####5     | 736M/1.62G [00:11<00:14, 59.5MB/s]large-v3-turbo:  46%|####6     | 750M/1.62G [00:11<00:12, 68.0MB/s]large-v3-turbo:  47%|####6     | 757M/1.62G [00:12<00:15, 55.3MB/s]large-v3-turbo:  47%|####6     | 763M/1.62G [00:12<00:18, 47.0MB/s]large-v3-turbo:  48%|####7     | 776M/1.62G [00:12<00:15, 54.6MB/s]large-v3-turbo:  49%|####8     | 789M/1.62G [00:12<00:13, 61.0MB/s]large-v3-turbo:  49%|####8     | 796M/1.62G [00:12<00:16, 51.4MB/s]large-v3-turbo:  49%|####9     | 802M/1.62G [00:12<00:18, 45.6MB/s]large-v3-turbo:  50%|#####     | 815M/1.62G [00:13<00:14, 55.0MB/s]large-v3-turbo:  51%|#####     | 828M/1.62G [00:13<00:12, 61.9MB/s]large-v3-turbo:  51%|#####1    | 836M/1.62G [00:13<00:14, 53.0MB/s]large-v3-turbo:  52%|#####1    | 842M/1.62G [00:13<00:17, 43.8MB/s]large-v3-turbo:  53%|#####2    | 855M/1.62G [00:13<00:14, 52.4MB/s]large-v3-turbo:  53%|#####3    | 867M/1.62G [00:14<00:12, 60.2MB/s]large-v3-turbo:  54%|#####3    | 875M/1.62G [00:14<00:14, 51.6MB/s]large-v3-turbo:  54%|#####4    | 881M/1.62G [00:14<00:17, 43.2MB/s]large-v3-turbo:  55%|#####4    | 893M/1.62G [00:14<00:13, 52.5MB/s]large-v3-turbo:  56%|#####5    | 907M/1.62G [00:14<00:11, 61.4MB/s]large-v3-turbo:  56%|#####6    | 914M/1.62G [00:15<00:13, 50.8MB/s]large-v3-turbo:  57%|#####6    | 921M/1.62G [00:15<00:16, 42.3MB/s]large-v3-turbo:  57%|#####7    | 933M/1.62G [00:15<00:14, 47.5MB/s]large-v3-turbo:  58%|#####8    | 946M/1.62G [00:15<00:12, 55.3MB/s]large-v3-turbo:  59%|#####8    | 952M/1.62G [00:15<00:12, 53.2MB/s]large-v3-turbo:  59%|#####8    | 958M/1.62G [00:16<00:15, 44.3MB/s]large-v3-turbo:  59%|#####9    | 964M/1.62G [00:16<00:15, 43.9MB/s]large-v3-turbo:  60%|#####9    | 973M/1.62G [00:16<00:13, 50.0MB/s]large-v3-turbo:  61%|######    | 986M/1.62G [00:16<00:10, 58.6MB/s]large-v3-turbo:  61%|######1   | 992M/1.62G [00:16<00:13, 45.9MB/s]large-v3-turbo:  61%|######1   | 997M/1.62G [00:16<00:13, 45.0MB/s]large-v3-turbo:  62%|######1   | 1.00G/1.62G [00:16<00:14, 43.7MB/s]large-v3-turbo:  62%|######2   | 1.01G/1.62G [00:17<00:12, 49.8MB/s]large-v3-turbo:  63%|######3   | 1.03G/1.62G [00:17<00:10, 58.7MB/s]large-v3-turbo:  64%|######3   | 1.03G/1.62G [00:17<00:13, 45.3MB/s]large-v3-turbo:  64%|######3   | 1.04G/1.62G [00:17<00:13, 44.4MB/s]large-v3-turbo:  64%|######4   | 1.04G/1.62G [00:17<00:13, 42.2MB/s]large-v3-turbo:  65%|######4   | 1.05G/1.62G [00:17<00:12, 45.5MB/s]large-v3-turbo:  66%|######5   | 1.06G/1.62G [00:18<00:10, 52.0MB/s]large-v3-turbo:  66%|######5   | 1.07G/1.62G [00:18<00:11, 47.1MB/s]large-v3-turbo:  66%|######6   | 1.07G/1.62G [00:18<00:15, 36.6MB/s]large-v3-turbo:  66%|######6   | 1.08G/1.62G [00:18<00:15, 35.3MB/s]large-v3-turbo:  67%|######7   | 1.09G/1.62G [00:18<00:12, 43.6MB/s]large-v3-turbo:  68%|######7   | 1.10G/1.62G [00:19<00:09, 52.4MB/s]large-v3-turbo:  68%|######8   | 1.11G/1.62G [00:19<00:10, 48.1MB/s]large-v3-turbo:  69%|######8   | 1.11G/1.62G [00:19<00:14, 35.9MB/s]large-v3-turbo:  69%|######8   | 1.12G/1.62G [00:19<00:15, 33.6MB/s]large-v3-turbo:  70%|######9   | 1.13G/1.62G [00:19<00:12, 40.9MB/s]large-v3-turbo:  70%|#######   | 1.14G/1.62G [00:20<00:10, 46.4MB/s]large-v3-turbo:  71%|#######   | 1.15G/1.62G [00:20<00:11, 41.9MB/s]large-v3-turbo:  71%|#######   | 1.15G/1.62G [00:20<00:12, 38.7MB/s]large-v3-turbo:  71%|#######1  | 1.16G/1.62G [00:20<00:16, 29.2MB/s]large-v3-turbo:  72%|#######1  | 1.17G/1.62G [00:20<00:11, 39.2MB/s]large-v3-turbo:  73%|#######2  | 1.18G/1.62G [00:21<00:09, 48.0MB/s]large-v3-turbo:  73%|#######3  | 1.19G/1.62G [00:21<00:09, 45.3MB/s]large-v3-turbo:  73%|#######3  | 1.19G/1.62G [00:21<00:12, 35.6MB/s]large-v3-turbo:  74%|#######3  | 1.20G/1.62G [00:21<00:12, 34.0MB/s]large-v3-turbo:  74%|#######4  | 1.21G/1.62G [00:21<00:10, 40.7MB/s]large-v3-turbo:  75%|#######5  | 1.22G/1.62G [00:22<00:08, 48.8MB/s]large-v3-turbo:  76%|#######5  | 1.23G/1.62G [00:22<00:09, 42.4MB/s]large-v3-turbo:  76%|#######5  | 1.23G/1.62G [00:22<00:10, 36.4MB/s]large-v3-turbo:  77%|#######6  | 1.25G/1.62G [00:22<00:08, 43.1MB/s]large-v3-turbo:  78%|#######7  | 1.26G/1.62G [00:23<00:08, 45.1MB/s]large-v3-turbo:  78%|#######7  | 1.27G/1.62G [00:23<00:09, 39.5MB/s]large-v3-turbo:  78%|#######8  | 1.27G/1.62G [00:23<00:13, 27.0MB/s]large-v3-turbo:  78%|#######8  | 1.27G/1.62G [00:23<00:14, 24.6MB/s]large-v3-turbo:  79%|#######8  | 1.28G/1.62G [00:24<00:15, 22.7MB/s]large-v3-turbo:  79%|#######8  | 1.28G/1.62G [00:24<00:17, 19.4MB/s]large-v3-turbo:  79%|#######9  | 1.28G/1.62G [00:24<00:19, 17.1MB/s]large-v3-turbo:  79%|#######9  | 1.29G/1.62G [00:24<00:20, 16.6MB/s]large-v3-turbo:  80%|########  | 1.30G/1.62G [00:25<00:12, 26.8MB/s]large-v3-turbo:  81%|########  | 1.31G/1.62G [00:25<00:09, 32.6MB/s]large-v3-turbo:  81%|########1 | 1.32G/1.62G [00:25<00:10, 29.1MB/s]large-v3-turbo:  81%|########1 | 1.32G/1.62G [00:25<00:11, 25.4MB/s]large-v3-turbo:  82%|########1 | 1.32G/1.62G [00:26<00:13, 22.0MB/s]large-v3-turbo:  82%|########1 | 1.33G/1.62G [00:26<00:14, 19.8MB/s]large-v3-turbo:  82%|########1 | 1.33G/1.62G [00:26<00:16, 17.9MB/s]large-v3-turbo:  82%|########2 | 1.33G/1.62G [00:26<00:17, 16.4MB/s]large-v3-turbo:  82%|########2 | 1.34G/1.62G [00:26<00:19, 14.6MB/s]large-v3-turbo:  82%|########2 | 1.34G/1.62G [00:27<00:20, 14.2MB/s]large-v3-turbo:  83%|########3 | 1.35G/1.62G [00:27<00:10, 25.3MB/s]large-v3-turbo:  84%|########4 | 1.37G/1.62G [00:27<00:08, 32.0MB/s]large-v3-turbo:  84%|########4 | 1.37G/1.62G [00:28<00:09, 26.9MB/s]large-v3-turbo:  84%|########4 | 1.37G/1.62G [00:28<00:10, 23.7MB/s]large-v3-turbo:  85%|########4 | 1.38G/1.62G [00:28<00:12, 20.6MB/s]large-v3-turbo:  85%|########4 | 1.38G/1.62G [00:28<00:12, 19.3MB/s]large-v3-turbo:  85%|########5 | 1.38G/1.62G [00:28<00:13, 17.7MB/s]large-v3-turbo:  85%|########5 | 1.39G/1.62G [00:29<00:14, 16.4MB/s]large-v3-turbo:  86%|########5 | 1.39G/1.62G [00:29<00:15, 15.4MB/s]large-v3-turbo:  86%|########5 | 1.39G/1.62G [00:29<00:16, 14.4MB/s]large-v3-turbo:  87%|########6 | 1.41G/1.62G [00:29<00:08, 24.7MB/s]large-v3-turbo:  87%|########7 | 1.42G/1.62G [00:30<00:06, 30.6MB/s]large-v3-turbo:  88%|########7 | 1.42G/1.62G [00:30<00:08, 25.0MB/s]large-v3-turbo:  88%|########7 | 1.43G/1.62G [00:30<00:09, 21.3MB/s]large-v3-turbo:  88%|########7 | 1.43G/1.62G [00:31<00:09, 19.8MB/s]large-v3-turbo:  88%|########8 | 1.43G/1.62G [00:31<00:10, 17.5MB/s]large-v3-turbo:  88%|########8 | 1.44G/1.62G [00:31<00:11, 16.2MB/s]large-v3-turbo:  89%|########8 | 1.44G/1.62G [00:31<00:12, 15.1MB/s]large-v3-turbo:  89%|########8 | 1.44G/1.62G [00:32<00:13, 13.9MB/s]large-v3-turbo:  89%|########8 | 1.44G/1.62G [00:32<00:13, 13.7MB/s]large-v3-turbo:  90%|########9 | 1.46G/1.62G [00:32<00:06, 24.3MB/s]large-v3-turbo:  91%|######### | 1.47G/1.62G [00:32<00:05, 29.2MB/s]large-v3-turbo:  91%|#########1| 1.48G/1.62G [00:33<00:05, 28.0MB/s]large-v3-turbo:  92%|#########1| 1.49G/1.62G [00:33<00:04, 28.8MB/s]large-v3-turbo:  93%|#########2| 1.50G/1.62G [00:33<00:02, 41.8MB/s]large-v3-turbo:  94%|#########3| 1.52G/1.62G [00:33<00:01, 61.5MB/s]large-v3-turbo:  95%|#########4| 1.54G/1.62G [00:33<00:01, 81.4MB/s]large-v3-turbo:  96%|#########5| 1.56G/1.62G [00:34<00:00, 102MB/s] large-v3-turbo:  97%|#########6| 1.57G/1.62G [00:34<00:00, 115MB/s]large-v3-turbo:  98%|#########7| 1.59G/1.62G [00:34<00:00, 127MB/s]large-v3-turbo:  99%|#########9| 1.61G/1.62G [00:34<00:00, 137MB/s]large-v3-turbo: 100%|#########9| 1.62G/1.62G [00:34<00:00, 138MB/s]large-v3-turbo: 100%|##########| 1.62G/1.62G [00:34<00:00, 46.8MB/s]
-[32m[INFO][0m Model saved to D:\a\ComfyUI-WhisperCPP\ComfyUI-WhisperCPP\ComfyUI\models\whispercpp\ggml-large-v3-turbo.bin (1.62GB)
-[32m[INFO][0m Step 7: Finding whisper library
-[32m[INFO][0m Step 7a: Library not found, trying auto-download
-[32m[INFO][0m   Downloading whisper.dll...
-[32m[INFO][0m   GET https://github.com/obvirm/ComfyUI-WhisperCPP/releases/download/v2.1.10/whisper.d...
-[1m[33m[WARNING][0m   HTTPError 404: Not Found
-[1m[33m[WARNING][0m   Body: b'\n\n\n\n\n\n\n\n<!DOCTYPE html>\n<html\n  lang="en"\n  \n  data-color-mode="auto" data-light-theme="light" data-dark-theme="dark"\n  data-a11y-animated-images="system" data-a11y-link-underlines="true"\n  \n  >\n\n\n\n\n '
-[1m[33m[WARNING][0m   File not found: whisper.dll (retrying)
-[32m[INFO][0m   Retry 1/2 for whisper.dll...
-[32m[INFO][0m   GET https://github.com/obvirm/ComfyUI-WhisperCPP/releases/download/v2.1.10/whisper.d...
-[1m[33m[WARNING][0m   HTTPError 404: Not Found
-[1m[33m[WARNING][0m   Body: b'\n\n\n\n\n\n\n\n<!DOCTYPE html>\n<html\n  lang="en"\n  \n  data-color-mode="auto" data-light-theme="light" data-dark-theme="dark"\n  data-a11y-animated-images="system" data-a11y-link-underlines="true"\n  \n  >\n\n\n\n\n '
-[1m[33m[WARNING][0m   File not found: whisper.dll (retrying)
-[32m[INFO][0m   Retry 2/2 for whisper.dll...
-[32m[INFO][0m   GET https://github.com/obvirm/ComfyUI-WhisperCPP/releases/download/v2.1.10/whisper.d...
-[1m[33m[WARNING][0m   HTTPError 404: Not Found
-[1m[33m[WARNING][0m   Body: b'\n\n\n\n\n\n\n\n<!DOCTYPE html>\n<html\n  lang="en"\n  \n  data-color-mode="auto" data-light-theme="light" data-dark-theme="dark"\n  data-a11y-animated-images="system" data-a11y-link-underlines="true"\n  \n  >\n\n\n\n\n '
-[1m[33m[WARNING][0m   File not found: whisper.dll (retrying)
-[32m[INFO][0m   Downloading ggml-base.dll...
-[32m[INFO][0m   GET https://github.com/obvirm/ComfyUI-WhisperCPP/releases/download/v2.1.10/ggml-base...
-[1m[33m[WARNING][0m   HTTPError 404: Not Found
-[1m[33m[WARNING][0m   Body: b'\n\n\n\n\n\n\n\n<!DOCTYPE html>\n<html\n  lang="en"\n  \n  data-color-mode="auto" data-light-theme="light" data-dark-theme="dark"\n  data-a11y-animated-images="system" data-a11y-link-underlines="true"\n  \n  >\n\n\n\n\n '
-[1m[33m[WARNING][0m   File not found: ggml-base.dll (retrying)
-[32m[INFO][0m   Retry 1/2 for ggml-base.dll...
-[32m[INFO][0m   GET https://github.com/obvirm/ComfyUI-WhisperCPP/releases/download/v2.1.10/ggml-base...
-[1m[33m[WARNING][0m   HTTPError 404: Not Found
-[1m[33m[WARNING][0m   Body: b'\n\n\n\n\n\n\n\n<!DOCTYPE html>\n<html\n  lang="en"\n  \n  data-color-mode="auto" data-light-theme="light" data-dark-theme="dark"\n  data-a11y-animated-images="system" data-a11y-link-underlines="true"\n  \n  >\n\n\n\n\n '
-[1m[33m[WARNING][0m   File not found: ggml-base.dll (retrying)
-[32m[INFO][0m   Retry 2/2 for ggml-base.dll...
-[32m[INFO][0m   GET https://github.com/obvirm/ComfyUI-WhisperCPP/releases/download/v2.1.10/ggml-base...
-[1m[33m[WARNING][0m   HTTPError 404: Not Found
-[1m[33m[WARNING][0m   Body: b'\n\n\n\n\n\n\n\n<!DOCTYPE html>\n<html\n  lang="en"\n  \n  data-color-mode="auto" data-light-theme="light" data-dark-theme="dark"\n  data-a11y-animated-images="system" data-a11y-link-underlines="true"\n  \n  >\n\n\n\n\n '
-[1m[33m[WARNING][0m   File not found: ggml-base.dll (retrying)
-[32m[INFO][0m   Downloading ggml-cpu.dll...
-[32m[INFO][0m   GET https://github.com/obvirm/ComfyUI-WhisperCPP/releases/download/v2.1.10/ggml-cpu....
-[1m[33m[WARNING][0m   HTTPError 404: Not Found
-[1m[33m[WARNING][0m   Body: b'\n\n\n\n\n\n\n\n<!DOCTYPE html>\n<html\n  lang="en"\n  \n  data-color-mode="auto" data-light-theme="light" data-dark-theme="dark"\n  data-a11y-animated-images="system" data-a11y-link-underlines="true"\n  \n  >\n\n\n\n\n '
-[1m[33m[WARNING][0m   File not found: ggml-cpu.dll (retrying)
-[32m[INFO][0m   Retry 1/2 for ggml-cpu.dll...
-[32m[INFO][0m   GET https://github.com/obvirm/ComfyUI-WhisperCPP/releases/download/v2.1.10/ggml-cpu....
-[1m[33m[WARNING][0m   HTTPError 404: Not Found
-[1m[33m[WARNING][0m   Body: b'\n\n\n\n\n\n\n\n<!DOCTYPE html>\n<html\n  lang="en"\n  \n  data-color-mode="auto" data-light-theme="light" data-dark-theme="dark"\n  data-a11y-animated-images="system" data-a11y-link-underlines="true"\n  \n  >\n\n\n\n\n '
-[1m[33m[WARNING][0m   File not found: ggml-cpu.dll (retrying)
-[32m[INFO][0m   Retry 2/2 for ggml-cpu.dll...
-[32m[INFO][0m   GET https://github.com/obvirm/ComfyUI-WhisperCPP/releases/download/v2.1.10/ggml-cpu....
-[1m[33m[WARNING][0m   HTTPError 404: Not Found
-[1m[33m[WARNING][0m   Body: b'\n\n\n\n\n\n\n\n<!DOCTYPE html>\n<html\n  lang="en"\n  \n  data-color-mode="auto" data-light-theme="light" data-dark-theme="dark"\n  data-a11y-animated-images="system" data-a11y-link-underlines="true"\n  \n  >\n\n\n\n\n '
-[1m[33m[WARNING][0m   File not found: ggml-cpu.dll (retrying)
-[32m[INFO][0m   Downloading ggml.dll...
-[32m[INFO][0m   GET https://github.com/obvirm/ComfyUI-WhisperCPP/releases/download/v2.1.10/ggml.dll...
-[1m[33m[WARNING][0m   HTTPError 404: Not Found
-[1m[33m[WARNING][0m   Body: b'\n\n\n\n\n\n\n\n<!DOCTYPE html>\n<html\n  lang="en"\n  \n  data-color-mode="auto" data-light-theme="light" data-dark-theme="dark"\n  data-a11y-animated-images="system" data-a11y-link-underlines="true"\n  \n  >\n\n\n\n\n '
-[1m[33m[WARNING][0m   File not found: ggml.dll (retrying)
-[32m[INFO][0m   Retry 1/2 for ggml.dll...
-[32m[INFO][0m   GET https://github.com/obvirm/ComfyUI-WhisperCPP/releases/download/v2.1.10/ggml.dll...
-[1m[33m[WARNING][0m   HTTPError 404: Not Found
-[1m[33m[WARNING][0m   Body: b'\n\n\n\n\n\n\n\n<!DOCTYPE html>\n<html\n  lang="en"\n  \n  data-color-mode="auto" data-light-theme="light" data-dark-theme="dark"\n  data-a11y-animated-images="system" data-a11y-link-underlines="true"\n  \n  >\n\n\n\n\n '
-[1m[33m[WARNING][0m   File not found: ggml.dll (retrying)
-[32m[INFO][0m   Retry 2/2 for ggml.dll...
-[32m[INFO][0m   GET https://github.com/obvirm/ComfyUI-WhisperCPP/releases/download/v2.1.10/ggml.dll...
-[1m[33m[WARNING][0m   HTTPError 404: Not Found
-[1m[33m[WARNING][0m   Body: b'\n\n\n\n\n\n\n\n<!DOCTYPE html>\n<html\n  lang="en"\n  \n  data-color-mode="auto" data-light-theme="light" data-dark-theme="dark"\n  data-a11y-animated-images="system" data-a11y-link-underlines="true"\n  \n  >\n\n\n\n\n '
-[1m[33m[WARNING][0m   File not found: ggml.dll (retrying)
-[1m[33m[WARNING][0m   whisper: core files missing (0/4)
-[32m[INFO][0m Step 7b: Trying auto-build
-[32m[INFO][0m Attempting auto-build (requires CMake + compiler)...
-[32m[INFO][0m Auto-build succeeded
-[32m[INFO][0m Step 8: Loading whisper library: D:\a\ComfyUI-WhisperCPP\ComfyUI-WhisperCPP\ComfyUI\custom_nodes\ComfyUI-WhisperCPP\whisper.dll
-[1m[31m[ERROR][0m !!! Exception during processing !!! Could not find module 'D:\a\ComfyUI-WhisperCPP\ComfyUI-WhisperCPP\ComfyUI\custom_nodes\ComfyUI-WhisperCPP\whisper.dll' (or one of its dependencies). Try using the full path with constructor syntax.
-[1m[31m[ERROR][0m Traceback (most recent call last):
-  File "D:\a\ComfyUI-WhisperCPP\ComfyUI-WhisperCPP\ComfyUI\execution.py", line 542, in execute
-    output_data, output_ui, has_subgraph, has_pending_tasks = await get_output_data(prompt_id, unique_id, obj, input_data_all, execution_block_cb=execution_block_cb, pre_execute_cb=pre_execute_cb, v3_data=v3_data)
-                                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "D:\a\ComfyUI-WhisperCPP\ComfyUI-WhisperCPP\ComfyUI\execution.py", line 341, in get_output_data
-    return_values = await _async_map_node_over_list(prompt_id, unique_id, obj, input_data_all, obj.FUNCTION, allow_interrupt=True, execution_block_cb=execution_block_cb, pre_execute_cb=pre_execute_cb, v3_data=v3_data)
-                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "D:\a\ComfyUI-WhisperCPP\ComfyUI-WhisperCPP\ComfyUI\execution.py", line 315, in _async_map_node_over_list
-    await process_inputs(input_dict, i)
-  File "D:\a\ComfyUI-WhisperCPP\ComfyUI-WhisperCPP\ComfyUI\execution.py", line 303, in process_inputs
-    result = f(**inputs)
-             ^^^^^^^^^^^
-  File "D:\a\ComfyUI-WhisperCPP\ComfyUI-WhisperCPP\ComfyUI\custom_nodes\ComfyUI-WhisperCPP\whispercpp_node.py", line 247, in transcribe
-    try: wcpp.load_model(model_path, use_gpu=use_gpu, gpu_device=gpu_device, flash_attn=self._get(kwargs,"flash_attn",False),
-         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "D:\a\ComfyUI-WhisperCPP\ComfyUI-WhisperCPP\ComfyUI\custom_nodes\ComfyUI-WhisperCPP\whispercpp\whisper_lib.py", line 253, in load_model
-    if self._lib is None: self.load_library()
-                          ^^^^^^^^^^^^^^^^^^^
-  File "D:\a\ComfyUI-WhisperCPP\ComfyUI-WhisperCPP\ComfyUI\custom_nodes\ComfyUI-WhisperCPP\whispercpp\whisper_lib.py", line 181, in load_library
-    self._lib = ctypes.cdll.LoadLibrary(lib)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\runneradmin\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\ctypes\__init__.py", line 454, in LoadLibrary
-    return self._dlltype(name)
-           ^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\runneradmin\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\ctypes\__init__.py", line 376, in __init__
-    self._handle = _dlopen(self._name, mode)
-                   ^^^^^^^^^^^^^^^^^^^^^^^^^
-FileNotFoundError: Could not find module 'D:\a\ComfyUI-WhisperCPP\ComfyUI-WhisperCPP\ComfyUI\custom_nodes\ComfyUI-WhisperCPP\whisper.dll' (or one of its dependencies). Try using the full path with constructor syntax.
-
-[32m[INFO][0m [32mPrompt executed in 231.63 seconds[0m
