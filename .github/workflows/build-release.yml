@@ -42,10 +42,10 @@ jobs:
         if: runner.os == 'Windows'
         shell: bash
         run: |
-          vcpkg install zlib:x64-windows-static
-          echo "ZLIB_ROOT=C:/vcpkg/installed/x64-windows-static" >> $GITHUB_ENV
-          echo "ZLIB_INCLUDE_DIR=C:/vcpkg/installed/x64-windows-static/include" >> $GITHUB_ENV
-          echo "ZLIB_LIBRARY=C:/vcpkg/installed/x64-windows-static/lib/zlib.lib" >> $GITHUB_ENV
+          vcpkg install zlib:x64-windows
+          echo "ZLIB_ROOT=C:/vcpkg/installed/x64-windows" >> $GITHUB_ENV
+          echo "ZLIB_INCLUDE_DIR=C:/vcpkg/installed/x64-windows/include" >> $GITHUB_ENV
+          echo "ZLIB_LIBRARY=C:/vcpkg/installed/x64-windows/lib/zlib.lib" >> $GITHUB_ENV
           echo "ZLIB_USE_STATIC_LIBS=ON" >> $GITHUB_ENV
 
       - name: Build cpp-annote
