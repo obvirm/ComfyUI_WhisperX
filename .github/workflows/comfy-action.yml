@@ -62,9 +62,10 @@ jobs:
         shell: bash
         run: |
           echo "=== Test GitHub Release Download ==="
+          echo "URL: https://github.com/obvirm/ComfyUI-WhisperCPP/releases/download/v2.1.13/bs_roformer.dll"
           curl -sI --connect-timeout 10 "https://github.com/obvirm/ComfyUI-WhisperCPP/releases/download/v2.1.13/bs_roformer.dll" 2>&1 | head -5 || echo "curl failed"
           echo "=== Test via Python urllib ==="
-          python3 -c "
+          python3 << 'PYEOF'
 import urllib.request
 url = 'https://github.com/obvirm/ComfyUI-WhisperCPP/releases/download/v2.1.13/bs_roformer.dll'
 try:
@@ -72,7 +73,7 @@ try:
     print(f'OK: {resp.status} ({len(resp.read())} bytes)')
 except Exception as e:
     print(f'Error: {e}')
-" 2>&1 || echo "python failed"
+PYEOF
 
       - name: Start ComfyUI
         shell: bash
