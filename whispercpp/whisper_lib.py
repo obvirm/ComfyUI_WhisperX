@@ -193,13 +193,15 @@ class WhisperCPP:
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         try:
             from .gpu_detect import detect_gpu
-            from .auto_download import download_module, check_module_files
+            from .auto_download import download_module, check_module_files, get_latest_version
             gpu = detect_gpu()
             has_gpu = gpu["backend"] != "cpu"
             # Skip if already present
             if check_module_files("whisper", base_dir, has_gpu=has_gpu):
                 return True
-            return download_module("whisper", base_dir, has_gpu=has_gpu)
+            ver = get_latest_version()
+            logger.info(f"Downloading DLLs from {ver}...")
+            return download_module("whisper", base_dir, version=ver, has_gpu=has_gpu)
         except Exception as e:
             logger.warning(f"Auto-download failed: {e}")
             return False

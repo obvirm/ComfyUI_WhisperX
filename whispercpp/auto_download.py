@@ -143,11 +143,6 @@ def check_version_and_update(target_dir: str, has_gpu: bool = False) -> bool:
         logger.info(f"DLLs version OK: {local_ver}")
         return True
     
-    # Already updated this session
-    if _latest_version_cache == remote_ver and remote_ver != _get_version():
-        # We already downloaded this version, just sync the local check
-        return True
-    
     logger.warning(f"DLLs outdated! Local: {local_ver}, Latest: {remote_ver}")
     logger.info(f"Re-downloading DLLs from {remote_ver}...")
     
