@@ -166,6 +166,10 @@ class WhisperCPP:
                         try:
                             import shutil; shutil.copy2(s, d)
                             logger.info(f"  Created: {dst}")
+                            # Fix install_name so preload with RTLD_GLOBAL works
+                            import subprocess
+                            subprocess.run(["install_name_tool", "-id", f"@loader_path/{dst}", d],
+                                           capture_output=True, timeout=10)
                         except:
                             pass
             ggml_deps = ["libggml.0.dylib", "libggml-base.0.dylib", "libggml-cpu.0.dylib"] if IS_MACOS else ["libggml.so.0", "libggml-base.so.0", "libggml-cpu.so.0"]
@@ -177,6 +181,17 @@ class WhisperCPP:
                         logger.info(f"  Pre-loaded: {dep}")
                     except BaseException:
                         pass
+        
+        # macOS: fix @rpath in libwhisper.dylib to use @loader_path
+        if IS_MACOS:
+            try:
+                import subprocess
+                for ref in ["@rpath/libggml.0.dylib", "@rpath/libggml-base.0.dylib", "@rpath/libggml-cpu.0.dylib"]:
+                    loader_ref = ref.replace("@rpath/", "@loader_path/")
+                    subprocess.run(["install_name_tool", "-change", ref, loader_ref, lib],
+                                   capture_output=True, timeout=10)
+            except Exception:
+                pass
         
         self._lib = ctypes.cdll.LoadLibrary(lib)
         logger.info("Step 9: Setting up functions")

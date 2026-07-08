@@ -23,8 +23,9 @@ def _ensure_so_copies(deps_dir):
                 pass
 
 def _ensure_dylib_copies(deps_dir):
-    """Copy .dylib to versioned names (e.g., libggml.dylib -> libggml.0.dylib)."""
+    """Copy .dylib to versioned names + fix install_name for @loader_path."""
     import shutil
+    import subprocess
     for src, dst in [("libggml.dylib", "libggml.0.dylib"), ("libggml-base.dylib", "libggml-base.0.dylib"), ("libggml-cpu.dylib", "libggml-cpu.0.dylib")]:
         s = os.path.join(deps_dir, src)
         d = os.path.join(deps_dir, dst)
@@ -32,6 +33,9 @@ def _ensure_dylib_copies(deps_dir):
             try:
                 shutil.copy2(s, d)
                 logger.info(f"  Created: {dst}")
+                # Fix install_name so @rpath resolves to @loader_path (same dir)
+                subprocess.run(["install_name_tool", "-id", f"@loader_path/{dst}", d],
+                               capture_output=True, timeout=10)
             except OSError:
                 pass
 
@@ -177,6 +181,18 @@ def _load():
                             logger.warning(f"  Pre-load failed: {dep}")
             except Exception as e:
                 logger.warning(f"  Download to deps_dir failed: {e}")
+
+    # macOS: fix @rpath in libbs_roformer.dylib to use @loader_path
+    if IS_MACOS:
+        try:
+            import subprocess
+            ggml_refs = ["@rpath/libggml.0.dylib", "@rpath/libggml-base.0.dylib", "@rpath/libggml-cpu.0.dylib"]
+            for ref in ggml_refs:
+                loader_ref = ref.replace("@rpath/", "@loader_path/")
+                subprocess.run(["install_name_tool", "-change", ref, loader_ref, str(dll_path)],
+                               capture_output=True, timeout=10)
+        except Exception:
+            pass
 
     logger.info(f"Loading bs_roformer: {dll_path}")
     try:
