@@ -297,8 +297,11 @@ def _download_file_internal(url: str, dest: str, timeout: int, retries: int,
                 
         except urllib.error.HTTPError as e:
             if e.code == 404:
-                logger.warning(f"  File not found: {os.path.basename(dest)}")
-                return False
+                logger.warning(f"  File not found: {os.path.basename(dest)} (CDN propagation?)")
+                # CDN might not have propagated yet, retry with delay
+                import time
+                time.sleep(10)
+                continue
             elif e.code == 403 or e.code == 429:
                 logger.warning(f"  Rate limited ({e.code}). Waiting...")
                 import time
