@@ -40,7 +40,7 @@ jobs:
         run: |
           uv pip install -r ComfyUI/requirements.txt
           mkdir -p ComfyUI/custom_nodes/ComfyUI-WhisperCPP
-          rsync -av --exclude=ComfyUI --exclude=.venv --exclude=.git --exclude='*.exe' . ComfyUI/custom_nodes/ComfyUI-WhisperCPP/
+          rsync -av --exclude=ComfyUI --exclude=.venv --exclude=.git --exclude='*.exe' . ComfyUI/custom_nodes/ComfyUI-WhisperCPP/ 2>/dev/null || (cp -r . ComfyUI/custom_nodes/ComfyUI-WhisperCPP/ && rm -rf ComfyUI/custom_nodes/ComfyUI-WhisperCPP/ComfyUI ComfyUI/custom_nodes/ComfyUI-WhisperCPP/.venv ComfyUI/custom_nodes/ComfyUI-WhisperCPP/.git)
           uv pip install -r ComfyUI/custom_nodes/ComfyUI-WhisperCPP/requirements.txt
 
       - name: Download test audio
