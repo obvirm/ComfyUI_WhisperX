@@ -7,10 +7,15 @@ on:
   pull_request:
     branches:
       - main
+  workflow_run:
+    workflows: ["Build & Release DLLs"]
+    types:
+      - completed
   workflow_dispatch:
 
 jobs:
   test:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
