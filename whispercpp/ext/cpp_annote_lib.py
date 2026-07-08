@@ -122,7 +122,7 @@ def _load():
         # Pre-load dependencies by versioned name
         deps_dir = str(Path(dll_path).parent.resolve())
         # Ensure versioned copies exist
-        for src, dst in [("libonnxruntime.dylib", "libonnxruntime.1.dylib"), ("libonnxruntime_providers_shared.dylib", "libonnxruntime_providers_shared.1.dylib")]:
+        for src, dst in [("libonnxruntime.dylib", "libonnxruntime.1.dylib")]:
             s = os.path.join(deps_dir, src); d = os.path.join(deps_dir, dst)
             if os.path.isfile(s) and not os.path.exists(d):
                 try:
@@ -130,7 +130,7 @@ def _load():
                     logger.info(f"  Created: {dst}")
                 except:
                     pass
-        deps_cpp = ["libonnxruntime.so.1", "libonnxruntime_providers_shared.so.1"] if not IS_MACOS else ["libonnxruntime.1.dylib", "libonnxruntime_providers_shared.1.dylib"]
+        deps_cpp = ["libonnxruntime.so.1", "libonnxruntime_providers_shared.so.1"] if not IS_MACOS else ["libonnxruntime.1.dylib"]
         for dep in deps_cpp:
             dep_path = os.path.join(deps_dir, dep)
             if os.path.isfile(dep_path):
