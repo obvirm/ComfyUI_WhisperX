@@ -48,7 +48,7 @@ jobs:
           echo "ZLIB_LIBRARY=C:/vcpkg/installed/x64-windows/lib/zlib.lib" >> $GITHUB_ENV
 
       - name: Build cpp-annote
-        run: python build_cpp_annote.py --gpu
+        run: python build_cpp_annote.py
 
       # Package
       - name: Collect DLLs
