@@ -158,6 +158,16 @@ class WhisperCPP:
         # Preload ggml deps on macOS/Linux (same as bs_roformer)
         if not IS_WINDOWS:
             deps_dir = str(Path(lib).parent.resolve())
+            # Ensure versioned copies exist
+            if IS_MACOS:
+                for src, dst in [("libggml.dylib", "libggml.0.dylib"), ("libggml-base.dylib", "libggml-base.0.dylib"), ("libggml-cpu.dylib", "libggml-cpu.0.dylib")]:
+                    s = os.path.join(deps_dir, src); d = os.path.join(deps_dir, dst)
+                    if os.path.isfile(s) and not os.path.exists(d):
+                        try:
+                            import shutil; shutil.copy2(s, d)
+                            logger.info(f"  Created: {dst}")
+                        except:
+                            pass
             ggml_deps = ["libggml.0.dylib", "libggml-base.0.dylib", "libggml-cpu.0.dylib"] if IS_MACOS else ["libggml.so.0", "libggml-base.so.0", "libggml-cpu.so.0"]
             for dep in ggml_deps:
                 dep_path = os.path.join(deps_dir, dep)

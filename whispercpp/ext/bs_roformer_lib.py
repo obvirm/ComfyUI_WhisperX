@@ -8,6 +8,34 @@ from pathlib import Path
 
 logger = logging.getLogger("WhisperCPP.BSRoformerLib")
 
+
+def _ensure_so_copies(deps_dir):
+    """Copy .so to versioned names (e.g., libggml.so -> libggml.so.0)."""
+    import shutil
+    for src, dst in [("libggml.so", "libggml.so.0"), ("libggml-base.so", "libggml-base.so.0"), ("libggml-cpu.so", "libggml-cpu.so.0")]:
+        s = os.path.join(deps_dir, src)
+        d = os.path.join(deps_dir, dst)
+        if os.path.isfile(s) and not os.path.exists(d):
+            try:
+                shutil.copy2(s, d)
+                logger.info(f"  Created: {dst}")
+            except OSError:
+                pass
+
+def _ensure_dylib_copies(deps_dir):
+    """Copy .dylib to versioned names (e.g., libggml.dylib -> libggml.0.dylib)."""
+    import shutil
+    for src, dst in [("libggml.dylib", "libggml.0.dylib"), ("libggml-base.dylib", "libggml-base.0.dylib"), ("libggml-cpu.dylib", "libggml-cpu.0.dylib")]:
+        s = os.path.join(deps_dir, src)
+        d = os.path.join(deps_dir, dst)
+        if os.path.isfile(s) and not os.path.exists(d):
+            try:
+                shutil.copy2(s, d)
+                logger.info(f"  Created: {dst}")
+            except OSError:
+                pass
+
+
 # ── Platform detection ──
 IS_WINDOWS = platform.system() == "Windows"
 IS_LINUX   = platform.system() == "Linux"
@@ -115,7 +143,9 @@ def _load():
     if IS_WINDOWS:
         os.add_dll_directory(deps_dir)
     else:
-        # Pre-load versioned filenames (Linux: .so.0, macOS: .0.dylib)
+        # Pre-load versioned filenames (LEAF to ROOT order)
+        # Ensure versioned copies exist (releases only have base names)
+        _ensure_dylib_copies(deps_dir) if IS_MACOS else _ensure_so_copies(deps_dir)
         deps_unix = []
         if IS_MACOS:
             deps_unix = ["libggml-base.0.dylib", "libggml-cpu.0.dylib", "libggml.0.dylib"]
