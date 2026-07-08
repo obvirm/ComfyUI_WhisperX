@@ -58,6 +58,22 @@ jobs:
           curl -L -o ComfyUI/input/test.mp3 "https://data.freetouse.com/music/tracks/f6a131e6-388d-f4d1-e784-04aeba2896ff/file/mp3"
           ls -la ComfyUI/input/test.mp3
 
+      - name: Debug download URL
+        shell: bash
+        run: |
+          echo "=== Test GitHub Release Download ==="
+          curl -sI --connect-timeout 10 "https://github.com/obvirm/ComfyUI-WhisperCPP/releases/download/v2.1.13/bs_roformer.dll" 2>&1 | head -5 || echo "curl failed"
+          echo "=== Test via Python urllib ==="
+          python3 -c "
+import urllib.request
+url = 'https://github.com/obvirm/ComfyUI-WhisperCPP/releases/download/v2.1.13/bs_roformer.dll'
+try:
+    resp = urllib.request.urlopen(url, timeout=10)
+    print(f'OK: {resp.status} ({len(resp.read())} bytes)')
+except Exception as e:
+    print(f'Error: {e}')
+" 2>&1 || echo "python failed"
+
       - name: Start ComfyUI
         shell: bash
         run: |
