@@ -117,6 +117,14 @@ def _load():
                 logger.info(f"Pre-loaded onnxruntime_providers_shared: {ort_shared}")
             except Exception as e:
                 logger.warning(f"Failed to pre-load providers_shared: {e}")
+        # Pre-load zlib.dll (dependency of cpp_annote.dll via cnpy)
+        zlib_dll = deps_dir / "zlib.dll"
+        if zlib_dll.exists():
+            try:
+                ctypes.CDLL(str(zlib_dll))
+                logger.info(f"Pre-loaded zlib: {zlib_dll}")
+            except Exception as e:
+                logger.warning(f"Failed to pre-load zlib: {e}")
         os.add_dll_directory(str(deps_dir))
     else:
         # Pre-load dependencies by versioned name
