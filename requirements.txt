@@ -4,3 +4,4 @@ requests
 huggingface-hub
 scipy
 sherpa-onnx
+certifi

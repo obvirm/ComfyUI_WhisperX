@@ -13,6 +13,17 @@ Safety checks:
 """
 import hashlib
 import os
+import ssl
+
+def _ssl_context():
+    """SSL context using certifi CA bundle (fixes macOS cert issues)."""
+    try:
+        import certifi
+        ctx = ssl.create_default_context(cafile=certifi.where())
+    except Exception:
+        ctx = ssl.create_default_context()
+    return ctx
+
 import platform
 import shutil
 import tempfile
@@ -117,7 +128,7 @@ def get_latest_version() -> str:
             "User-Agent": "ComfyUI-WhisperCPP",
             "Accept": "application/vnd.github.v3+json"
         })
-        with urllib.request.urlopen(req, timeout=10) as resp:
+        with urllib.request.urlopen(req, timeout=10, context=_ssl_context()) as resp:
             import json
             data = json.loads(resp.read())
             tag = data.get("tag_name", "")
@@ -245,7 +256,7 @@ def _download_file_internal(url: str, dest: str, timeout: int, retries: int,
                 req = urllib.request.Request(url, headers={"User-Agent": "ComfyUI-WhisperCPP"})
                 logger.info(f"  GET {url[:80]}...")
                 try:
-                    resp = urllib.request.urlopen(req, timeout=timeout)
+                    resp = urllib.request.urlopen(req, timeout=timeout, context=_ssl_context())
                 except urllib.error.HTTPError as e:
                     logger.warning(f"  HTTPError {e.code}: {e.reason}")
                     # Log response body for debugging
