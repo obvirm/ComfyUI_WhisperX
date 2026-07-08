@@ -95,7 +95,7 @@ jobs:
       - name: Install deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake build-essential ocl-icd-opencl-dev libvulkan-dev opencl-headers
+          sudo apt-get install -y cmake build-essential ocl-icd-opencl-dev libvulkan-dev opencl-headers zlib1g-dev
 
       - name: Build whisper.cpp
         run: python build_whisper_cpp.py --native OFF
@@ -103,7 +103,7 @@ jobs:
       - name: Build BSRoformer
         run: python build_bs_roformer.py
 
-      - name: Build cpp-annote%
+      - name: Build cpp-annote
         run: python build_cpp_annote.py
 
       - name: Collect .so
@@ -140,6 +140,15 @@ jobs:
 
       - name: Build BSRoformer
         run: python build_bs_roformer.py
+
+      - name: Install zlib (for cnpy)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          brew install zlib
+          echo "ZLIB_ROOT=$(brew --prefix zlib)" >> $GITHUB_ENV
+          echo "ZLIB_INCLUDE_DIR=$(brew --prefix zlib)/include" >> $GITHUB_ENV
+          echo "ZLIB_LIBRARY=$(brew --prefix zlib)/lib/libz.a" >> $GITHUB_ENV
 
       - name: Build cpp-annote
         run: python build_cpp_annote.py
