@@ -19,7 +19,9 @@ env:
 
 jobs:
   build-windows:
-    runs-on: windows-latest
+    # windows-2022 = VS2022 (v143, MSVC 193x). CUDA 13.2 nvcc butuh VS2022,
+    # windows-latest (2025) cuma ada VS2026 (v144) yang belum didukung CUDA 13.2.
+    runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
         with:
