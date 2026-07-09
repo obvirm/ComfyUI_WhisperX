@@ -118,12 +118,15 @@ def separate_vocals(audio_data, sr=44100, model_name=DEFAULT_MODEL, chunk_size=-
 
     # On macOS, check Metal compatibility before using GPU.
     # CI Mac runners use Apple Paravirtual device which lacks simdgroup_reduction,
-    # causing ggml Metal to abort on RMS_NORM op. Force CPU in that case.
+    # causing ggml Metal to abort on RMS_NORM op OR buffer overflow. Force CPU in that case.
     import platform, os
     if platform.system() == "Darwin":
         if os.environ.get("CI") or os.environ.get("GGML_METAL") == "0":
             os.environ["GGML_METAL"] = "0"
-            logger.info("macOS: disabling Metal for BSRoformer (CI/virtual GPU incompatible)")
+            os.environ["BSR_FORCE_CPU"] = "1"  # Tell bs_roformer.dll to use CPU backend
+            if chunk_size < 0:
+                chunk_size = 88200  # ~2s at 44100 Hz, safe for CI memory
+            logger.info("macOS: forcing CPU for BSRoformer (CI/virtual GPU incompatible)")
         elif chunk_size < 0:
             chunk_size = 88200  # ~2s at 44100 Hz, safe for ~8GB unified memory
             logger.info(f"macOS: capped UVR chunk_size to {chunk_size}")
