@@ -46,6 +46,9 @@ def _get_file_lock(filepath: str) -> threading.Lock:
 
 GITHUB_REPO = "obvirm/ComfyUI-WhisperCPP"
 
+# All modules that ship prebuilt DLLs
+MODULES = ["whisper", "bs_roformer", "cpp_annote"]
+
 # Cached latest version from GitHub (1x query per session)
 _latest_version_cache = None
 _latest_version_checked = False
@@ -112,7 +115,7 @@ def _get_version() -> str:
 
 def _get_download_url(asset_name: str, version: str = None) -> str:
     """Build GitHub release download URL."""
-    v = version or _get_version()
+    v = version or get_latest_version()
     return f"https://github.com/{GITHUB_REPO}/releases/download/{v}/{asset_name}"
 
 
@@ -144,29 +147,42 @@ def get_latest_version() -> str:
 
 def check_version_and_update(target_dir: str, has_gpu: bool = False) -> bool:
     """
-    Check if local DLLs match latest release. Re-download if outdated.
+    Check if local DLLs are present and match latest release.
+    Re-download if outdated OR any file is missing (e.g. user deleted them).
     Returns True if DLLs are up to date (or successfully updated).
     """
+    try:
+        remote_ver = get_latest_version()
+    except Exception:
+        remote_ver = _get_version()
+
     local_ver = _get_version()
-    remote_ver = get_latest_version()
-    
-    if local_ver == remote_ver:
+
+    # Check if ALL module files are present on disk
+    all_present = all(
+        check_module_files(m, target_dir, has_gpu=has_gpu) for m in MODULES
+    )
+
+    if all_present and local_ver == remote_ver:
         logger.info(f"DLLs version OK: {local_ver}")
         return True
-    
-    logger.warning(f"DLLs outdated! Local: {local_ver}, Latest: {remote_ver}")
-    logger.info(f"Re-downloading DLLs from {remote_ver}...")
-    
+
+    if not all_present:
+        logger.warning("Some DLLs missing on disk — re-downloading from latest release...")
+    elif local_ver != remote_ver:
+        logger.warning(f"DLLs outdated! Local: {local_ver}, Latest: {remote_ver}")
+        logger.info(f"Re-downloading DLLs from {remote_ver}...")
+
     # Download all modules with new version
     results = auto_download_all(target_dir, version=remote_ver, has_gpu=has_gpu)
     all_ok = all(results.values())
-    
+
     if all_ok:
         logger.info(f"DLLs updated to {remote_ver} successfully!")
     else:
         failed = [k for k, v in results.items() if not v]
         logger.error(f"Failed to update: {failed}")
-    
+
     return all_ok
 
 
