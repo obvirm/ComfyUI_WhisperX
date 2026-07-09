@@ -34,9 +34,16 @@ jobs:
         with:
           cuda: '13.2.0'
           method: 'network'
-          # visual_studio_integration sering gagal di runner (VS edition mismatch).
-          # Kita gak butuh itu: build pakai -T v143 + CUDA_PATH eksplisit.
-          sub-packages: '["nvcc", "cudart_dev", "nvml_dev", "thrust_dev", "cusparse_dev", "cublas_dev"]'
+          # Default install (no sub-packages) = full toolkit incl. VS integration.
+          # VS integration dibutuhkan supaya nvcc bisa nemuin cl.exe (VS2022).
+          sub-packages: '[]'
+
+      # Activate VS2022 x64 dev environment (cl.exe di PATH) supaya nvcc nemuin host compiler
+      - name: Setup MSVC (VS2022)
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          toolset: 14.4x
+          arch: x64
 
       # whisper.cpp — FULL backend (CUDA + Vulkan + OpenCL + CPU SIMD)
       - name: Build whisper.cpp
