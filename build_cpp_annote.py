@@ -171,6 +171,8 @@ def main():
         cmd.append("v143")  # VS2022 toolset (CUDA 13.x compatible)
         cmd.append("-DCPPANNOTE_BUILD_SHARED=ON")
     # Inject ORT provider compile flags sesuai paket yang di-download
+    # macOS selalu pakai CoreML (gak perlu flag khusus, struct di-guard __APPLE__).
+    # Windows/Linux: CUDA/DML/OpenVINO flag aktif sesuai download.
     if args.cuda:
         cmd.append("-DCPPANNOTE_ORT_CUDA=ON")
     if args.directml:

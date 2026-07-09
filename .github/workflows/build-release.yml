@@ -34,7 +34,9 @@ jobs:
         with:
           cuda: '13.2.0'
           method: 'network'
-          sub-packages: '["nvcc", "visual_studio_integration", "cuda_compiler", "cudart_dev", "nvml_dev", "thrust_dev", "cusparse_dev", "cublas_dev"]'
+          # visual_studio_integration sering gagal di runner (VS edition mismatch).
+          # Kita gak butuh itu: build pakai -T v143 + CUDA_PATH eksplisit.
+          sub-packages: '["nvcc", "cudart_dev", "nvml_dev", "thrust_dev", "cusparse_dev", "cublas_dev"]'
 
       # whisper.cpp — FULL backend (CUDA + Vulkan + OpenCL + CPU SIMD)
       - name: Build whisper.cpp
