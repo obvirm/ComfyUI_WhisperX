@@ -225,8 +225,11 @@ class WhisperCPPNode:
         device = self._get(kwargs,"device","auto")
         use_gpu = device in ("auto","cuda","vulkan","metal","hip")
         gpu_device = self._get(kwargs,"gpu_device",0)
-        
-        # Map device to backend for each module
+
+        # Map device to backend for each module.
+        # Prioritas backend proper (FULL): CUDA > Vulkan > OpenCL > Metal > CPU.
+        # 'auto' = biarkan whisper/bsr pilih device GPU terbaik yang tersedia
+        # (ggml enumerasi CUDA duluan, lalu Vulkan/OpenCL/Metal sebagai fallback).
         def _device_to_backend(dev):
             """Map device dropdown to backend name."""
             if dev in ("auto", "cuda"): return "cuda"

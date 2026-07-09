@@ -138,14 +138,15 @@ ASSETS = {
     },
 }
 
-# GPU-specific assets (only needed when GPU is available)
-# Note: Only include files that actually exist in the release!
+# GPU-specific assets — untuk FULL build (semua backend di-bake ke 1 DLL):
+# whisper.dll / bs_roformer.dll sudah berisi CUDA+Vulkan+OpenCL+OpenVINO statically,
+# jadi gak ada plugin terpisah yang perlu di-download. GPU_ASSETS kosong.
+# cpp-annote: GPU via ONNX Runtime — pakai build GPU (CUDA/DirectML/OpenVINO),
+# file onnxruntime*.dll/.so sudah di-ASSETS inti (sama nama, beda isi).
 GPU_ASSETS = {
-    "whisper": {
-        "Windows": [],  # No GPU DLLs in release (CPU only)
-        "Linux":   ["libggml-opencl.so"],  # OpenCL available
-        "Darwin":  [],  # Metal is built-in via libggml-metal.dylib (in ASSETS)
-    },
+    "whisper":    { "Windows": [], "Linux": [], "Darwin": [] },
+    "bs_roformer":{ "Windows": [], "Linux": [], "Darwin": [] },
+    "cpp_annote": { "Windows": [], "Linux": [], "Darwin": [] },
 }
 # fmt: on
 

@@ -29,15 +29,22 @@ jobs:
         with:
           python-version: '3.12'
 
-      # whisper.cpp — Vulkan + OpenCL + CPU
+      - name: Install CUDA toolkit (Windows)
+        uses: Jimver/cuda-toolkit@v0.2.16
+        with:
+          cuda: '13.2.0'
+          method: 'network'
+          sub-packages: '["nvcc", "cusparse_dev", "cublas_dev", "thrust_dev", "cuda_cudart_dev"]'
+
+      # whisper.cpp — FULL backend (CUDA + Vulkan + OpenCL + CPU SIMD)
       - name: Build whisper.cpp
         run: python build_whisper_cpp.py --native OFF
 
-      # BSRoformer — CPU only (no GPU SDKs in CI)
+      # BSRoformer — FULL backend (CUDA + Vulkan + OpenCL)
       - name: Build BSRoformer
         run: python build_bs_roformer.py
 
-      # cpp-annote
+      # cpp-annote — FULL ORT (CUDA + DirectML + OpenVINO)
       - name: Build cpp-annote
         run: python build_cpp_annote.py
 
@@ -46,8 +53,8 @@ jobs:
         shell: bash
         run: |
           mkdir -p release
-          # Copy whisper DLLs from root + build output
-          for f in whisper.dll ggml-base.dll ggml-cpu.dll ggml-opencl.dll ggml-vulkan.dll ggml.dll; do
+          # Copy whisper DLLs from root + build output (FULL build: semua backend di 1 DLL)
+          for f in whisper.dll ggml-base.dll ggml-cpu.dll ggml.dll; do
             cp "$f" release/ 2>/dev/null || true
             cp "whisper.cpp/build/bin/Release/$f" release/ 2>/dev/null || true
             cp "whisper.cpp/build/bin/$f" release/ 2>/dev/null || true
@@ -87,6 +94,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y cmake build-essential ocl-icd-opencl-dev libvulkan-dev opencl-headers zlib1g-dev
 
+      - name: Install CUDA toolkit (Linux)
+        uses: Jimver/cuda-toolkit@v0.2.16
+        with:
+          cuda: '13.2.0'
+          method: 'network'
+          sub-packages: '["nvcc", "cudart-dev", "cusparse-dev", "cublas-dev", "thrust-dev"]'
+
       - name: Build whisper.cpp
         run: python build_whisper_cpp.py --native OFF
 
@@ -96,7 +110,7 @@ jobs:
       - name: Build cpp-annote
         run: python build_cpp_annote.py
 
-      - name: Collect .so
+      - name: Collect .so (FULL build: CUDA/OpenCL di libwhisper.so, gak ada plugin terpisah)
         run: |
           mkdir -p release
           # Find all .so* including versioned SONAMES, copy content (follow symlinks)
@@ -131,6 +145,7 @@ jobs:
       - name: Build BSRoformer
         run: python build_bs_roformer.py
 
+      # macOS: cpp-annote otomatis pakai CoreML (ANE = NPU Apple) dari ort osx package
       - name: Build cpp-annote
         run: python build_cpp_annote.py
 

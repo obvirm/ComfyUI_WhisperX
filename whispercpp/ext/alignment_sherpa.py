@@ -91,7 +91,21 @@ def load_align_model(device="cpu"):
 
     model_path, tokens_path = ensure_model()
     logger.info(f"Loading sherpa CTC model: {model_path}")
-    provider = "cuda" if device != "cpu" else "cpu"
+    # sherpa-onnx hanya support cpu & cuda provider. Map device dropdown:
+    #   cuda       -> cuda (NVIDIA)
+    #   auto       -> cuda kalau NVIDIA terdeteksi, else cpu
+    #   vulkan/opencl/metal/hip/cpu -> cpu (alignment ringan, GPU lain gak diuntungkan)
+    if device == "cuda":
+        provider = "cuda"
+    elif device == "auto":
+        try:
+            from ..gpu_detect import detect_gpu
+            provider = "cuda" if detect_gpu()["backend"] == "cuda" else "cpu"
+        except Exception:
+            provider = "cpu"
+    else:
+        provider = "cpu"
+    logger.info(f"  sherpa provider: {provider}")
     recognizer = sherpa_onnx.OfflineRecognizer.from_zipformer_ctc(
         model=model_path,
         tokens=tokens_path,

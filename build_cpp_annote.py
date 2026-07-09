@@ -13,26 +13,42 @@ IS_MAC = platform.system() == "Darwin"
 
 ORT_VERSION = "1.27.0"
 
-def download_ort(cuda=False, directml=False, coreml=False, rocm=False):
+def _detect_cuda_major():
+    """Return CUDA major version (int) or 0 if not found."""
+    cp = os.environ.get("CUDA_PATH", "")
+    import re
+    m = re.search(r"v?(\d+)", cp)
+    if m:
+        return int(m.group(1))
+    return 0
+
+def download_ort(cuda=False, directml=False, coreml=False, rocm=False, openvino=False):
     """Download ONNX Runtime with specific provider support.
     v1.27.0 packages:
       Windows: onnxruntime-win-x64-{VERSION}.zip (CPU)
                onnxruntime-win-x64-gpu_cuda12-{VERSION}.zip
+               onnxruntime-win-x64-gpu_cuda13-{VERSION}.zip
+               onnxruntime-win-x64-openvino-{VERSION}.zip
       Linux:   onnxruntime-linux-x64-{VERSION}.tgz (CPU)
                onnxruntime-linux-x64-gpu_cuda12-{VERSION}.tgz
                onnxruntime-linux-x64-gpu_cuda13-{VERSION}.tgz
-      macOS:   onnxruntime-osx-arm64-{VERSION}.tgz
-    Note: DirectML package not available in v1.27.0 — falls back to CPU.
+      macOS:   onnxruntime-osx-arm64-{VERSION}.tgz (CoreML built-in)
+    DirectML: bundled inside the standard win-x64 GPU (CUDA) build.
     """
+    cuda_major = _detect_cuda_major()
+    cuda_tag = f"gpu_cuda{cuda_major}" if (cuda and cuda_major >= 13) else "gpu_cuda12"
     if IS_WIN:
-        if cuda:
-            ort_name = f"onnxruntime-win-x64-gpu_cuda12-{ORT_VERSION}"
+        if openvino:
+            ort_name = f"onnxruntime-win-x64-openvino-{ORT_VERSION}"
+        elif cuda or directml:
+            # DML ada di dalam paket CUDA (gpu) build
+            ort_name = f"onnxruntime-win-x64-{cuda_tag}-{ORT_VERSION}"
         else:
             ort_name = f"onnxruntime-win-x64-{ORT_VERSION}"
         url = f"https://github.com/microsoft/onnxruntime/releases/download/v{ORT_VERSION}/{ort_name}.zip"
     elif platform.system() == "Linux":
         if cuda:
-            ort_name = f"onnxruntime-linux-x64-gpu_cuda12-{ORT_VERSION}"
+            ort_name = f"onnxruntime-linux-x64-{cuda_tag}-{ORT_VERSION}"
         else:
             ort_name = f"onnxruntime-linux-x64-{ORT_VERSION}"
         url = f"https://github.com/microsoft/onnxruntime/releases/download/v{ORT_VERSION}/{ort_name}.tgz"
@@ -75,23 +91,32 @@ def main():
     parser.add_argument("--directml", action="store_true", help="Enable DirectML backend (any GPU on Windows)")
     parser.add_argument("--coreml", action="store_true", help="Enable CoreML backend (macOS Metal)")
     parser.add_argument("--rocm", action="store_true", help="Enable ROCm backend (AMD)")
-    parser.add_argument("--gpu", action="store_true", help="Auto-detect best GPU backend")
+    parser.add_argument("--gpu", action="store_true", help="Auto-detect best GPU backend (DEPRECATED — now default)")
+    parser.add_argument("--openvino", action="store_true", help="Enable OpenVINO backend (Intel NPU/CPU)")
+    parser.add_argument("--cpu-only", action="store_true", help="Build CPU-only (skip GPU backends)")
     parser.add_argument("--no-copy", action="store_true", help="Don't copy to root")
     args = parser.parse_args()
+    # FULL backend: --gpu sekarang default ON kecuali --cpu-only
+    if not args.cpu_only:
+        args.gpu = True
 
-    # --gpu auto-detect
+    # --gpu auto-detect — FULL backend (default ON)
     if args.gpu:
         import shutil as _shutil
         if platform.system() == "Windows":
-            args.directml = True  # DirectML works with any GPU on Windows
+            args.directml = True  # DirectML = NPU/any-GPU di Windows
+            if _shutil.which("nvidia-smi"):
+                args.cuda = True
+            if _detect_cuda_major() >= 13 or os.environ.get("OpenVINO_DIR"):
+                args.openvino = True  # OpenVINO = Intel NPU
         elif platform.system() == "Darwin":
-            args.coreml = True
+            args.coreml = True  # CoreML = Apple NPU/ANE
         elif _shutil.which("nvidia-smi"):
             args.cuda = True
         # ROCm detection not implemented
 
-    # Download ONNX Runtime with selected provider
-    ort_dir = download_ort(cuda=args.cuda, directml=args.directml, coreml=args.coreml, rocm=args.rocm)
+    # Download ONNX Runtime with selected provider (full GPU)
+    ort_dir = download_ort(cuda=args.cuda, directml=args.directml, coreml=args.coreml, rocm=args.rocm, openvino=args.openvino)
     if not ort_dir:
         print("ERROR: Could not download ONNX Runtime")
         sys.exit(1)
@@ -119,16 +144,21 @@ def main():
     if ort_lib.exists():
         print(f"  lib contents: {list(ort_lib.iterdir())[:10]}")
 
-    # Generator
+    # Generator — force VS2022 (v143) di Windows agar cocok dengan CUDA 13.x
     if IS_WIN:
-        generator = "Visual Studio 18 2026"
+        generator = "Visual Studio 17 2022"
     elif IS_MAC:
         generator = "Unix Makefiles"
     else:
         generator = "Unix Makefiles"
 
     # Configure
-    print(f"Configuring (CUDA={'ON' if args.cuda else 'OFF'})...")
+    providers = []
+    if args.cuda: providers.append("CUDA")
+    if args.directml: providers.append("DirectML")
+    if args.coreml: providers.append("CoreML")
+    if args.openvino: providers.append("OpenVINO")
+    print(f"Configuring (providers: {','.join(providers) or 'CPU'})...")
     cmd = [
         "cmake", "-B", str(BUILD_DIR), "-S", str(ANNOTE_DIR),
         f"-DCMAKE_BUILD_TYPE=Release",
@@ -137,7 +167,16 @@ def main():
         f"-DCPPANNOTE_BUILD_SHARED=ON",
     ]
     if IS_WIN:
+        cmd.append("-T")
+        cmd.append("v143")  # VS2022 toolset (CUDA 13.x compatible)
         cmd.append("-DCPPANNOTE_BUILD_SHARED=ON")
+    # Inject ORT provider compile flags sesuai paket yang di-download
+    if args.cuda:
+        cmd.append("-DCPPANNOTE_ORT_CUDA=ON")
+    if args.directml:
+        cmd.append("-DCPPANNOTE_ORT_DML=ON")
+    if args.openvino:
+        cmd.append("-DCPPANNOTE_ORT_OPENVINO=ON")
 
     r = subprocess.run(cmd, cwd=str(ANNOTE_DIR))
     if r.returncode != 0:

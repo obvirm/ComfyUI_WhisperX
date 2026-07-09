@@ -196,7 +196,7 @@ def main():
     parser.add_argument("--clean", action="store_true")
     parser.add_argument("--gpu", choices=["auto","all","cuda","vulkan","metal","hip","rocm",
                                           "sycl","opencl","openvino","blas","none","cpu"],
-                        default="auto", help="GPU backend (default: auto-detect all)")
+                        default="all", help="GPU backend (default: all available)")
     parser.add_argument("--build-type", choices=["Release","Debug"], default="Release")
     parser.add_argument("--no-copy", action="store_true")
     parser.add_argument("--native", choices=["ON","OFF"], default="ON",
@@ -226,28 +226,39 @@ def main():
                 "sycl": False, "opencl": False, "openvino": False, "blas": False}
     mode = args.gpu
 
+    def _ov_detected():
+        return bool(os.environ.get("OpenVINO_DIR") or os.environ.get("INTEL_OPENVINO_DIR"))
+
+    def _nvcc_present():
+        return bool(os.environ.get("CUDA_PATH")) or _sh("nvcc", "--version")[0] == 0
+    def _glslc_present():
+        return _sh("glslc", "--version")[0] == 0
+
     if mode == "all":
         gpu = info["gpu"]
-        backends["cuda"]    = False  # CUDA 13.2 + VS2026 toolset issue, use --gpu cuda to force
-        backends["vulkan"]  = "NOT" not in gpu["Vulkan"]
-        backends["metal"]   = "NOT" not in gpu["Metal"] and "N/A" not in gpu["Metal"]
-        backends["hip"]     = "NOT" not in gpu["HIP/ROCm"] and "N/A" not in gpu["HIP/ROCm"]
-        backends["sycl"]    = False  # requires Intel oneAPI SDK
-        backends["opencl"]  = "NOT" not in gpu["OpenCL"]
-        backends["openvino"] = False  # requires Intel OpenVINO SDK
-        backends["blas"]    = False  # requires BLAS vendor lib
-        print("  Mode: ALL backends (smart detect)")
+        # FULL backend — semua diwajibkan KALAU toolchain ada. Kalau gak ada
+        # (mis. CI tanpa CUDA SDK), backend tersebut di-skip dengan warning agar
+        # build tetap hijau. Runtime tetap aman: device gak ketemu -> fallback CPU.
+        backends["cuda"]    = _nvcc_present()   # butuh nvcc/CUDA_PATH
+        backends["vulkan"]  = _glslc_present()  # butuh glslc (Vulkan SDK)
+        backends["metal"]   = IS_MAC
+        backends["hip"]     = (not IS_WIN and not IS_MAC) and "NOT" not in gpu.get("HIP/ROCm", "NOT")
+        backends["sycl"]    = False  # Intel oneAPI SDK terlalu berat untuk CI
+        backends["opencl"]  = not IS_MAC  # WinSDK / Linux libOpenCL sudah ada
+        backends["openvino"] = _ov_detected()  # hanya kalau OpenVINO SDK terinstall
+        backends["blas"]    = IS_MAC
+        print("  Mode: ALL backends (FULL — CUDA/Vulkan/OpenCL/Metal/OpenVINO + CPU SIMD)")
     elif mode == "auto":
         print("  Mode: Auto-detect available backends")
         gpu = info["gpu"]
-        backends["cuda"]    = False  # CUDA 13.2 + VS2026 toolset issue, use --gpu cuda to force
+        backends["cuda"]    = _nvcc_present()
         backends["vulkan"]  = "NOT" not in gpu["Vulkan"]
         backends["metal"]   = "NOT" not in gpu["Metal"] and "N/A" not in gpu["Metal"]
         backends["hip"]     = "NOT" not in gpu["HIP/ROCm"] and "N/A" not in gpu["HIP/ROCm"]
         backends["sycl"]    = "NOT" not in gpu["SYCL (Intel)"]
-        backends["opencl"]  = not IS_MAC and "NOT" not in gpu["OpenCL"]  # needs opencl-headers package
-        backends["openvino"] = "NOT" not in gpu["OpenVINO (Intel)"]
-        backends["blas"]    = IS_MAC  # BLAS only reliable on macOS (Accelerate)
+        backends["opencl"]  = not IS_MAC and "NOT" not in gpu["OpenCL"]
+        backends["openvino"] = _ov_detected()
+        backends["blas"]    = IS_MAC
     elif mode == "none" or mode == "cpu":
         pass  # CPU only
     else:
@@ -282,14 +293,31 @@ def main():
         f"-DGGML_NATIVE={args.native}",
         "-DGGML_OPENMP=ON",
         "-DGGML_LLAMAFILE=ON",
+        # === FULL CPU SIMD (wajib, bukan opsional) ===
+        "-DGGML_AVX=ON",
+        "-DGGML_AVX2=ON",
+        "-DGGML_AVX512=ON",
+        "-DGGML_AVX512_VBMI=ON",
+        "-DGGML_AVX512_VNNI=ON",
+        "-DGGML_AVX512_BF16=ON",
+        "-DGGML_FMA=ON",
+        "-DGGML_F16C=ON",
+        "-DGGML_AMX_TILE=ON",
+        "-DGGML_AMX_INT8=ON",
+        "-DGGML_AMX_BF16=ON",
     ]
     # CUDA-specific flags
     if backends.get("cuda"):
         cmake_args.append(cuda_arch)
-        if IS_WIN and "CUDA_PATH" in os.environ:
-            cuda_root = os.environ["CUDA_PATH"]
-            cmake_args.append(f"-DCMAKE_CUDA_COMPILER:FILEPATH={cuda_root}/bin/nvcc.exe")
-            cmake_args.append(f"-DCMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES={cuda_root}/include")
+        # Force VS2022 (v143) toolset di Windows -> kompatibel dengan CUDA 13.x.
+        # (VS2026/v144 belum didukung nvcc, build akan gagal kalau dipakai.)
+        if IS_WIN:
+            cmake_args.append("-T")
+            cmake_args.append("v143")
+            if "CUDA_PATH" in os.environ:
+                cuda_root = os.environ["CUDA_PATH"]
+                cmake_args.append(f"-DCMAKE_CUDA_COMPILER:FILEPATH={cuda_root}/bin/nvcc.exe")
+                cmake_args.append(f"-DCMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES={cuda_root}/include")
         elif IS_LINUX and os.path.isfile("/usr/local/cuda/bin/nvcc"):
             cmake_args.append("-DCMAKE_CUDA_COMPILER:FILEPATH=/usr/local/cuda/bin/nvcc")
             cmake_args.append("-DCMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES=/usr/local/cuda/include")

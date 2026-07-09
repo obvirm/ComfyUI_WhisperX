@@ -53,8 +53,12 @@ def main():
     parser.add_argument("--cuda", action="store_true", help="Enable CUDA backend")
     parser.add_argument("--vulkan", action="store_true", help="Enable Vulkan backend")
     parser.add_argument("--opencl", action="store_true", help="Enable OpenCL backend")
-    parser.add_argument("--gpu", action="store_true", help="Enable all available GPU backends")
+    parser.add_argument("--gpu", action="store_true", help="Enable all available GPU backends (DEPRECATED — now default)")
+    parser.add_argument("--cpu-only", action="store_true", help="Build CPU-only (skip GPU backends)")
     args = parser.parse_args()
+    # FULL backend: --gpu sekarang default ON kecuali --cpu-only
+    if not args.cpu_only:
+        args.gpu = True
 
     if not BSR_DIR.is_dir() or not (BSR_DIR / "CMakeLists.txt").is_file():
         print("ERROR: bs_roformer.cpp submodule not found.")
@@ -66,25 +70,32 @@ def main():
 
     BUILD_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Generator
+    # Generator — force VS2022 (v143) di Windows agar cocok dengan CUDA 13.x
     if IS_WIN:
-        generator = "Visual Studio 18 2026"
+        generator = "Visual Studio 17 2022"
     elif IS_MAC:
         generator = "Unix Makefiles"
     else:
         generator = "Unix Makefiles"
 
-    # GPU backends
-    cuda_on = "ON" if args.cuda or args.gpu else "OFF"
-    vulkan_on = "ON" if (args.vulkan or args.gpu) and not IS_MAC and _check_vulkan() else "OFF"
+    # GPU backends — FULL (semua diwajibkan kecuali --cpu-only)
+    cuda_on = "ON" if (args.cuda or args.gpu) else "OFF"
+    # Vulkan butuh glslc; kalau gak ada CMake akan warning tapi build tetap jalan
+    vulkan_on = "ON" if (args.vulkan or args.gpu) and not IS_MAC else "OFF"
     opencl_on = "ON" if (args.opencl or args.gpu) and not IS_MAC else "OFF"
 
-    # Auto-detect GPU if --gpu
+    # Auto-detect GPU if --gpu (jangan matiin CUDA kalau nvidia-smi gak ada di CI;
+    # CUDA tetap di-build, device gak ketemu -> whisper/bsr fallback ke CPU di runtime)
     if args.gpu:
         import shutil as _shutil
-        if not _shutil.which("nvidia-smi"):
-            cuda_on = "OFF"
-        # Vulkan/OpenCL detected by ggml at configure time
+        # cuda_on tetap ON (FULL). Vulkan/OpenCL otomatis terdeteksi ggml saat configure.
+        if IS_WIN:
+            # Force VS2022 toolset untuk CUDA
+            cmd_toolset = ["-T", "v143"]
+        else:
+            cmd_toolset = []
+    else:
+        cmd_toolset = []
 
     # Configure
     print(f"Configuring ({args.build_type}) CUDA={cuda_on} Vulkan={vulkan_on} OpenCL={opencl_on}...")
@@ -100,6 +111,9 @@ def main():
         f"-DBSR_BUILD_TESTS=OFF",
         f"-DGGML_DIR={GGML_DIR}",
     ]
+    # Inject toolset (-T v143) untuk Windows CUDA build
+    if IS_WIN and args.gpu and cmd_toolset:
+        cmd.extend(cmd_toolset)
     print(f"  {' '.join(str(c) for c in cmd)}")
     if subprocess.run(cmd).returncode != 0:
         print("CONFIGURATION FAILED")
