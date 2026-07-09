@@ -324,14 +324,14 @@ def main():
             cmake_args.append("-T")
             cmake_args.append("v143")
             if "CUDA_PATH" in os.environ:
-                cuda_root = os.environ["CUDA_PATH"]
-                cmake_args.append(f"-DCMAKE_CUDA_COMPILER:FILEPATH={cuda_root}/bin/nvcc.exe")
-                cmake_args.append(f"-DCMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES={cuda_root}/include")
-                # Host compiler eksplisit supaya nvcc gak butuh VS integration detection
-                cl_paths = __import__("glob").glob(
-                    "C:/Program Files/Microsoft Visual Studio/2022/*/VC/Tools/MSVC/*/bin/HostX64/x64/cl.exe")
-                if cl_paths:
-                    cmake_args.append(f"-DCMAKE_CUDA_HOST_COMPILER:FILEPATH={cl_paths[0]}")
+                # Normalisasi backslash -> slash (path Win ber-backslash menyebabkan
+                # CMake error "Invalid character escape '\P'" pada TOOLKIT_INCLUDE_DIRECTORIES)
+                cuda_root = os.environ["CUDA_PATH"].replace("\\", "/")
+                nvcc = cuda_root + "/bin/nvcc.exe"
+                cmake_args.append(f"-DCMAKE_CUDA_COMPILER:FILEPATH={nvcc}")
+                # JANGAN set CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES di Windows:
+                # CMake sudah nemuin CUDA 13.2 toolkit otomatis, dan path ber-backslash
+                # memicu syntax error. VS generator juga gak support CMAKE_CUDA_HOST_COMPILER.
         elif IS_LINUX and os.path.isfile("/usr/local/cuda/bin/nvcc"):
             cmake_args.append("-DCMAKE_CUDA_COMPILER:FILEPATH=/usr/local/cuda/bin/nvcc")
             cmake_args.append("-DCMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES=/usr/local/cuda/include")
