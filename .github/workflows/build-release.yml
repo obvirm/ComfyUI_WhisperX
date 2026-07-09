@@ -38,15 +38,9 @@ jobs:
           # VS integration dibutuhkan supaya nvcc bisa nemuin cl.exe (VS2022).
           sub-packages: '[]'
 
-      # Activate VS2022 x64 dev environment (cl.exe di PATH) supaya nvcc nemuin host compiler.
-      # Target VS2022 (version range [17.0,18.0)) secara eksplisit, toolset 14.3x.
-      # windows-latest juga ada VS2026 (v18) tapi nvcc 13.2 gak support v144.
-      - name: Setup MSVC (VS2022)
-        uses: ilammy/msvc-dev-cmd@v1
-        with:
-          vsversion: '[17.0,18.0)'
-          toolset: 14.3x
-          arch: x64
+      # CATATAN: gak perlu msvc-dev-cmd. CUDA 13.2 installer (full default) mendaftarkan
+      # integrasi VS2022 (v143). Build script memaksa generator "Visual Studio 17 2022"
+      # supaya CMake nemuin CUDA toolset (VS2026 default gak ke-detect sebagai CUDA toolset).
 
       # whisper.cpp — FULL backend (CUDA + Vulkan + OpenCL + CPU SIMD)
       - name: Build whisper.cpp
