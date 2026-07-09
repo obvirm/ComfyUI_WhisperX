@@ -287,6 +287,13 @@ def main():
     cmake_args = [
         "cmake", "-B", str(BUILD_DIR), "-S", str(WHISPER_DIR),
         f"-DCMAKE_BUILD_TYPE={args.build_type}",
+    ]
+    # Windows: paksa generator VS2022 (v143) supaya CUDA 13.2 VS integration ketemu.
+    # Default cmake di windows-latest milih VS2026 (v144) yang belum didukung CUDA 13.2.
+    if IS_WIN:
+        cmake_args.append("-G")
+        cmake_args.append("Visual Studio 17 2022")
+    cmake_args = cmake_args + [
         "-DBUILD_SHARED_LIBS=ON",
         "-DWHISPER_BUILD_TESTS=OFF",
         "-DWHISPER_BUILD_EXAMPLES=OFF",
@@ -320,6 +327,11 @@ def main():
                 cuda_root = os.environ["CUDA_PATH"]
                 cmake_args.append(f"-DCMAKE_CUDA_COMPILER:FILEPATH={cuda_root}/bin/nvcc.exe")
                 cmake_args.append(f"-DCMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES={cuda_root}/include")
+                # Host compiler eksplisit supaya nvcc gak butuh VS integration detection
+                cl_paths = __import__("glob").glob(
+                    "C:/Program Files/Microsoft Visual Studio/2022/*/VC/Tools/MSVC/*/bin/HostX64/x64/cl.exe")
+                if cl_paths:
+                    cmake_args.append(f"-DCMAKE_CUDA_HOST_COMPILER:FILEPATH={cl_paths[0]}")
         elif IS_LINUX and os.path.isfile("/usr/local/cuda/bin/nvcc"):
             cmake_args.append("-DCMAKE_CUDA_COMPILER:FILEPATH=/usr/local/cuda/bin/nvcc")
             cmake_args.append("-DCMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES=/usr/local/cuda/include")
