@@ -34,7 +34,6 @@ jobs:
         with:
           cuda: '13.2.0'
           method: 'network'
-          sub-packages: '["nvcc", "cusparse_dev", "cublas_dev", "thrust_dev", "cuda_cudart_dev"]'
 
       # whisper.cpp — FULL backend (CUDA + Vulkan + OpenCL + CPU SIMD)
       - name: Build whisper.cpp
@@ -99,7 +98,6 @@ jobs:
         with:
           cuda: '13.2.0'
           method: 'network'
-          sub-packages: '["nvcc", "cudart-dev", "cusparse-dev", "cublas-dev", "thrust-dev"]'
 
       - name: Build whisper.cpp
         run: python build_whisper_cpp.py --native OFF
@@ -110,7 +108,7 @@ jobs:
       - name: Build cpp-annote
         run: python build_cpp_annote.py
 
-      - name: Collect .so (FULL build: CUDA/OpenCL di libwhisper.so, gak ada plugin terpisah)
+      - name: "Collect .so (FULL build - CUDA/OpenCL di libwhisper.so, gak ada plugin terpisah)"
         run: |
           mkdir -p release
           # Find all .so* including versioned SONAMES, copy content (follow symlinks)
