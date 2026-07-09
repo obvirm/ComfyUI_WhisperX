@@ -38,10 +38,13 @@ jobs:
           # VS integration dibutuhkan supaya nvcc bisa nemuin cl.exe (VS2022).
           sub-packages: '[]'
 
-      # Activate VS2022 x64 dev environment (cl.exe di PATH) supaya nvcc nemuin host compiler
+      # Activate VS2022 x64 dev environment (cl.exe di PATH) supaya nvcc nemuin host compiler.
+      # Target VS2022 (version range [17.0,18.0)) secara eksplisit, toolset 14.3x.
+      # windows-latest juga ada VS2026 (v18) tapi nvcc 13.2 gak support v144.
       - name: Setup MSVC (VS2022)
         uses: ilammy/msvc-dev-cmd@v1
         with:
+          vsversion: '[17.0,18.0)'
           toolset: 14.3x
           arch: x64
 
