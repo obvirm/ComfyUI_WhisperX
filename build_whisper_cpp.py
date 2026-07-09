@@ -310,7 +310,7 @@ def main():
     if backends.get("cuda"):
         cmake_args.append(cuda_arch)
         # Batasi thread nvcc agar gak OOM di CI (kompilasi kernel CUDA makan RAM besar)
-        cmake_args.append("-DCMAKE_CUDA_FLAGS=--threads 4")
+        cmake_args.append("-DCMAKE_CUDA_FLAGS=--threads 2")
         # Force VS2022 (v143) toolset di Windows -> kompatibel dengan CUDA 13.x.
         # (VS2026/v144 belum didukung nvcc, build akan gagal kalau dipakai.)
         if IS_WIN:
@@ -377,7 +377,7 @@ def main():
     import multiprocessing
     _ncpu = max(1, min(multiprocessing.cpu_count() or 2, 4))
     if IS_LINUX:
-        _ncpu = 2  # CI Linux sering OOM kalau full parallel + CUDA
+        _ncpu = 1  # CI Linux sering OOM kalau full parallel + CUDA compile
     ret = subprocess.run(["cmake", "--build", str(BUILD_DIR), "--config", args.build_type, "-j", str(_ncpu)])
     if ret.returncode != 0:
         print("  Build FAILED"); sys.exit(1)
