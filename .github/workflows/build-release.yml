@@ -42,7 +42,7 @@ jobs:
       - name: Setup MSVC (VS2022)
         uses: ilammy/msvc-dev-cmd@v1
         with:
-          toolset: 14.4x
+          toolset: 14.3x
           arch: x64
 
       # whisper.cpp — FULL backend (CUDA + Vulkan + OpenCL + CPU SIMD)
