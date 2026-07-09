@@ -30,7 +30,7 @@ jobs:
           python-version: '3.12'
 
       - name: Install CUDA toolkit (Windows)
-        uses: Jimver/cuda-toolkit@v0.2.16
+        uses: Jimver/cuda-toolkit@v0.2.35
         with:
           cuda: '13.2.0'
           method: 'network'
@@ -94,7 +94,7 @@ jobs:
           sudo apt-get install -y cmake build-essential ocl-icd-opencl-dev libvulkan-dev opencl-headers zlib1g-dev
 
       - name: Install CUDA toolkit (Linux)
-        uses: Jimver/cuda-toolkit@v0.2.16
+        uses: Jimver/cuda-toolkit@v0.2.35
         with:
           cuda: '13.2.0'
           method: 'network'
