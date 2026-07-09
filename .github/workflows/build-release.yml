@@ -34,6 +34,7 @@ jobs:
         with:
           cuda: '13.2.0'
           method: 'network'
+          sub-packages: '["nvcc", "visual_studio_integration", "cuda_compiler", "cudart_dev", "nvml_dev", "thrust_dev", "cusparse_dev", "cublas_dev"]'
 
       # whisper.cpp — FULL backend (CUDA + Vulkan + OpenCL + CPU SIMD)
       - name: Build whisper.cpp
@@ -98,6 +99,9 @@ jobs:
         with:
           cuda: '13.2.0'
           method: 'network'
+        env:
+          CMAKE_BUILD_PARALLEL_LEVEL: 2
+          CMAKE_CUDA_FLAGS: '--threads 4'
 
       - name: Build whisper.cpp
         run: python build_whisper_cpp.py --native OFF
