@@ -116,6 +116,13 @@ def separate_vocals(audio_data, sr=44100, model_name=DEFAULT_MODEL, chunk_size=-
 
     model_path = ensure_model(model_name)
 
+    # On macOS, cap chunk_size to avoid Metal GPU buffer overflow (~4GB for default).
+    # GitHub Actions Mac runners have limited unified memory.
+    import platform
+    if platform.system() == "Darwin" and chunk_size < 0:
+        chunk_size = 88200  # ~2s at 44100 Hz, safe for ~8GB unified memory
+        logger.info(f"macOS: capped UVR chunk_size to {chunk_size} (Metal memory limit)")
+
     # Clean expired entries
     _cleanup_stale()
 
