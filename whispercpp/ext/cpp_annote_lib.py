@@ -68,7 +68,7 @@ def _auto_download():
         base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         gpu = detect_gpu()
         has_gpu = gpu["backend"] != "cpu"
-        # Skip if already present
+        # Skip if already present (manifest-based fingerprint check)
         if check_module_files("cpp_annote", base_dir, has_gpu=has_gpu):
             return
         ver = get_latest_version()
@@ -118,6 +118,8 @@ def _load():
             except Exception as e:
                 logger.warning(f"Failed to pre-load providers_shared: {e}")
         # Pre-load zlib.dll (dependency of cpp_annote.dll via cnpy)
+        # NOTE: vendored zlib is static since v2.1.34 — no external zlib.dll needed.
+        # Kept as fallback only for old DLLs.
         zlib_dll = deps_dir / "zlib.dll"
         if zlib_dll.exists():
             try:

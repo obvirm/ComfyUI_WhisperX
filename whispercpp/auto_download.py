@@ -14,6 +14,8 @@ Safety checks:
 import hashlib
 import os
 import ssl
+import json
+import time
 
 def _ssl_context():
     """SSL context using certifi CA bundle (fixes macOS cert issues)."""
@@ -45,6 +47,59 @@ def _get_file_lock(filepath: str) -> threading.Lock:
         return _file_locks[filepath]
 
 GITHUB_REPO = "obvirm/ComfyUI-WhisperCPP"
+
+# Local fingerprint manifest (SHA256 + timestamp) of downloaded DLLs
+# Stored next to the DLLs so we can detect stale/corrupt files across restarts.
+MANIFEST_FILE = "dll_state.json"
+
+
+def _load_manifest(target_dir: str) -> dict:
+    """Load local fingerprint manifest (dll_state.json)."""
+    try:
+        p = os.path.join(target_dir, MANIFEST_FILE)
+        if os.path.isfile(p):
+            with open(p, "r", encoding="utf-8") as f:
+                return json.load(f)
+    except Exception:
+        pass
+    return {}
+
+
+def _save_manifest(target_dir: str, manifest: dict):
+    """Persist local fingerprint manifest (dll_state.json)."""
+    try:
+        p = os.path.join(target_dir, MANIFEST_FILE)
+        with open(p, "w", encoding="utf-8") as f:
+            json.dump(manifest, f, indent=2, sort_keys=True)
+    except Exception as e:
+        logger.debug(f"Failed to save manifest: {e}")
+
+
+def _file_sha256(filepath: str) -> str:
+    """Compute SHA256 of a file."""
+    try:
+        h = hashlib.sha256()
+        with open(filepath, "rb") as f:
+            for chunk in iter(lambda: f.read(65536), b""):
+                h.update(chunk)
+        return h.hexdigest()
+    except Exception:
+        return ""
+
+
+def _update_manifest_for_file(target_dir: str, fname: str, manifest: dict):
+    """Record/update fingerprint for one successfully downloaded file."""
+    fpath = os.path.join(target_dir, fname)
+    if not os.path.isfile(fpath):
+        return
+    if "files" not in manifest:
+        manifest["files"] = {}
+    manifest["files"][fname] = {
+        "sha256": _file_sha256(fpath),
+        "size": os.path.getsize(fpath),
+        "updated": int(time.time()),
+    }
+
 
 # All modules that ship prebuilt DLLs
 MODULES = ["whisper", "bs_roformer", "cpp_annote"]
@@ -145,6 +200,23 @@ def get_latest_version() -> str:
     return _latest_version_cache
 
 
+def get_release_asset_sizes(version: str) -> dict:
+    """Query GitHub API for release asset sizes. Returns {asset_name: size_in_bytes}."""
+    try:
+        url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/tags/{version}"
+        req = urllib.request.Request(url, headers={
+            "User-Agent": "ComfyUI-WhisperCPP",
+            "Accept": "application/vnd.github.v3+json"
+        })
+        with urllib.request.urlopen(req, timeout=10, context=_ssl_context()) as resp:
+            import json
+            data = json.loads(resp.read())
+            return {a["name"]: a["size"] for a in data.get("assets", [])}
+    except Exception as e:
+        logger.debug(f"GitHub asset size check failed: {e}")
+        return {}
+
+
 def check_version_and_update(target_dir: str, has_gpu: bool = False) -> bool:
     """
     Check if local DLLs are present and match latest release.
@@ -158,14 +230,40 @@ def check_version_and_update(target_dir: str, has_gpu: bool = False) -> bool:
 
     local_ver = _get_version()
 
-    # Check if ALL module files are present on disk
+    # Check if ALL module files are present on disk (and fingerprint-valid)
+    manifest = _load_manifest(target_dir)
     all_present = all(
-        check_module_files(m, target_dir, has_gpu=has_gpu) for m in MODULES
+        check_module_files(m, target_dir, has_gpu=has_gpu, manifest=manifest)
+        for m in MODULES
     )
 
+    # Fetch release asset sizes to detect stale/corrupt DLLs (same version, bad content)
+    asset_sizes = {}
+    try:
+        asset_sizes = get_release_asset_sizes(remote_ver)
+    except Exception:
+        pass
+
     if all_present and local_ver == remote_ver:
-        logger.info(f"DLLs version OK: {local_ver}")
-        return True
+        # Also verify file sizes match release (catches stale DLLs with same version string)
+        if asset_sizes:
+            size_ok = all(
+                check_module_files(m, target_dir, has_gpu=has_gpu,
+                                   verify_size=True, asset_sizes=asset_sizes,
+                                   manifest=manifest)
+                for m in MODULES
+            )
+            if size_ok:
+                # Ensure fingerprint manifest exists so future restarts can
+                # detect silent corruption (e.g. manual DLL swap).
+                _ensure_manifest(target_dir, manifest)
+                logger.info(f"DLLs version OK: {local_ver}")
+                return True
+            logger.warning("DLLs present but fingerprint/size mismatch (stale/corrupt) — re-downloading from latest release...")
+        else:
+            _ensure_manifest(target_dir, manifest)
+            logger.info(f"DLLs version OK: {local_ver}")
+            return True
 
     if not all_present:
         logger.warning("Some DLLs missing on disk — re-downloading from latest release...")
@@ -174,7 +272,9 @@ def check_version_and_update(target_dir: str, has_gpu: bool = False) -> bool:
         logger.info(f"Re-downloading DLLs from {remote_ver}...")
 
     # Download all modules with new version
-    results = auto_download_all(target_dir, version=remote_ver, has_gpu=has_gpu)
+    results = auto_download_all(target_dir, version=remote_ver, has_gpu=has_gpu,
+                                verify_size=bool(asset_sizes), asset_sizes=asset_sizes,
+                                manifest=manifest)
     all_ok = all(results.values())
 
     if all_ok:
@@ -184,6 +284,28 @@ def check_version_and_update(target_dir: str, has_gpu: bool = False) -> bool:
         logger.error(f"Failed to update: {failed}")
 
     return all_ok
+
+
+def _ensure_manifest(target_dir: str, manifest: dict):
+    """Make sure the manifest records fingerprints for all currently-present
+    module files. Saves only if something changed."""
+    try:
+        changed = False
+        if "files" not in manifest:
+            manifest["files"] = {}
+        for m in MODULES:
+            system = platform.system()
+            if system not in ASSETS.get(m, {}):
+                continue
+            for fname in ASSETS[m][system]:
+                fpath = os.path.join(target_dir, fname)
+                if os.path.isfile(fpath) and fname not in manifest["files"]:
+                    _update_manifest_for_file(target_dir, fname, manifest)
+                    changed = True
+        if changed:
+            _save_manifest(target_dir, manifest)
+    except Exception as e:
+        logger.debug(f"_ensure_manifest skipped: {e}")
 
 
 def _check_disk_space(dest: str, min_mb: int = 50) -> bool:
@@ -218,7 +340,8 @@ _last_download_time = 0
 
 
 def download_file(url: str, dest: str, timeout: int = 120, retries: int = 2,
-                  expected_size: int = None, expected_sha256: str = None) -> bool:
+                  expected_size: int = None, expected_sha256: str = None,
+                  manifest: dict = None) -> bool:
     """Download a single file with safety checks. Returns True on success."""
     global _last_download_time
     # Rate limiting: max 5 downloads per minute
@@ -231,6 +354,11 @@ def download_file(url: str, dest: str, timeout: int = 120, retries: int = 2,
     file_lock = _get_file_lock(dest)
     with file_lock:
         result = _download_file_internal(url, dest, timeout, retries, expected_size, expected_sha256)
+        if result and manifest is not None:
+            # Record fingerprint for this successfully downloaded file
+            target_dir = os.path.dirname(dest) or "."
+            _update_manifest_for_file(target_dir, os.path.basename(dest), manifest)
+            _save_manifest(target_dir, manifest)
         if result:
             _last_download_time = time.time()
         return result
@@ -248,7 +376,11 @@ def _download_file_internal(url: str, dest: str, timeout: int, retries: int,
         try:
             # Skip if already exists and valid
             if os.path.isfile(dest) and not os.path.islink(dest) and os.path.getsize(dest) > 0:
-                if _verify_checksum(dest, expected_sha256):
+                # Re-download if size mismatch (stale/corrupt same-version file)
+                if expected_size and os.path.getsize(dest) != expected_size:
+                    logger.warning(f"  Size mismatch on disk ({os.path.basename(dest)}), re-downloading...")
+                    os.remove(dest)
+                elif _verify_checksum(dest, expected_sha256):
                     return True
                 else:
                     logger.warning(f"  Checksum mismatch, re-downloading {os.path.basename(dest)}...")
@@ -322,7 +454,7 @@ def _download_file_internal(url: str, dest: str, timeout: int, retries: int,
                     os.remove(dest)
                 os.rename(tmp_path, dest)
                 return True
-                
+
             except Exception as e:
                 # Clean up temp file on failure
                 try:
@@ -367,7 +499,8 @@ def _download_file_internal(url: str, dest: str, timeout: int, retries: int,
 
 
 def download_module(module: str, target_dir: str, version: str = None,
-                    has_gpu: bool = False) -> bool:
+                    has_gpu: bool = False, asset_sizes: dict = None,
+                    manifest: dict = None) -> bool:
     """
     Download all files for a module (whisper/bs_roformer/cpp_annote).
     
@@ -376,6 +509,7 @@ def download_module(module: str, target_dir: str, version: str = None,
         target_dir: Directory to save files to
         version: Release tag (default: CURRENT_VERSION)
         has_gpu: Whether to include GPU-specific assets
+        asset_sizes: {asset_name: size} from release (for size verification)
         
     Returns:
         True if all required files downloaded successfully
@@ -401,7 +535,8 @@ def download_module(module: str, target_dir: str, version: str = None,
     for fname in files:
         url = _get_download_url(fname, version)
         dest = os.path.join(target_dir, fname)
-        if download_file(url, dest):
+        expected_size = asset_sizes.get(fname) if asset_sizes else None
+        if download_file(url, dest, expected_size=expected_size, manifest=manifest):
             success_count += 1
 
     # Core files (non-GPU) must all succeed
@@ -468,29 +603,68 @@ def _create_mac_symlinks(target_dir: str):
                 logger.warning(f"  Copy failed: {e}")
 
 
-def check_module_files(module: str, target_dir: str, has_gpu: bool = False) -> bool:
-    """Check if all required files for a module exist."""
+def check_module_files(module: str, target_dir: str, has_gpu: bool = False,
+                       verify_size: bool = False, asset_sizes: dict = None,
+                       manifest: dict = None) -> bool:
+    """Check if all required files for a module exist.
+
+    If verify_size is True and asset_sizes is provided, also confirms each file's
+    byte size matches the release asset (catches stale/corrupt DLLs that are
+    present but have the same version string).
+
+    If manifest is provided and contains a fingerprint for a file, also confirms
+    the file's current SHA256 matches the recorded fingerprint (catches
+    manual replacement / silent corruption across restarts).
+    """
     system = platform.system()
     if system not in ASSETS.get(module, {}):
         return False
 
     # Check core files
     for fname in ASSETS[module][system]:
-        if not os.path.isfile(os.path.join(target_dir, fname)):
+        fpath = os.path.join(target_dir, fname)
+        if not os.path.isfile(fpath):
             return False
-    
+        if verify_size and asset_sizes:
+            expected = asset_sizes.get(fname)
+            if expected is not None and os.path.getsize(fpath) != expected:
+                logger.warning(f"  Stale/corrupt file: {fname} "
+                               f"(size {os.path.getsize(fpath)} != release {expected})")
+                return False
+        if manifest and manifest.get("files", {}).get(fname):
+            rec = manifest["files"][fname]
+            # If manifest recorded a sha256, verify it (unless size already mismatched)
+            if rec.get("sha256"):
+                cur = _file_sha256(fpath)
+                if cur and cur != rec["sha256"]:
+                    logger.warning(f"  Fingerprint mismatch: {fname} "
+                                   f"(local sha256 changed since last download)")
+                    return False
+
     # Check GPU files if requested
     if has_gpu:
         gpu_files = GPU_ASSETS.get(module, {}).get(system, [])
         for fname in gpu_files:
-            if not os.path.isfile(os.path.join(target_dir, fname)):
+            fpath = os.path.join(target_dir, fname)
+            if not os.path.isfile(fpath):
                 return False
-    
+            if verify_size and asset_sizes:
+                expected = asset_sizes.get(fname)
+                if expected is not None and os.path.getsize(fpath) != expected:
+                    return False
+            if manifest and manifest.get("files", {}).get(fname):
+                rec = manifest["files"][fname]
+                if rec.get("sha256"):
+                    cur = _file_sha256(fpath)
+                    if cur and cur != rec["sha256"]:
+                        return False
+
     return True
 
 
 def auto_download_all(target_dir: str, version: str = None,
-                      has_gpu: bool = False) -> dict:
+                      has_gpu: bool = False, verify_size: bool = False,
+                      asset_sizes: dict = None, manifest: dict = None) -> dict:
     """
     Download all modules at once. Returns status dict.
     
@@ -498,16 +672,21 @@ def auto_download_all(target_dir: str, version: str = None,
         target_dir: Directory to save files to
         version: Release tag (default: CURRENT_VERSION)
         has_gpu: Whether to include GPU-specific assets
+        verify_size: If True, re-download modules whose files have wrong size
+        asset_sizes: {asset_name: size} from release (for verify_size)
         
     Returns:
         {"whisper": True/False, "bs_roformer": True/False, "cpp_annote": True/False}
     """
     results = {}
     for module in ["whisper", "bs_roformer", "cpp_annote"]:
-        # Skip if already present
-        if check_module_files(module, target_dir):
+        # Skip if already present (and size/fingerprint-valid when verify is on)
+        if check_module_files(module, target_dir, has_gpu=has_gpu,
+                              verify_size=verify_size, asset_sizes=asset_sizes,
+                              manifest=manifest):
             logger.info(f"  {module}: already present")
             results[module] = True
             continue
-        results[module] = download_module(module, target_dir, version, has_gpu)
+        results[module] = download_module(module, target_dir, version, has_gpu,
+                                           asset_sizes=asset_sizes, manifest=manifest)
     return results
