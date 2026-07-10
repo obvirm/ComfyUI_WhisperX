@@ -170,7 +170,7 @@ def _load():
         if IS_MACOS:
             deps_unix = ["libggml-base.0.dylib", "libggml-cpu.0.dylib", "libggml-blas.0.dylib", "libggml-metal.0.dylib", "libggml.0.dylib"]
         else:
-            deps_unix = ["libggml-base.so.0", "libggml-cpu.so.0", "libggml.so.0", "libggml-cuda.so.0", "libggml-opencl.so.0"]
+            deps_unix = ["libggml-base.so.0", "libggml-cpu.so.0", "libggml-cuda.so.0", "libggml-opencl.so.0", "libggml.so.0"]
         for dep in deps_unix:
             dep_path = os.path.join(deps_dir, dep)
             if os.path.isfile(dep_path):

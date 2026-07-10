@@ -176,7 +176,14 @@ class WhisperCPP:
                                            capture_output=True, timeout=10)
                     except Exception:
                         pass
-            ggml_deps = ["libggml.0.dylib", "libggml-base.0.dylib", "libggml-cpu.0.dylib", "libggml-blas.0.dylib", "libggml-metal.0.dylib"] if IS_MACOS else ["libggml.so.0", "libggml-base.so.0", "libggml-cpu.so.0", "libggml-cuda.so.0", "libggml-opencl.so.0"]
+            # Order matters: leaf-first (dependencies before dependents).
+            # libggml.so.0 NEEDEDs cpu+cuda+opencl+base; cuda/opencl NEEDED base.
+            # libwhisper.so NEEDEDs libggml.so.0 (which pulls the rest).
+            ggml_deps = ["libggml.0.dylib", "libggml-base.0.dylib", "libggml-cpu.0.dylib", "libggml-blas.0.dylib", "libggml-metal.0.dylib"] if IS_MACOS else ["libggml-base.so.0", "libggml-cpu.so.0", "libggml-cuda.so.0", "libggml-opencl.so.0", "libggml.so.0"]
+            # Also preload libwhisper's own deps explicitly (in case dlopen of
+            # the main lib resolves libggml.so.0 from a different dir).
+            if not IS_MACOS:
+                ggml_deps = ggml_deps + ["libwhisper.so.1"]
             if IS_MACOS:
                 # Fix @rpath references in ALL ggml dylibs before loading
                 try:
