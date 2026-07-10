@@ -114,6 +114,10 @@ def main():
         f"-DBSR_BUILD_CLI=OFF",
         f"-DBSR_BUILD_SHARED=ON",
         f"-DBSR_BUILD_TESTS=OFF",
+        # GGML_BACKEND_DL=ON wajib BUILD_SHARED_LIBS=ON + GGML_NATIVE=OFF
+        # (ggml FATAL error kalau native dipakai bareng DL backend).
+        f"-DBUILD_SHARED_LIBS=ON",
+        f"-DGGML_NATIVE=OFF",
         # Backends di-build sbg MODULE terpisah & di-dlopen MALAS oleh ggml
         # (GGML_BACKEND_DL=ON). libbs_roformer.so TIDAK NEEDED backend .so, jadi di
         # host tanpa GPU backend CUDA gagal load silently & CPU dipakai. Di host GPU
