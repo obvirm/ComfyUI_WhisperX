@@ -36,9 +36,11 @@ def download_ort(cuda=False, directml=False, coreml=False, rocm=False, openvino=
     DirectML: bundled inside the standard win-x64 GPU (CUDA) build.
     """
     cuda_major = _detect_cuda_major()
-    cuda_tag = f"gpu_cuda{cuda_major}" if (cuda and cuda_major >= 13) else "gpu_cuda12"
+    # Pakai CUDA 13 build kalau toolkit 13 ada (CI Windows CUDA 13.2).
+    # gpu_cuda13 = CUDA + TensorRT + DML provider headers (cuda/dml factory ada).
+    cuda_tag = "gpu_cuda13" if cuda_major >= 13 else "gpu_cuda12"
     if IS_WIN:
-        if cuda or directml:
+        if cuda or directml or cuda_major >= 13:
             # DML + CUDA + OpenVINO header semua ada di dalam paket CUDA (gpu) build.
             # Paket openvino standalone belum rilis utk 1.27.0, jadi pakai gpu_cuda build.
             ort_name = f"onnxruntime-win-x64-{cuda_tag}-{ORT_VERSION}"
