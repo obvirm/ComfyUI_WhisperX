@@ -299,7 +299,10 @@ def main():
         "-DWHISPER_BUILD_EXAMPLES=OFF",
         f"-DGGML_NATIVE={args.native}",
         "-DGGML_OPENMP=ON",
-        "-DGGML_LLAMAFILE=ON",
+        # LLAMAFILE (CPU BLAS alt) — MSVC 19.44 gak bisa cast __m512 -> __m512bh di
+        # llamafile/sgemm.cpp. Di Windows kita matiin (pakai OpenMP/BLAS sebagai ganti).
+        # Linux/macOS tetap ON.
+        f"-DGGML_LLAMAFILE={'OFF' if IS_WIN else 'ON'}",
         # === FULL CPU SIMD (wajib, bukan opsional) ===
         "-DGGML_AVX=ON",
         "-DGGML_AVX2=ON",
@@ -309,10 +312,12 @@ def main():
         "-DGGML_AVX512_BF16=ON",
         "-DGGML_FMA=ON",
         "-DGGML_F16C=ON",
-        "-DGGML_AMX_TILE=ON",
-        "-DGGML_AMX_INT8=ON",
-        "-DGGML_AMX_BF16=ON",
     ]
+    # AMX (Intel CPU) — compile-time constant error di MSVC + non-Intel CI runner.
+    # Cuma di-enable kalau CPU beneran Intel yg support AMX (deteksi sederhana).
+    # Default OFF di CI (portabel, gak error); user dgn Intel Xeon/AMX bisa rebuild lokal.
+    # if amx_supported():  # dinonaktifkan utk CI cross-platform
+    #     cmake_args += ["-DGGML_AMX_TILE=ON", "-DGGML_AMX_INT8=ON", "-DGGML_AMX_BF16=ON"]
     # CUDA-specific flags
     if backends.get("cuda"):
         cmake_args.append(cuda_arch)

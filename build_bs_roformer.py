@@ -83,13 +83,16 @@ def main():
     cuda_on = "ON" if ((args.cuda or args.gpu) and not IS_MAC) else "OFF"
     # Vulkan butuh glslc; kalau gak ada CMake akan warning tapi build tetap jalan.
     # macOS gak ada Vulkan/OpenCL -> OFF.
-    vulkan_on = "ON" if (args.vulkan or args.gpu) and not IS_MAC else "OFF"
+    # Vulkan butuh glslc (Vulkan SDK). Kalau gak ada (CI Linux tanpa Vulkan SDK),
+    # paksa OFF supaya configure gak gagal (ggml-vulkan FindVulkan butuh glslc).
+    import shutil as _shutil
+    _has_glslc = _shutil.which("glslc") is not None
+    vulkan_on = "ON" if ((args.vulkan or args.gpu) and not IS_MAC and _has_glslc) else "OFF"
     opencl_on = "ON" if (args.opencl or args.gpu) and not IS_MAC else "OFF"
 
     # Auto-detect GPU if --gpu (jangan matiin CUDA kalau nvidia-smi gak ada di CI;
     # CUDA tetap di-build, device gak ketemu -> whisper/bsr fallback ke CPU di runtime)
     if args.gpu and not IS_MAC:
-        import shutil as _shutil
         # cuda_on tetap ON (FULL). Vulkan/OpenCL otomatis terdeteksi ggml saat configure.
         if IS_WIN:
             # Force VS2022 toolset untuk CUDA
