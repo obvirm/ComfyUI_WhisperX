@@ -116,18 +116,21 @@ IS_MAC = platform.system() == "Darwin"
 # fmt: off
 ASSETS = {
     "whisper": {
-        # FULL build. Semua backend (CUDA/Vulkan/OpenCL/OpenVINO) di-STATIC-link ke
-        # dalam libwhisper (GGML_BACKEND_DL=OFF di semua OS). Jadi gak ada .so/.dll
-        # backend terpisah yg wajib — cuma libggml (+base/cpu) yg di-ship.
+        # FULL build. Backends (CUDA/Vulkan/OpenCL/OpenVINO) di-build sebagai MODULE
+        # terpisah dan di-dlopen malas oleh ggml (GGML_BACKEND_DL=ON). libggml.so
+        # TIDAK NEEDED backend .so — jadi di host tanpa GPU, backend CUDA gagal load
+        # silently & CPU dipakai. Di host GPU, backend aktif otomatis.
         # macOS: CPU di libggml, Metal/BLAS backend dylib terpisah (ggml default).
         "Windows": ["whisper.dll", "ggml.dll", "ggml-base.dll", "ggml-cpu.dll"],
-        "Linux":   ["libwhisper.so", "libggml.so", "libggml-base.so", "libggml-cpu.so"],
+        "Linux":   ["libwhisper.so", "libggml.so", "libggml-base.so", "libggml-cpu.so",
+                    "libggml-cuda.so", "libggml-opencl.so", "libggml-vulkan.so"],
         "Darwin":  ["libwhisper.dylib", "libggml.dylib", "libggml-base.dylib",
                     "libggml-cpu.dylib", "libggml-blas.dylib", "libggml-metal.dylib"],
     },
     "bs_roformer": {
         "Windows": ["bs_roformer.dll", "ggml.dll", "ggml-base.dll", "ggml-cpu.dll"],
-        "Linux":   ["libbs_roformer.so", "libggml.so", "libggml-base.so", "libggml-cpu.so"],
+        "Linux":   ["libbs_roformer.so", "libggml.so", "libggml-base.so", "libggml-cpu.so",
+                    "libggml-cuda.so", "libggml-opencl.so", "libggml-vulkan.so"],
         "Darwin":  ["libbs_roformer.dylib", "libggml.dylib", "libggml-base.dylib",
                     "libggml-cpu.dylib", "libggml-blas.dylib", "libggml-metal.dylib"],
     },
@@ -156,9 +159,11 @@ GPU_ASSETS = {
 }
 
 # OPTIONAL backend/provider libs — shipped ONLY when the build actually emits them.
-# With the static-link FULL build (GGML_BACKEND_DL=OFF) these are NOT produced,
-# so they're optional (skip_if_missing handles absence gracefully). Kept here so
-# a future dynamic build still works without code changes.
+# With the dynamic-load FULL build (GGML_BACKEND_DL=ON) whisper emits separate
+# backend .so/.dll (libggml-cuda, libggml-opencl, libggml-vulkan) that are
+# dlopen'd lazily; they're optional (skip_if_missing) so a GPU-less host still
+# works (CPU backend). cpp-annote's GPU ORT packages additionally ship CUDA/
+# TensorRT provider libs; the base libonnxruntime (in ASSETS) loads them on demand.
 OPTIONAL_ASSETS = {
     "whisper": {
         "Windows": ["ggml-cuda.dll", "ggml-opencl.dll", "ggml-vulkan.dll"],
@@ -171,8 +176,6 @@ OPTIONAL_ASSETS = {
         "Darwin":  [],
     },
     "cpp_annote": {
-        # Linux GPU ORT package also ships CUDA/TensorRT provider libs; the base
-        # libonnxruntime.so (in ASSETS) loads them on demand.
         "Windows": ["onnxruntime_providers_cuda.dll", "onnxruntime_providers_tensorrt.dll"],
         "Linux":   ["libonnxruntime_providers_cuda.so", "libonnxruntime_providers_tensorrt.so"],
         "Darwin":  [],
@@ -384,7 +387,7 @@ def download_file(url: str, dest: str, timeout: int = 120, retries: int = 2,
     # Prevent race condition: only one thread downloads to same file
     file_lock = _get_file_lock(dest)
     with file_lock:
-        result = _download_file_internal(url, dest, timeout, retries, expected_size, expected_sha256)
+        result = _download_file_internal(url, dest, timeout, retries, expected_size, expected_sha256, skip_if_missing)
         if result and manifest is not None:
             # Record fingerprint for this successfully downloaded file
             target_dir = os.path.dirname(dest) or "."
@@ -396,7 +399,8 @@ def download_file(url: str, dest: str, timeout: int = 120, retries: int = 2,
 
 
 def _download_file_internal(url: str, dest: str, timeout: int, retries: int,
-                           expected_size: int, expected_sha256: str) -> bool:
+                           expected_size: int, expected_sha256: str,
+                           skip_if_missing: bool = False) -> bool:
     """Internal download function (must be called with file_lock held)."""
     # Safety: Check for symlink attacks
     if os.path.islink(dest):

@@ -10,9 +10,16 @@ logger = logging.getLogger("WhisperCPP.BSRoformerLib")
 
 
 def _ensure_so_copies(deps_dir):
-    """Copy .so to versioned names (e.g., libggml.so -> libggml.so.0)."""
+    """Copy .so to versioned names (e.g., libggml.so -> libggml.so.0).
+
+    With GGML_BACKEND_DL=ON the backend modules (libggml-cuda.so etc) are
+    dlopen'd lazily by ggml; they must exist as libggml-cuda.so.0 (SONAME)
+    so the runtime search finds them. Create versioned copies from the
+    unversioned release files (best-effort; skipped if absent)."""
     import shutil
-    for src, dst in [("libggml.so", "libggml.so.0"), ("libggml-base.so", "libggml-base.so.0"), ("libggml-cpu.so", "libggml-cpu.so.0")]:
+    for src, dst in [("libggml.so", "libggml.so.0"), ("libggml-base.so", "libggml-base.so.0"),
+                     ("libggml-cpu.so", "libggml-cpu.so.0"), ("libggml-cuda.so", "libggml-cuda.so.0"),
+                     ("libggml-opencl.so", "libggml-opencl.so.0"), ("libggml-vulkan.so", "libggml-vulkan.so.0")]:
         s = os.path.join(deps_dir, src)
         d = os.path.join(deps_dir, dst)
         if os.path.isfile(s) and not os.path.exists(d):
@@ -210,6 +217,10 @@ def _load():
             pass
 
     logger.info(f"Loading bs_roformer: {dll_path}")
+    # Tell ggml where to find its backend modules (libggml-cuda.so etc) so the lazy
+    # dlopen works regardless of cwd / executable dir (GGML_BACKEND_DL=ON build).
+    deps_dir = str(Path(dll_path).parent.resolve())
+    os.environ.setdefault("GGML_BACKEND_PATH", deps_dir)
     try:
         _lib = ctypes.CDLL(str(dll_path))
     except Exception as e:

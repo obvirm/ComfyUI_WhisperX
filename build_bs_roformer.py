@@ -114,9 +114,11 @@ def main():
         f"-DBSR_BUILD_CLI=OFF",
         f"-DBSR_BUILD_SHARED=ON",
         f"-DBSR_BUILD_TESTS=OFF",
-        # Backends (CUDA/OpenCL/Vulkan) di-link STATIC ke dalam bs_roformer.so (sama
-        # spt libwhisper). GGML_BACKEND_DL=OFF -> gak ada libggml-cuda.so.0 terpisah.
-        f"-DGGML_BACKEND_DL=OFF",
+        # Backends di-build sbg MODULE terpisah & di-dlopen MALAS oleh ggml
+        # (GGML_BACKEND_DL=ON). libbs_roformer.so TIDAK NEEDED backend .so, jadi di
+        # host tanpa GPU backend CUDA gagal load silently & CPU dipakai. Di host GPU
+        # backend aktif otomatis. (Sama dgn libwhisper — robust di CI tanpa GPU.)
+        f"-DGGML_BACKEND_DL=ON",
         f"-DGGML_DIR={GGML_DIR}",
     ]
     # Inject toolset (-T v143) untuk Windows CUDA build

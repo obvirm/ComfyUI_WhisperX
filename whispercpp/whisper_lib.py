@@ -176,10 +176,11 @@ class WhisperCPP:
                                            capture_output=True, timeout=10)
                     except Exception:
                         pass
-            # Order matters: leaf-first (dependencies before dependents). With the
-            # static-link FULL build (GGML_BACKEND_DL=OFF) libggml.so.0 has NO
-            # separate backend deps; only base/cpu exist. Keep the list defensive
-            # (cuda/opencl entries are simply skipped if absent).
+            # Order matters: leaf-first (dependencies before dependents). With
+            # GGML_BACKEND_DL=ON, libggml.so.0 does NOT NEEDED the backend .so files
+            # (they're dlopen'd lazily at runtime). Only base/cpu are hard deps.
+            # Preload leaf-first WITHOUT failing on the backend modules (they're
+            # optional: on a GPU-less host libcudart is absent and that's fine).
             ggml_deps = ["libggml.0.dylib", "libggml-base.0.dylib", "libggml-cpu.0.dylib", "libggml-blas.0.dylib", "libggml-metal.0.dylib"] if IS_MACOS else ["libggml-base.so.0", "libggml-cpu.so.0", "libggml.so.0"]
             if IS_MACOS:
                 # Fix @rpath references in ALL ggml dylibs before loading
@@ -217,6 +218,11 @@ class WhisperCPP:
         
         self._lib = ctypes.cdll.LoadLibrary(lib)
         logger.info(f"Whisper library loaded: {lib}")
+        # Tell ggml where to find its backend modules (libggml-cuda.so etc) so the
+        # lazy dlopen works regardless of the process cwd / executable dir.
+        if not IS_WINDOWS and deps_dir:
+            os.environ.setdefault("GGML_BACKEND_PATH", deps_dir)
+            logger.info(f"  Set GGML_BACKEND_PATH={deps_dir}")
         logger.info("Step 9: Setting up functions")
         self._setup_functions()
         # Log version

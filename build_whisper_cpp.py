@@ -303,11 +303,13 @@ def main():
         # llamafile/sgemm.cpp. Di Windows kita matiin (pakai OpenMP/BLAS sebagai ganti).
         # Linux/macOS tetap ON.
         f"-DGGML_LLAMAFILE={'OFF' if IS_WIN else 'ON'}",
-        # ggml backends (CUDA/OpenCL/Vulkan) di-link STATIC ke dalam libggml di
-        # SEMUA platform (GGML_BACKEND_DL=OFF). Ini menghindari ketergantungan pd
-        # libggml-cuda.so.0 / libggml-opencl.so.0 terpisah yg rentan gagal load.
-        # Backend tetap ter-register (static-link) jadi CUDA/OpenCL tetap jalan.
-        "-DGGML_BACKEND_DL=OFF",
+        # ggml backends di-build sbg MODULE terpisah & di-dlopen MALAS oleh ggml
+        # (GGML_BACKEND_DL=ON, wajib BUILD_SHARED_LIBS=ON yg sdh di-set). Krusial:
+        # libggml.so.0 TIDAK NEEDED libggml-cuda.so.0, jadi di host tanpa GPU/NVIDIA
+        # driver backend CUDA gagal load SILENTLY lalu CPU dipakai. Di host GPU,
+        # backend aktif otomatis (kita set GGML_BACKEND_PATH ke dir backend .so).
+        # Ini satu-satunya mode yg robust di CI tanpa GPU MAUPUN di mesin GPU.
+        "-DGGML_BACKEND_DL=ON",
         # === FULL CPU SIMD (wajib, bukan opsional) ===
         "-DGGML_AVX=ON",
         "-DGGML_AVX2=ON",
