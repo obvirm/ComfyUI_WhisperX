@@ -303,10 +303,11 @@ def main():
         # llamafile/sgemm.cpp. Di Windows kita matiin (pakai OpenMP/BLAS sebagai ganti).
         # Linux/macOS tetap ON.
         f"-DGGML_LLAMAFILE={'OFF' if IS_WIN else 'ON'}",
-        # ggml backends (CUDA/OpenCL/Vulkan) di-link STATIC ke libwhisper di Windows
-        # (sama spt ggml default BACKEND_DL=OFF). Linux/macOS tetap DYNAMIC (FULL
-        # build: libggml-cuda.so / libggml-opencl.so terpisah, di-handle symlink).
-        f"-DGGML_BACKEND_DL={'OFF' if IS_WIN else 'ON'}",
+        # ggml backends (CUDA/OpenCL/Vulkan) di-link STATIC ke dalam libggml di
+        # SEMUA platform (GGML_BACKEND_DL=OFF). Ini menghindari ketergantungan pd
+        # libggml-cuda.so.0 / libggml-opencl.so.0 terpisah yg rentan gagal load.
+        # Backend tetap ter-register (static-link) jadi CUDA/OpenCL tetap jalan.
+        "-DGGML_BACKEND_DL=OFF",
         # === FULL CPU SIMD (wajib, bukan opsional) ===
         "-DGGML_AVX=ON",
         "-DGGML_AVX2=ON",
