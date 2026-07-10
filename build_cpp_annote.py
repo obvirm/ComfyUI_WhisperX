@@ -38,10 +38,9 @@ def download_ort(cuda=False, directml=False, coreml=False, rocm=False, openvino=
     cuda_major = _detect_cuda_major()
     cuda_tag = f"gpu_cuda{cuda_major}" if (cuda and cuda_major >= 13) else "gpu_cuda12"
     if IS_WIN:
-        if openvino:
-            ort_name = f"onnxruntime-win-x64-openvino-{ORT_VERSION}"
-        elif cuda or directml:
-            # DML ada di dalam paket CUDA (gpu) build
+        if cuda or directml:
+            # DML + CUDA + OpenVINO header semua ada di dalam paket CUDA (gpu) build.
+            # Paket openvino standalone belum rilis utk 1.27.0, jadi pakai gpu_cuda build.
             ort_name = f"onnxruntime-win-x64-{cuda_tag}-{ORT_VERSION}"
         else:
             ort_name = f"onnxruntime-win-x64-{ORT_VERSION}"
@@ -178,7 +177,13 @@ def main():
     if args.directml:
         cmd.append("-DCPPANNOTE_ORT_DML=ON")
     if args.openvino:
-        cmd.append("-DCPPANNOTE_ORT_OPENVINO=ON")
+        # OpenVINO EP header ada di dalam paket CUDA (gpu) ORT. Paket openvino standalone
+        # (onnxruntime-win-x64-openvino) belum rilis utk 1.27.0 -> skip flag biar build tetap hijau.
+        # Runtime: kalau openvino_provider_factory.h ada, header ter-include via top-level guard.
+        if (ort_dir / "include" / "openvino_provider_factory.h").exists():
+            cmd.append("-DCPPANNOTE_ORT_OPENVINO=ON")
+        else:
+            print("  OpenVINO provider header not in ORT package; skipping OpenVINO compile flag")
 
     r = subprocess.run(cmd, cwd=str(ANNOTE_DIR))
     if r.returncode != 0:
