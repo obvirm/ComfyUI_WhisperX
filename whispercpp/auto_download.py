@@ -116,14 +116,24 @@ IS_MAC = platform.system() == "Darwin"
 # fmt: off
 ASSETS = {
     "whisper": {
-        "Windows": ["whisper.dll", "ggml-base.dll", "ggml-cpu.dll", "ggml.dll"],
-        "Linux":   ["libwhisper.so", "libggml-base.so", "libggml-cpu.so", "libggml.so"],
-        "Darwin":  ["libwhisper.dylib", "libggml-base.dylib", "libggml-cpu.dylib", "libggml-blas.dylib", "libggml-metal.dylib", "libggml.dylib"],
+        # FULL build. Per-platform differences in how ggml backends are packaged:
+        #   Windows: backends (CUDA/OpenCL/Vulkan) are STATICALLY linked into
+        #            whisper.dll/ggml.dll (GGML_BACKEND_DL=OFF), so no separate files.
+        #   Linux:   backends are SEPARATE .so (GGML_BACKEND_DL=ON). libwhisper.so
+        #            NEEDEDs libggml-cuda.so.0 / libggml-opencl.so.0 — must ship them.
+        #   macOS:  only Metal/BLAS backends are separate dylibs (CPU is in libggml).
+        "Windows": ["whisper.dll", "ggml.dll", "ggml-base.dll", "ggml-cpu.dll"],
+        "Linux":   ["libwhisper.so", "libggml.so", "libggml-base.so", "libggml-cpu.so",
+                    "libggml-cuda.so", "libggml-opencl.so"],
+        "Darwin":  ["libwhisper.dylib", "libggml.dylib", "libggml-base.dylib",
+                    "libggml-cpu.dylib", "libggml-blas.dylib", "libggml-metal.dylib"],
     },
     "bs_roformer": {
         "Windows": ["bs_roformer.dll", "ggml.dll", "ggml-base.dll", "ggml-cpu.dll"],
-        "Linux":   ["libbs_roformer.so", "libggml.so", "libggml-base.so", "libggml-cpu.so"],
-        "Darwin":  ["libbs_roformer.dylib", "libggml.dylib", "libggml-base.dylib", "libggml-cpu.dylib", "libggml-blas.dylib", "libggml-metal.dylib"],
+        "Linux":   ["libbs_roformer.so", "libggml.so", "libggml-base.so", "libggml-cpu.so",
+                    "libggml-cuda.so", "libggml-opencl.so"],
+        "Darwin":  ["libbs_roformer.dylib", "libggml.dylib", "libggml-base.dylib",
+                    "libggml-cpu.dylib", "libggml-blas.dylib", "libggml-metal.dylib"],
     },
     "cpp_annote": {
         "Windows": ["cpp_annote.dll", "onnxruntime.dll", "onnxruntime_providers_shared.dll"],
@@ -147,6 +157,20 @@ GPU_ASSETS = {
     "whisper":    { "Windows": [], "Linux": [], "Darwin": [] },
     "bs_roformer":{ "Windows": [], "Linux": [], "Darwin": [] },
     "cpp_annote": { "Windows": [], "Linux": [], "Darwin": [] },
+}
+
+# OPTIONAL provider libs for cpp-annote — shipped ONLY by the GPU ORT builds.
+# On Linux the GPU package also includes CUDA/TensorRT provider .so files; the
+# base libonnxruntime.so (in ASSETS) loads them on demand. We download them
+# only if present in the release (skip_if_missing handles absence gracefully).
+OPTIONAL_ASSETS = {
+    "whisper":    { "Windows": [], "Linux": [], "Darwin": [] },
+    "bs_roformer":{ "Windows": [], "Linux": [], "Darwin": [] },
+    "cpp_annote": {
+        "Windows": ["onnxruntime_providers_cuda.dll", "onnxruntime_providers_tensorrt.dll"],
+        "Linux":   ["libonnxruntime_providers_cuda.so", "libonnxruntime_providers_tensorrt.so"],
+        "Darwin":  [],
+    },
 }
 # fmt: on
 
@@ -342,7 +366,7 @@ _last_download_time = 0
 
 def download_file(url: str, dest: str, timeout: int = 120, retries: int = 2,
                   expected_size: int = None, expected_sha256: str = None,
-                  manifest: dict = None) -> bool:
+                  manifest: dict = None, skip_if_missing: bool = False) -> bool:
     """Download a single file with safety checks. Returns True on success."""
     global _last_download_time
     # Rate limiting: max 5 downloads per minute
@@ -414,6 +438,11 @@ def _download_file_internal(url: str, dest: str, timeout: int, retries: int,
                         logger.warning(f"  Body: {body}")
                     except: pass
                     if e.code == 404:
+                        if skip_if_missing:
+                            # OPTIONAL asset absent in this release — not fatal.
+                            logger.info(f"  Optional asset not in release, skipping: {os.path.basename(dest)}")
+                            os.remove(tmp_path)
+                            return True
                         logger.warning(f"  File not found: {os.path.basename(dest)} (retrying)")
                         import time
                         time.sleep(10)
@@ -467,6 +496,9 @@ def _download_file_internal(url: str, dest: str, timeout: int, retries: int,
                 
         except urllib.error.HTTPError as e:
             if e.code == 404:
+                if skip_if_missing:
+                    logger.info(f"  Optional asset not in release, skipping: {os.path.basename(dest)}")
+                    return True
                 logger.warning(f"  File not found: {os.path.basename(dest)} (CDN propagation?)")
                 # CDN might not have propagated yet, retry with delay
                 import time
@@ -524,6 +556,13 @@ def download_module(module: str, target_dir: str, version: str = None,
     if has_gpu:
         gpu_files = GPU_ASSETS.get(module, {}).get(system, [])
         files.extend(gpu_files)
+        # OPTIONAL backend libs (CUDA/OpenCL/Vulkan/ORT providers) — only ship
+        # when present in this release. We resolve the actual asset list via the
+        # GitHub release listing so a missing one (different toolchain) isn't fatal.
+        for opt in OPTIONAL_ASSETS.get(module, {}).get(system, []):
+            files.append(opt)
+        # De-dupe while preserving order
+        files = list(dict.fromkeys(files))
 
     # ONNX models go to cpp-annote/artifacts/
     if module == "cpp_annote_models":
@@ -537,7 +576,10 @@ def download_module(module: str, target_dir: str, version: str = None,
         url = _get_download_url(fname, version)
         dest = os.path.join(target_dir, fname)
         expected_size = asset_sizes.get(fname) if asset_sizes else None
-        if download_file(url, dest, expected_size=expected_size, manifest=manifest):
+        # OPTIONAL assets: skip silently if they don't exist in this release.
+        is_optional = fname in OPTIONAL_ASSETS.get(module, {}).get(system, [])
+        if download_file(url, dest, expected_size=expected_size, manifest=manifest,
+                         skip_if_missing=is_optional):
             success_count += 1
 
     # Core files (non-GPU) must all succeed
@@ -566,18 +608,32 @@ def _create_linux_symlinks(target_dir: str):
         "libggml.so": "libggml.so.0",
         "libggml-base.so": "libggml-base.so.0",
         "libggml-cpu.so": "libggml-cpu.so.0",
+        "libggml-cuda.so": "libggml-cuda.so.0",
+        "libggml-opencl.so": "libggml-opencl.so.0",
+        "libggml-vulkan.so": "libggml-vulkan.so.0",
+        "libwhisper.so": "libwhisper.so.1",
+        "libbs_roformer.so": "libbs_roformer.so.1",
         "libonnxruntime.so": "libonnxruntime.so.1",
         "libonnxruntime_providers_shared.so": "libonnxruntime_providers_shared.so.1",
     }
     for src, dst in rename_map.items():
         src_path = os.path.join(target_dir, src)
         dst_path = os.path.join(target_dir, dst)
+        # Also: if the versioned file (e.g. libggml.so.0) exists in the release
+        # but the unversioned (libggml.so) does NOT, create the unversioned too,
+        # since some loaders/dlopen calls reference the bare name.
         if os.path.isfile(src_path) and not os.path.exists(dst_path):
             try:
-                # Copy then remove original (rename doesn't work across filesystems)
                 import shutil
                 shutil.copy2(src_path, dst_path)
                 logger.info(f"  Copied: {src} -> {dst}")
+            except OSError as e:
+                logger.warning(f"  Copy failed: {e}")
+        elif os.path.isfile(dst_path) and not os.path.exists(src_path):
+            try:
+                import shutil
+                shutil.copy2(dst_path, src_path)
+                logger.info(f"  Copied: {dst} -> {src}")
             except OSError as e:
                 logger.warning(f"  Copy failed: {e}")
 
@@ -590,6 +646,8 @@ def _create_mac_symlinks(target_dir: str):
         "libggml-cpu.dylib": "libggml-cpu.0.dylib",
         "libggml-blas.dylib": "libggml-blas.0.dylib",
         "libggml-metal.dylib": "libggml-metal.0.dylib",
+        "libwhisper.dylib": "libwhisper.1.dylib",
+        "libbs_roformer.dylib": "libbs_roformer.1.dylib",
         "libonnxruntime.dylib": "libonnxruntime.1.dylib",
     }
     for src, dst in copy_map.items():
@@ -690,4 +748,10 @@ def auto_download_all(target_dir: str, version: str = None,
             continue
         results[module] = download_module(module, target_dir, version, has_gpu,
                                            asset_sizes=asset_sizes, manifest=manifest)
+    # ALWAYS ensure versioned symlinks/copies exist (even on cached runs where
+    # download_module was skipped) — dlopen needs libggml.so.0 etc present.
+    if IS_LINUX:
+        _create_linux_symlinks(target_dir)
+    elif IS_MAC:
+        _create_mac_symlinks(target_dir)
     return results

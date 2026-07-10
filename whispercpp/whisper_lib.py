@@ -158,21 +158,25 @@ class WhisperCPP:
         # Preload ggml deps on macOS/Linux (same as bs_roformer)
         if not IS_WINDOWS:
             deps_dir = str(Path(lib).parent.resolve())
-            # Ensure versioned copies exist
+            # Ensure versioned copies exist (dlopen needs libggml.so.0 etc).
             if IS_MACOS:
-                for src, dst in [("libggml.dylib", "libggml.0.dylib"), ("libggml-base.dylib", "libggml-base.0.dylib"), ("libggml-cpu.dylib", "libggml-cpu.0.dylib"), ("libggml-blas.dylib", "libggml-blas.0.dylib"), ("libggml-metal.dylib", "libggml-metal.0.dylib")]:
-                    s = os.path.join(deps_dir, src); d = os.path.join(deps_dir, dst)
-                    if os.path.isfile(s) and not os.path.exists(d):
-                        try:
-                            import shutil; shutil.copy2(s, d)
-                            logger.info(f"  Created: {dst}")
+                ver_map = [("libggml.dylib", "libggml.0.dylib"), ("libggml-base.dylib", "libggml-base.0.dylib"), ("libggml-cpu.dylib", "libggml-cpu.0.dylib"), ("libggml-blas.dylib", "libggml-blas.0.dylib"), ("libggml-metal.dylib", "libggml-metal.0.dylib")]
+            else:
+                ver_map = [("libggml.so", "libggml.so.0"), ("libggml-base.so", "libggml-base.so.0"), ("libggml-cpu.so", "libggml-cpu.so.0"), ("libggml-cuda.so", "libggml-cuda.so.0"), ("libggml-opencl.so", "libggml-opencl.so.0"), ("libggml-vulkan.so", "libggml-vulkan.so.0")]
+            for src, dst in ver_map:
+                s = os.path.join(deps_dir, src); d = os.path.join(deps_dir, dst)
+                if os.path.isfile(s) and not os.path.exists(d):
+                    try:
+                        import shutil; shutil.copy2(s, d)
+                        logger.info(f"  Created: {dst}")
+                        if IS_MACOS:
                             # Fix install_name so preload with RTLD_GLOBAL works
                             import subprocess
                             subprocess.run(["install_name_tool", "-id", f"@loader_path/{dst}", d],
                                            capture_output=True, timeout=10)
-                        except:
-                            pass
-            ggml_deps = ["libggml.0.dylib", "libggml-base.0.dylib", "libggml-cpu.0.dylib", "libggml-blas.0.dylib", "libggml-metal.0.dylib"] if IS_MACOS else ["libggml.so.0", "libggml-base.so.0", "libggml-cpu.so.0"]
+                    except Exception:
+                        pass
+            ggml_deps = ["libggml.0.dylib", "libggml-base.0.dylib", "libggml-cpu.0.dylib", "libggml-blas.0.dylib", "libggml-metal.0.dylib"] if IS_MACOS else ["libggml.so.0", "libggml-base.so.0", "libggml-cpu.so.0", "libggml-cuda.so.0", "libggml-opencl.so.0"]
             if IS_MACOS:
                 # Fix @rpath references in ALL ggml dylibs before loading
                 try:
@@ -208,6 +212,7 @@ class WhisperCPP:
                 pass
         
         self._lib = ctypes.cdll.LoadLibrary(lib)
+        logger.info(f"Whisper library loaded: {lib}")
         logger.info("Step 9: Setting up functions")
         self._setup_functions()
         # Log version
