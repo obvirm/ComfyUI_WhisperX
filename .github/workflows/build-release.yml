@@ -68,7 +68,9 @@ jobs:
             cp "whisper.cpp/build/bin/$f" release/ 2>/dev/null || true
             cp "whisper.cpp/build/$f" release/ 2>/dev/null || true
           done
-          # Whisper build may also emit separate backend DLLs (CUDA/OpenCL/Vulkan) on some configs — collect if present
+          # Whisper build (GGML_BACKEND_DL=ON) emits separate backend MODULE DLLs
+          # (CUDA/OpenCL/Vulkan) that are dlopen'd lazily by ggml. Ship them so a GPU
+          # host can use the CUDA/OpenCL backends.
           for f in ggml-cuda.dll ggml-opencl.dll ggml-vulkan.dll; do
             cp "whisper.cpp/build/bin/Release/$f" release/ 2>/dev/null || true
             cp "whisper.cpp/build/bin/$f" release/ 2>/dev/null || true

@@ -227,6 +227,14 @@ def _load():
         logger.error(f"Failed to load bs_roformer: {e}")
         _available = False
         return None
+    # Eagerly load all ggml backends (CPU always present; CUDA/opencl optional).
+    try:
+        fn = getattr(_lib, "ggml_backend_load_all", None)
+        if fn:
+            fn()
+            logger.info("  ggml_backend_load_all() called")
+    except Exception as e:
+        logger.debug(f"  ggml_backend_load_all failed (non-fatal): {e}")
 
     _setup_functions(_lib)
     _available = True

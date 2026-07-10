@@ -218,11 +218,19 @@ class WhisperCPP:
         
         self._lib = ctypes.cdll.LoadLibrary(lib)
         logger.info(f"Whisper library loaded: {lib}")
-        # Tell ggml where to find its backend modules (libggml-cuda.so etc) so the
-        # lazy dlopen works regardless of the process cwd / executable dir.
+        # Eagerly load all available ggml backends (lazy dlopen of libggml-cuda.so
+        # etc). On GPU-less hosts CUDA/opencl modules simply won't be found or will
+        # fail to init a device — CPU is always present, so whisper still works.
+        # GGML_BACKEND_PATH points ggml at the dir we downloaded the backend .so into.
         if not IS_WINDOWS and deps_dir:
             os.environ.setdefault("GGML_BACKEND_PATH", deps_dir)
-            logger.info(f"  Set GGML_BACKEND_PATH={deps_dir}")
+            try:
+                fn = getattr(self._lib, "ggml_backend_load_all", None)
+                if fn:
+                    fn()
+                    logger.info("  ggml_backend_load_all() called")
+            except Exception as e:
+                logger.debug(f"  ggml_backend_load_all failed (non-fatal): {e}")
         logger.info("Step 9: Setting up functions")
         self._setup_functions()
         # Log version
