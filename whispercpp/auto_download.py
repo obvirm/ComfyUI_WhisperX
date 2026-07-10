@@ -116,22 +116,18 @@ IS_MAC = platform.system() == "Darwin"
 # fmt: off
 ASSETS = {
     "whisper": {
-        # FULL build. Per-platform differences in how ggml backends are packaged:
-        #   Windows: backends (CUDA/OpenCL/Vulkan) are STATICALLY linked into
-        #            whisper.dll/ggml.dll (GGML_BACKEND_DL=OFF), so no separate files.
-        #   Linux:   backends are SEPARATE .so (GGML_BACKEND_DL=ON). libwhisper.so
-        #            NEEDEDs libggml-cuda.so.0 / libggml-opencl.so.0 — must ship them.
-        #   macOS:  only Metal/BLAS backends are separate dylibs (CPU is in libggml).
+        # FULL build. Semua backend (CUDA/Vulkan/OpenCL/OpenVINO) di-STATIC-link ke
+        # dalam libwhisper (GGML_BACKEND_DL=OFF di semua OS). Jadi gak ada .so/.dll
+        # backend terpisah yg wajib — cuma libggml (+base/cpu) yg di-ship.
+        # macOS: CPU di libggml, Metal/BLAS backend dylib terpisah (ggml default).
         "Windows": ["whisper.dll", "ggml.dll", "ggml-base.dll", "ggml-cpu.dll"],
-        "Linux":   ["libwhisper.so", "libggml.so", "libggml-base.so", "libggml-cpu.so",
-                    "libggml-cuda.so", "libggml-opencl.so"],
+        "Linux":   ["libwhisper.so", "libggml.so", "libggml-base.so", "libggml-cpu.so"],
         "Darwin":  ["libwhisper.dylib", "libggml.dylib", "libggml-base.dylib",
                     "libggml-cpu.dylib", "libggml-blas.dylib", "libggml-metal.dylib"],
     },
     "bs_roformer": {
         "Windows": ["bs_roformer.dll", "ggml.dll", "ggml-base.dll", "ggml-cpu.dll"],
-        "Linux":   ["libbs_roformer.so", "libggml.so", "libggml-base.so", "libggml-cpu.so",
-                    "libggml-cuda.so", "libggml-opencl.so"],
+        "Linux":   ["libbs_roformer.so", "libggml.so", "libggml-base.so", "libggml-cpu.so"],
         "Darwin":  ["libbs_roformer.dylib", "libggml.dylib", "libggml-base.dylib",
                     "libggml-cpu.dylib", "libggml-blas.dylib", "libggml-metal.dylib"],
     },
@@ -159,14 +155,24 @@ GPU_ASSETS = {
     "cpp_annote": { "Windows": [], "Linux": [], "Darwin": [] },
 }
 
-# OPTIONAL provider libs for cpp-annote — shipped ONLY by the GPU ORT builds.
-# On Linux the GPU package also includes CUDA/TensorRT provider .so files; the
-# base libonnxruntime.so (in ASSETS) loads them on demand. We download them
-# only if present in the release (skip_if_missing handles absence gracefully).
+# OPTIONAL backend/provider libs — shipped ONLY when the build actually emits them.
+# With the static-link FULL build (GGML_BACKEND_DL=OFF) these are NOT produced,
+# so they're optional (skip_if_missing handles absence gracefully). Kept here so
+# a future dynamic build still works without code changes.
 OPTIONAL_ASSETS = {
-    "whisper":    { "Windows": [], "Linux": [], "Darwin": [] },
-    "bs_roformer":{ "Windows": [], "Linux": [], "Darwin": [] },
+    "whisper": {
+        "Windows": ["ggml-cuda.dll", "ggml-opencl.dll", "ggml-vulkan.dll"],
+        "Linux":   ["libggml-cuda.so", "libggml-opencl.so", "libggml-vulkan.so"],
+        "Darwin":  [],
+    },
+    "bs_roformer": {
+        "Windows": ["ggml-cuda.dll", "ggml-opencl.dll", "ggml-vulkan.dll"],
+        "Linux":   ["libggml-cuda.so", "libggml-opencl.so", "libggml-vulkan.so"],
+        "Darwin":  [],
+    },
     "cpp_annote": {
+        # Linux GPU ORT package also ships CUDA/TensorRT provider libs; the base
+        # libonnxruntime.so (in ASSETS) loads them on demand.
         "Windows": ["onnxruntime_providers_cuda.dll", "onnxruntime_providers_tensorrt.dll"],
         "Linux":   ["libonnxruntime_providers_cuda.so", "libonnxruntime_providers_tensorrt.so"],
         "Darwin":  [],
