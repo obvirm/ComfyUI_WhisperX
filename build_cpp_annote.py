@@ -48,7 +48,7 @@ def download_ort(cuda=False, directml=False, coreml=False, rocm=False, openvino=
             ort_name = f"onnxruntime-win-x64-{ORT_VERSION}"
         url = f"https://github.com/microsoft/onnxruntime/releases/download/v{ORT_VERSION}/{ort_name}.zip"
     elif platform.system() == "Linux":
-        if cuda:
+        if cuda or cuda_major >= 13:
             ort_name = f"onnxruntime-linux-x64-{cuda_tag}-{ORT_VERSION}"
         else:
             ort_name = f"onnxruntime-linux-x64-{ORT_VERSION}"
