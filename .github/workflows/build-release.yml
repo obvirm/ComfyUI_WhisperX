@@ -61,9 +61,15 @@ jobs:
         shell: bash
         run: |
           mkdir -p release
-          # Copy whisper DLLs from root + build output (FULL build: semua backend di 1 DLL)
+          # Copy whisper DLLs from root + build output (Windows: backends STATIC in whisper.dll/ggml.dll)
           for f in whisper.dll ggml-base.dll ggml-cpu.dll ggml.dll; do
             cp "$f" release/ 2>/dev/null || true
+            cp "whisper.cpp/build/bin/Release/$f" release/ 2>/dev/null || true
+            cp "whisper.cpp/build/bin/$f" release/ 2>/dev/null || true
+            cp "whisper.cpp/build/$f" release/ 2>/dev/null || true
+          done
+          # Whisper build may also emit separate backend DLLs (CUDA/OpenCL/Vulkan) on some configs — collect if present
+          for f in ggml-cuda.dll ggml-opencl.dll ggml-vulkan.dll; do
             cp "whisper.cpp/build/bin/Release/$f" release/ 2>/dev/null || true
             cp "whisper.cpp/build/bin/$f" release/ 2>/dev/null || true
             cp "whisper.cpp/build/$f" release/ 2>/dev/null || true
@@ -71,10 +77,15 @@ jobs:
           cp bs_roformer.dll release/ 2>/dev/null || true
           cp bs_roformer.cpp/build/Release/bs_roformer.dll release/ 2>/dev/null || true
           cp bs_roformer.cpp/build/bs_roformer.dll release/ 2>/dev/null || true
+          # bs_roformer may also emit separate backend DLLs — collect if present
+          for f in ggml-cuda.dll ggml-opencl.dll ggml-vulkan.dll; do
+            cp "bs_roformer.cpp/build/Release/$f" release/ 2>/dev/null || true
+            cp "bs_roformer.cpp/build/$f" release/ 2>/dev/null || true
+          done
           cp cpp_annote.dll release/ 2>/dev/null || true
           cp cpp-annote/build/Release/cpp_annote.dll release/ 2>/dev/null || true
           cp cpp-annote/build/cpp_annote.dll release/ 2>/dev/null || true
-          # Copy all ONNX Runtime DLLs (CPU + CUDA)
+          # Copy all ONNX Runtime DLLs (CPU + CUDA + TensorRT)
           cp onnxruntime*.dll release/ 2>/dev/null || true
           cp cpp-annote/onnxruntime*/lib/onnxruntime*.dll release/ 2>/dev/null || true
           # Copy vcpkg dependency DLLs (zlib, etc.) — cpp-annote statically links zlib on Windows, but keep for other deps
