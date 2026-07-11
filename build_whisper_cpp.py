@@ -310,16 +310,26 @@ def main():
         # and auto-register at startup. Windows/Linux keep GGML_BACKEND_DL=ON (separate
         # MODULE .dll/.so that are dlopen'd lazily, robust on GPU-less CI hosts).
         f"-DGGML_BACKEND_DL={'OFF' if IS_MAC else 'ON'}",
-        # === FULL CPU SIMD (wajib, bukan opsional) ===
+        # === FULL CPU SIMD ===
+        # NOTE: On Windows (MSVC) ggml's CPU backend is built as a SINGLE variant whose
+        # score() REQUIRES every SIMD flag that is forced ON. Forcing AVX512 makes
+        # ggml-cpu.dll score 0 on hosts without AVX512 (e.g. Intel Alder Lake — most
+        # GitHub Windows runners) -> 0 CPU devices -> GGML_ASSERT crash in whisper.
+        # So on Windows we cap at AVX2 (Haswell+, present on all modern x86 incl. CI).
+        # Linux/macOS keep AVX512 (their runners have it; GCC multi-tier handles it).
         "-DGGML_AVX=ON",
         "-DGGML_AVX2=ON",
-        "-DGGML_AVX512=ON",
-        "-DGGML_AVX512_VBMI=ON",
-        "-DGGML_AVX512_VNNI=ON",
-        "-DGGML_AVX512_BF16=ON",
         "-DGGML_FMA=ON",
         "-DGGML_F16C=ON",
     ]
+    # AVX512 only on non-Windows (AVX2 cap on MSVC avoids the score-0 crash above)
+    if not IS_WIN:
+        cmake_args += [
+            "-DGGML_AVX512=ON",
+            "-DGGML_AVX512_VBMI=ON",
+            "-DGGML_AVX512_VNNI=ON",
+            "-DGGML_AVX512_BF16=ON",
+        ]
     # AMX (Intel CPU) — compile-time constant error di MSVC + non-Intel CI runner.
     # Cuma di-enable kalau CPU beneran Intel yg support AMX (deteksi sederhana).
     # Default OFF di CI (portabel, gak error); user dgn Intel Xeon/AMX bisa rebuild lokal.
