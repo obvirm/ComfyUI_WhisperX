@@ -303,13 +303,13 @@ def main():
         # llamafile/sgemm.cpp. Di Windows kita matiin (pakai OpenMP/BLAS sebagai ganti).
         # Linux/macOS tetap ON.
         f"-DGGML_LLAMAFILE={'OFF' if IS_WIN else 'ON'}",
-        # ggml backends di-build sbg MODULE terpisah & di-dlopen MALAS oleh ggml
-        # (GGML_BACKEND_DL=ON, wajib BUILD_SHARED_LIBS=ON yg sdh di-set). Krusial:
-        # libggml.so.0 TIDAK NEEDED libggml-cuda.so.0, jadi di host tanpa GPU/NVIDIA
-        # driver backend CUDA gagal load SILENTLY lalu CPU dipakai. Di host GPU,
-        # backend aktif otomatis (kita set GGML_BACKEND_PATH ke dir backend .so).
-        # Ini satu-satunya mode yg robust di CI tanpa GPU MAUPUN di mesin GPU.
-        "-DGGML_BACKEND_DL=ON",
+        # macOS: ggml's DL backend loader hardcodes .so extension (ggml-backend-reg.cpp),
+        # but CMake emits MODULE backends as .dylib on macOS -> ggml would find 0 CPU
+        # devices -> GGML_ASSERT crash. So on macOS we use static backends
+        # (GGML_BACKEND_DL=OFF + BUILD_SHARED_LIBS=ON): backends link into libggml.dylib
+        # and auto-register at startup. Windows/Linux keep GGML_BACKEND_DL=ON (separate
+        # MODULE .dll/.so that are dlopen'd lazily, robust on GPU-less CI hosts).
+        f"-DGGML_BACKEND_DL={'OFF' if IS_MAC else 'ON'}",
         # === FULL CPU SIMD (wajib, bukan opsional) ===
         "-DGGML_AVX=ON",
         "-DGGML_AVX2=ON",

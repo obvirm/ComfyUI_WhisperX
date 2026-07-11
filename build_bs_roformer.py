@@ -114,15 +114,13 @@ def main():
         f"-DBSR_BUILD_CLI=OFF",
         f"-DBSR_BUILD_SHARED=ON",
         f"-DBSR_BUILD_TESTS=OFF",
-        # GGML_BACKEND_DL=ON wajib BUILD_SHARED_LIBS=ON + GGML_NATIVE=OFF
-        # (ggml FATAL error kalau native dipakai bareng DL backend).
+        # macOS: ggml DL loader hardcodes .so (ggml-backend-reg.cpp) but CMake emits
+        # MODULE backends as .dylib on macOS -> 0 CPU devices -> crash. Use static
+        # backends (GGML_BACKEND_DL=OFF) so CPU auto-registers in libggml.dylib.
+        # Windows/Linux keep GGML_BACKEND_DL=ON (separate MODULE .dll/.so, robust).
         f"-DBUILD_SHARED_LIBS=ON",
         f"-DGGML_NATIVE=OFF",
-        # Backends di-build sbg MODULE terpisah & di-dlopen MALAS oleh ggml
-        # (GGML_BACKEND_DL=ON). libbs_roformer.so TIDAK NEEDED backend .so, jadi di
-        # host tanpa GPU backend CUDA gagal load silently & CPU dipakai. Di host GPU
-        # backend aktif otomatis. (Sama dgn libwhisper — robust di CI tanpa GPU.)
-        f"-DGGML_BACKEND_DL=ON",
+        f"-DGGML_BACKEND_DL={'OFF' if IS_MAC else 'ON'}",
         f"-DGGML_DIR={GGML_DIR}",
     ]
     # Inject toolset (-T v143) untuk Windows CUDA build

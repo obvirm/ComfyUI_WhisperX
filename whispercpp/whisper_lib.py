@@ -227,7 +227,10 @@ class WhisperCPP:
         # IMPORTANT: do NOT set GGML_BACKEND_PATH — ggml treats that env var as a
         # single backend *file* path and would dlopen the directory (harmless but
         # noisy "Is a directory" error). load_all_from_path(dir) is the correct API.
-        if not IS_WINDOWS and deps_dir:
+        # This MUST run on ALL platforms (incl. Windows): with GGML_BACKEND_DL=ON
+        # the C-API does not auto-register backends, so whisper would see 0 devices
+        # and crash at ggml_backend_dev_init (GGML_ASSERT(device)).
+        if deps_dir:
             try:
                 fn = getattr(self._lib, "ggml_backend_load_all_from_path", None)
                 if fn is None:

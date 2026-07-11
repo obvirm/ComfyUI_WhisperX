@@ -116,14 +116,22 @@ IS_MAC = platform.system() == "Darwin"
 # fmt: off
 ASSETS = {
     "whisper": {
-        # FULL build. Backends (CUDA/Vulkan/OpenCL/OpenVINO) di-build sebagai MODULE
-        # terpisah dan di-dlopen malas oleh ggml (GGML_BACKEND_DL=ON). libggml.so
-        # TIDAK NEEDED backend .so — jadi di host tanpa GPU, backend CUDA gagal load
-        # silently & CPU dipakai. Di host GPU, backend aktif otomatis.
-        # macOS: CPU di libggml, Metal/BLAS backend dylib terpisah (ggml default).
+        # Windows/Linux: FULL build, backends (CUDA/Vulkan/OpenCL) di-build sbg MODULE
+        # terpisah & di-dlopen malas oleh ggml (GGML_BACKEND_DL=ON). libggml.so TIDAK
+        # NEEDED backend .so — di host tanpa GPU, backend CUDA gagal load silently & CPU
+        # dipakai. Di host GPU, backend aktif otomatis.
+        # macOS: GGML_BACKEND_DL=OFF (ggml DL loader hardcode .so tapi CMake MODULE di
+        # macOS jadi .dylib -> 0 CPU device -> crash). Backends (CPU/Metal/BLAS) di-static
+        # link ke libggml.dylib & auto-register saat load. Jadi macOS TIDAK butuh file
+        # backend terpisah.
         "Windows": ["whisper.dll", "ggml.dll", "ggml-base.dll", "ggml-cpu.dll"],
         "Linux":   ["libwhisper.so", "libggml.so", "libggml-base.so", "libggml-cpu.so",
                     "libggml-cuda.so", "libggml-opencl.so", "libggml-vulkan.so"],
+        # macOS: GGML_BACKEND_DL=OFF + BUILD_SHARED_LIBS=ON -> backends (cpu/metal/blas)
+        # di-build sbg SHARED .dylib TERPISAH & di-LINK ke libggml.dylib (libggml.dylib
+        # NEEDED libggml-cpu.dylib dkk). Mereka auto-register saat libggml.dylib load.
+        # Jadi HARUS di-shipped. (ggml DL loader di macOS hardcoded .so, jadi
+        # GGML_BACKEND_DL=ON tidak bisa dipakai di macOS.)
         "Darwin":  ["libwhisper.dylib", "libggml.dylib", "libggml-base.dylib",
                     "libggml-cpu.dylib", "libggml-blas.dylib", "libggml-metal.dylib"],
     },
