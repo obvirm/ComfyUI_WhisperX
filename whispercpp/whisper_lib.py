@@ -154,10 +154,14 @@ class WhisperCPP:
         if lib is None:
             raise RuntimeError("whisper library not found. Build: python build_whisper_cpp.py")
         logger.info(f"Step 8: Loading whisper library: {lib}")
-        
+
+        # deps_dir = directory of the loaded library. Needed on ALL platforms for
+        # the eager ggml_backend_load_all_from_path(deps_dir) call below (Windows
+        # included). Compute it unconditionally so it's always defined.
+        deps_dir = str(Path(lib).parent.resolve())
+
         # Preload ggml deps on macOS/Linux (same as bs_roformer)
         if not IS_WINDOWS:
-            deps_dir = str(Path(lib).parent.resolve())
             # Ensure versioned copies exist (dlopen needs libggml.so.0 etc).
             if IS_MACOS:
                 ver_map = [("libggml.dylib", "libggml.0.dylib"), ("libggml-base.dylib", "libggml-base.0.dylib"), ("libggml-cpu.dylib", "libggml-cpu.0.dylib"), ("libggml-blas.dylib", "libggml-blas.0.dylib"), ("libggml-metal.dylib", "libggml-metal.0.dylib")]
