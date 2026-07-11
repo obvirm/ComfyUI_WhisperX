@@ -173,14 +173,18 @@ GPU_ASSETS = {
 # works (CPU backend). cpp-annote's GPU ORT packages additionally ship CUDA/
 # TensorRT provider libs; the base libonnxruntime (in ASSETS) loads them on demand.
 OPTIONAL_ASSETS = {
+    # NOTE: Vulkan backend (ggml-vulkan.*) is intentionally NOT listed — our CI build
+    # only ships CUDA + OpenCL backends, so a ggml-vulkan.* release asset never exists.
+    # Listing it would produce a harmless-but-noisy 404 "optional asset" warning on every
+    # install. Users who build Vulkan locally can drop the file in manually.
     "whisper": {
-        "Windows": ["ggml-cuda.dll", "ggml-opencl.dll", "ggml-vulkan.dll"],
-        "Linux":   ["libggml-cuda.so", "libggml-opencl.so", "libggml-vulkan.so"],
+        "Windows": ["ggml-cuda.dll", "ggml-opencl.dll"],
+        "Linux":   ["libggml-cuda.so", "libggml-opencl.so"],
         "Darwin":  [],
     },
     "bs_roformer": {
-        "Windows": ["ggml-cuda.dll", "ggml-opencl.dll", "ggml-vulkan.dll"],
-        "Linux":   ["libggml-cuda.so", "libggml-opencl.so", "libggml-vulkan.so"],
+        "Windows": ["ggml-cuda.dll", "ggml-opencl.dll"],
+        "Linux":   ["libggml-cuda.so", "libggml-opencl.so"],
         "Darwin":  [],
     },
     "cpp_annote": {
