@@ -220,19 +220,25 @@ def _load():
     # Tell ggml where to find its backend modules (libggml-cuda.so etc) so the lazy
     # dlopen works regardless of cwd / executable dir (GGML_BACKEND_DL=ON build).
     deps_dir = str(Path(dll_path).parent.resolve())
-    os.environ.setdefault("GGML_BACKEND_PATH", deps_dir)
     try:
         _lib = ctypes.CDLL(str(dll_path))
     except Exception as e:
         logger.error(f"Failed to load bs_roformer: {e}")
         _available = False
         return None
-    # Eagerly load all ggml backends (CPU always present; CUDA/opencl optional).
+    # Eagerly load all ggml backends from the deps dir (same as whisper_lib).
+    # Do NOT set GGML_BACKEND_PATH (ggml would dlopen the dir as a backend file).
     try:
-        fn = getattr(_lib, "ggml_backend_load_all", None)
+        fn = getattr(_lib, "ggml_backend_load_all_from_path", None)
+        if fn is None:
+            fn = getattr(_lib, "ggml_backend_load_all", None)
         if fn:
-            fn()
-            logger.info("  ggml_backend_load_all() called")
+            if fn.__name__ == "ggml_backend_load_all_from_path":
+                fn.argtypes = [ctypes.c_char_p]
+                fn(deps_dir.encode() if isinstance(deps_dir, str) else deps_dir)
+            else:
+                fn()
+            logger.info(f"  ggml backend load_all called -> {deps_dir}")
     except Exception as e:
         logger.debug(f"  ggml_backend_load_all failed (non-fatal): {e}")
 

@@ -218,17 +218,27 @@ class WhisperCPP:
         
         self._lib = ctypes.cdll.LoadLibrary(lib)
         logger.info(f"Whisper library loaded: {lib}")
-        # Eagerly load all available ggml backends (lazy dlopen of libggml-cuda.so
-        # etc). On GPU-less hosts CUDA/opencl modules simply won't be found or will
-        # fail to init a device — CPU is always present, so whisper still works.
-        # GGML_BACKEND_PATH points ggml at the dir we downloaded the backend .so into.
+        # Eagerly load all ggml backends from the deps dir. ggml's C API does NOT
+        # auto-load backends when GGML_BACKEND_DL=ON, so we must call
+        # ggml_backend_load_all_from_path(deps_dir) ourselves. This scans deps_dir
+        # for libggml-*.so (cpu/cuda/opencl/...) and registers every device it
+        # finds. CPU is always present, so whisper works even on GPU-less hosts;
+        # CUDA/opencl simply fail to init a device and are skipped.
+        # IMPORTANT: do NOT set GGML_BACKEND_PATH — ggml treats that env var as a
+        # single backend *file* path and would dlopen the directory (harmless but
+        # noisy "Is a directory" error). load_all_from_path(dir) is the correct API.
         if not IS_WINDOWS and deps_dir:
-            os.environ.setdefault("GGML_BACKEND_PATH", deps_dir)
             try:
-                fn = getattr(self._lib, "ggml_backend_load_all", None)
+                fn = getattr(self._lib, "ggml_backend_load_all_from_path", None)
+                if fn is None:
+                    fn = getattr(self._lib, "ggml_backend_load_all", None)
                 if fn:
-                    fn()
-                    logger.info("  ggml_backend_load_all() called")
+                    if fn.__name__ == "ggml_backend_load_all_from_path":
+                        fn.argtypes = [ctypes.c_char_p]
+                        fn(deps_dir.encode() if isinstance(deps_dir, str) else deps_dir)
+                    else:
+                        fn()
+                    logger.info(f"  ggml backend load_all called -> {deps_dir}")
             except Exception as e:
                 logger.debug(f"  ggml_backend_load_all failed (non-fatal): {e}")
         logger.info("Step 9: Setting up functions")
