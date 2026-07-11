@@ -226,12 +226,33 @@ def _load():
         logger.error(f"Failed to load bs_roformer: {e}")
         _available = False
         return None
-    # Eagerly load all ggml backends from the deps dir (same as whisper_lib).
-    # Do NOT set GGML_BACKEND_PATH (ggml would dlopen the dir as a backend file).
+    # Eagerly load all ggml backends from the deps dir. ggml_backend_load_all* lives
+    # in ggml-base/libggml (NOT exported by bs_roformer.dll), so resolve it from the
+    # ggml libs in deps_dir, not from _lib. With GGML_BACKEND_DL=ON backends aren't
+    # auto-registered, and without this bs_roformer would see 0 devices & crash.
     try:
-        fn = getattr(_lib, "ggml_backend_load_all_from_path", None)
-        if fn is None:
-            fn = getattr(_lib, "ggml_backend_load_all", None)
+        candidates = [_lib]
+        if IS_WINDOWS:
+            backend_lib_names = ["ggml-base.dll", "ggml.dll"]
+        elif IS_MACOS:
+            backend_lib_names = ["libggml-base.dylib", "libggml.dylib"]
+        else:
+            backend_lib_names = ["libggml-base.so.0", "libggml.so.0"]
+        for n in backend_lib_names:
+            p = os.path.join(deps_dir, n)
+            if os.path.isfile(p):
+                try:
+                    candidates.append(ctypes.CDLL(p))
+                except BaseException:
+                    pass
+        fn = None
+        for c in candidates:
+            f = getattr(c, "ggml_backend_load_all_from_path", None)
+            if f is None:
+                f = getattr(c, "ggml_backend_load_all", None)
+            if f:
+                fn = f
+                break
         if fn:
             if fn.__name__ == "ggml_backend_load_all_from_path":
                 fn.argtypes = [ctypes.c_char_p]
@@ -239,6 +260,8 @@ def _load():
             else:
                 fn()
             logger.info(f"  ggml backend load_all called -> {deps_dir}")
+        else:
+            logger.debug("  ggml_backend_load_all* not found in any ggml lib")
     except Exception as e:
         logger.debug(f"  ggml_backend_load_all failed (non-fatal): {e}")
 

@@ -235,19 +235,51 @@ class WhisperCPP:
         # the C-API does not auto-register backends, so whisper would see 0 devices
         # and crash at ggml_backend_dev_init (GGML_ASSERT(device)).
         if deps_dir:
+            self._eager_load_ggml_backends(deps_dir)
+
+    def _eager_load_ggml_backends(self, deps_dir: str) -> None:
+        # ggml_backend_load_all* is defined in ggml-backend-reg.cpp which is compiled
+        # into ggml-base / libggml (NOT re-exported by whisper.dll / bs_roformer.dll).
+        # So we must resolve + call it from the ggml-base/libggml library, not the
+        # main whisper lib. With GGML_BACKEND_DL=ON the C-API does NOT auto-register
+        # backends, so without this call whisper sees 0 devices and crashes at
+        # ggml_backend_dev_init (GGML_ASSERT(device)).
+        candidates = [self._lib]
+        if IS_WINDOWS:
+            backend_lib_names = ["ggml-base.dll", "ggml.dll"]
+        elif IS_MACOS:
+            backend_lib_names = ["libggml-base.dylib", "libggml.dylib"]
+        else:
+            backend_lib_names = ["libggml-base.so.0", "libggml.so.0"]
+        for n in backend_lib_names:
+            p = os.path.join(deps_dir, n)
+            if os.path.isfile(p):
+                try:
+                    candidates.append(ctypes.CDLL(p))
+                except BaseException:
+                    pass
+        fn = None
+        owner = None
+        for c in candidates:
+            f = getattr(c, "ggml_backend_load_all_from_path", None)
+            if f is None:
+                f = getattr(c, "ggml_backend_load_all", None)
+            if f:
+                fn = f
+                owner = c
+                break
+        if fn:
             try:
-                fn = getattr(self._lib, "ggml_backend_load_all_from_path", None)
-                if fn is None:
-                    fn = getattr(self._lib, "ggml_backend_load_all", None)
-                if fn:
-                    if fn.__name__ == "ggml_backend_load_all_from_path":
-                        fn.argtypes = [ctypes.c_char_p]
-                        fn(deps_dir.encode() if isinstance(deps_dir, str) else deps_dir)
-                    else:
-                        fn()
-                    logger.info(f"  ggml backend load_all called -> {deps_dir}")
+                if fn.__name__ == "ggml_backend_load_all_from_path":
+                    fn.argtypes = [ctypes.c_char_p]
+                    fn(deps_dir.encode() if isinstance(deps_dir, str) else deps_dir)
+                else:
+                    fn()
+                logger.info(f"  ggml backend load_all called -> {deps_dir}")
             except Exception as e:
                 logger.debug(f"  ggml_backend_load_all failed (non-fatal): {e}")
+        else:
+            logger.debug("  ggml_backend_load_all* not found in any ggml lib (backends may be static-linked)")
         logger.info("Step 9: Setting up functions")
         self._setup_functions()
         # Log version
