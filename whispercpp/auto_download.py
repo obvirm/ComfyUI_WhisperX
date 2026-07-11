@@ -126,7 +126,7 @@ ASSETS = {
         # backend terpisah.
         "Windows": ["whisper.dll", "ggml.dll", "ggml-base.dll", "ggml-cpu.dll"],
         "Linux":   ["libwhisper.so", "libggml.so", "libggml-base.so", "libggml-cpu.so",
-                    "libggml-cuda.so", "libggml-opencl.so", "libggml-vulkan.so"],
+                    "libggml-cuda.so", "libggml-opencl.so"],
         # macOS: GGML_BACKEND_DL=OFF + BUILD_SHARED_LIBS=ON -> backends (cpu/metal/blas)
         # di-build sbg SHARED .dylib TERPISAH & di-LINK ke libggml.dylib (libggml.dylib
         # NEEDED libggml-cpu.dylib dkk). Mereka auto-register saat libggml.dylib load.
@@ -138,7 +138,7 @@ ASSETS = {
     "bs_roformer": {
         "Windows": ["bs_roformer.dll", "ggml.dll", "ggml-base.dll", "ggml-cpu.dll"],
         "Linux":   ["libbs_roformer.so", "libggml.so", "libggml-base.so", "libggml-cpu.so",
-                    "libggml-cuda.so", "libggml-opencl.so", "libggml-vulkan.so"],
+                    "libggml-cuda.so", "libggml-opencl.so"],
         "Darwin":  ["libbs_roformer.dylib", "libggml.dylib", "libggml-base.dylib",
                     "libggml-cpu.dylib", "libggml-blas.dylib", "libggml-metal.dylib"],
     },
