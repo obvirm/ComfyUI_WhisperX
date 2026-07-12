@@ -180,6 +180,15 @@ class WhisperCPP:
                                            capture_output=True, timeout=10)
                     except Exception:
                         pass
+            # macOS: install_name_tool patched the copied dylibs above -> their
+            # SHA256 changed. Refresh the fingerprint manifest so the NEXT launch
+            # won't report a spurious 'fingerprint mismatch' and re-download them.
+            if IS_MACOS:
+                try:
+                    from .auto_download import refresh_manifest
+                    refresh_manifest(deps_dir)
+                except Exception:
+                    pass
             # Order matters: leaf-first (dependencies before dependents). With
             # GGML_BACKEND_DL=ON, libggml.so.0 does NOT NEEDED the backend .so files
             # (they're dlopen'd lazily at runtime). Only base/cpu are hard deps.
@@ -217,6 +226,11 @@ class WhisperCPP:
                     loader_ref = ref.replace("@rpath/", "@loader_path/")
                     subprocess.run(["install_name_tool", "-change", ref, loader_ref, lib],
                                    capture_output=True, timeout=10)
+                # All macOS dylibs have now been rewritten by install_name_tool ->
+                # their SHA256 changed. Refresh the manifest ONCE so the next launch
+                # won't see a spurious 'fingerprint mismatch' and re-download.
+                from .auto_download import refresh_manifest
+                refresh_manifest(deps_dir)
             except Exception:
                 pass
         

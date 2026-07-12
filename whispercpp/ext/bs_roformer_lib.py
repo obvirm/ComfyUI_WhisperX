@@ -45,6 +45,13 @@ def _ensure_dylib_copies(deps_dir):
                                capture_output=True, timeout=10)
             except OSError:
                 pass
+    # install_name_tool patches above changed the copied dylibs' SHA256. Refresh
+    # the fingerprint manifest so the next launch won't re-download them.
+    try:
+        from ..auto_download import refresh_manifest
+        refresh_manifest(deps_dir)
+    except Exception:
+        pass
 
 
 # ── Platform detection ──
@@ -213,6 +220,10 @@ def _load():
                 loader_ref = ref.replace("@rpath/", "@loader_path/")
                 subprocess.run(["install_name_tool", "-change", ref, loader_ref, str(dll_path)],
                                capture_output=True, timeout=10)
+            # install_name_tool rewrote the dylibs -> SHA256 changed. Refresh the
+            # manifest so the next launch won't re-download them spuriously.
+            from ..auto_download import refresh_manifest
+            refresh_manifest(deps_dir)
         except Exception:
             pass
 

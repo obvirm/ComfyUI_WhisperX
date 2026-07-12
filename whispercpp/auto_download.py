@@ -75,6 +75,99 @@ def _save_manifest(target_dir: str, manifest: dict):
         logger.debug(f"Failed to save manifest: {e}")
 
 
+def refresh_manifest(target_dir: str):
+    """Recompute SHA256+size for every file currently recorded in the manifest.
+
+    Used AFTER we intentionally mutate a downloaded file (e.g. macOS
+    `install_name_tool` patching of dylibs rewrites the bytes -> SHA256 changes).
+    Without this, the next launch would see a spurious 'fingerprint mismatch' and
+    re-download a perfectly good (and already-patched) file.
+    """
+    try:
+        manifest = _load_manifest(target_dir)
+        if "files" not in manifest or not manifest["files"]:
+            return
+        changed = False
+        for fname in list(manifest["files"].keys()):
+            fpath = os.path.join(target_dir, fname)
+            if os.path.isfile(fpath):
+                new_sha = _file_sha256(fpath)
+                new_size = os.path.getsize(fpath)
+                rec = manifest["files"][fname]
+                if rec.get("sha256") != new_sha or rec.get("size") != new_size:
+                    rec["sha256"] = new_sha
+                    rec["size"] = new_size
+                    rec["updated"] = int(time.time())
+                    changed = True
+            else:
+                del manifest["files"][fname]
+                changed = True
+        if changed:
+            _save_manifest(target_dir, manifest)
+    except Exception as e:
+        logger.debug(f"refresh_manifest skipped: {e}")
+
+
+def _apply_pending_files(target_dir: str):
+    """Swap any `*.pending` replacement files into place (best-effort).
+
+    A previous launch may have stashed a freshly downloaded DLL as `name.pending`
+    because the live file was locked (already loaded into the running process,
+    e.g. onnxruntime.dll which we pre-load at import time). On a fresh launch the
+    old mapping is gone, so we can now atomically swap the new bytes in. Any
+    leftover `*.old` (rename-aside from _replace_existing_file) is also removed.
+    """
+    try:
+        for fn in os.listdir(target_dir):
+            full = os.path.join(target_dir, fn)
+            if fn.endswith(".pending"):
+                dst = full[:-len(".pending")]
+                try:
+                    os.replace(full, dst)  # atomic on POSIX; on Win dst must be unlocked
+                    logger.info(f"  Applied pending update: {fn[:-len('.pending')]}")
+                except OSError:
+                    pass  # still locked, try again next launch
+            elif fn.endswith(".old"):
+                try:
+                    os.remove(full)
+                except OSError:
+                    pass
+        # Recompute fingerprints so subsequent size/sha checks see the new bytes.
+        refresh_manifest(target_dir)
+    except Exception:
+        pass
+
+
+def _replace_existing_file(dest: str) -> bool:
+    """Remove (or, on Windows, rename-aside) an existing destination file so a
+    fresh copy can be written.
+
+    On Windows a DLL that is already loaded into this process is locked
+    (PermissionError / WinError 5) and cannot be deleted. We rename it aside
+    (file.dll -> file.dll.old); the old mapping stays valid until process exit,
+    and the new content is written under the original name for the next launch.
+    Returns True if the original path is now free to write, False otherwise.
+    """
+    try:
+        if os.path.exists(dest):
+            os.remove(dest)
+        return True
+    except PermissionError:
+        try:
+            old = dest + ".old"
+            if os.path.exists(old):
+                try:
+                    os.remove(old)
+                except OSError:
+                    pass
+            os.rename(dest, old)
+            return True
+        except OSError:
+            return False
+    except OSError:
+        return False
+
+
 def _file_sha256(filepath: str) -> str:
     """Compute SHA256 of a file."""
     try:
@@ -276,6 +369,10 @@ def check_version_and_update(target_dir: str, has_gpu: bool = False) -> bool:
 
     local_ver = _get_version()
 
+    # On a fresh launch, swap in any `*.pending` updates stashed by a previous
+    # run whose live DLL was locked (e.g. onnxruntime.dll pre-loaded at import).
+    _apply_pending_files(target_dir)
+
     # Check if ALL module files are present on disk (and fingerprint-valid)
     manifest = _load_manifest(target_dir)
     all_present = all(
@@ -426,12 +523,15 @@ def _download_file_internal(url: str, dest: str, timeout: int, retries: int,
                 # Re-download if size mismatch (stale/corrupt same-version file)
                 if expected_size and os.path.getsize(dest) != expected_size:
                     logger.warning(f"  Size mismatch on disk ({os.path.basename(dest)}), re-downloading...")
-                    os.remove(dest)
+                    # On Windows a loaded DLL can't be deleted -> rename-aside so the
+                    # running process keeps its mapping; the new content lands under
+                    # the canonical name via the atomic-move step below.
+                    _replace_existing_file(dest)
                 elif _verify_checksum(dest, expected_sha256):
                     return True
                 else:
                     logger.warning(f"  Checksum mismatch, re-downloading {os.path.basename(dest)}...")
-                    os.remove(dest)
+                    _replace_existing_file(dest)
             
             # Check disk space
             if not _check_disk_space(dest, min_mb=50):
@@ -501,9 +601,21 @@ def _download_file_internal(url: str, dest: str, timeout: int, retries: int,
                 if not IS_WIN:
                     os.chmod(tmp_path, 0o755)
                 
-                # ATOMIC MOVE: Rename temp → dest (prevents partial file on crash)
+                # ATOMIC MOVE: Rename temp → dest (prevents partial file on crash).
+                # If dest is locked (e.g. a DLL already loaded into this process on
+                # Windows -> PermissionError / WinError 5), rename the old file aside
+                # (.old) so the in-memory mapping keeps working, then place the new
+                # content under the canonical name for the NEXT launch. If even the
+                # rename-aside fails, stash the new bytes as dest + ".pending" and let
+                # the next launch swap it in.
                 if os.path.exists(dest):
-                    os.remove(dest)
+                    if not _replace_existing_file(dest):
+                        try:
+                            os.replace(tmp_path, dest + ".pending")
+                            logger.warning(f"  Locked file, stashed update as {os.path.basename(dest)}.pending (used next launch)")
+                        except OSError:
+                            pass
+                        return True
                 os.rename(tmp_path, dest)
                 return True
 
