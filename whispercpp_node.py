@@ -54,6 +54,24 @@ WHISPER_LANGUAGES = {
 LANGUAGES = WHISPER_LANGUAGES
 TO_LANGUAGE_CODE = {v:k for k,v in WHISPER_LANGUAGES.items()}
 
+
+def shift_segment_timestamps(segment: dict, offset: float) -> dict:
+    """Shift a parent segment AND its nested words to absolute full-audio time.
+
+    When audio is split into chunks (VAD / RMS hallucination filter) the node
+    rewinds each chunk to local time. The parent segment already gets shifted by
+    `offset`, but the nested word timestamps must receive the same offset or
+    they jump backward at every new chunk boundary.
+    """
+    segment["start"] = segment.get("start", 0) + offset
+    segment["end"] = segment.get("end", 0) + offset
+    for word in segment.get("words", []):
+        local_start = word.get("start", 0)
+        local_end = word.get("end", local_start)
+        word["start"] = local_start + offset
+        word["end"] = local_end + offset
+    return segment
+
 # Standalone alignment — sherpa-onnx CTC (no wav2vec2, no whisperx)
 SHERPA_ALIGN_AVAILABLE = False
 try:
@@ -344,10 +362,10 @@ class WhisperCPPNode:
                     seg_text = seg_result.get("text","").strip()
                     if seg_text:
                         full_texts.append(seg_text)
-                    for seg in seg_result.get("segments",[]):
-                        # Shift chunk timestamps to original audio position
-                        seg["start"] = seg.get("start", 0) + seg_start
-                        seg["end"] = seg.get("end", 0) + seg_start
+                    for seg in seg_result.get("segments", []):
+                        # Shift chunk timestamps (segment + nested words) to
+                        # original audio position.
+                        seg = shift_segment_timestamps(seg, seg_start)
                         all_segments.append(seg)
                     logger.info(f"  [{seg_i+1}/{len(speech_segs)}] {seg_start:.1f}s-{seg_end:.1f}s: {seg_text[:60]}...")
                 except Exception as e:
@@ -424,10 +442,10 @@ class WhisperCPPNode:
                             seg_text = seg_result.get("text","").strip()
                             if seg_text:
                                 full_texts.append(seg_text)
-                            for seg in seg_result.get("segments",[]):
-                                # Shift chunk timestamps to original audio position
-                                seg["start"] = seg.get("start", 0) + seg_start
-                                seg["end"] = seg.get("end", 0) + seg_start
+                            for seg in seg_result.get("segments", []):
+                                # Shift chunk timestamps (segment + nested words)
+                                # to original audio position.
+                                seg = shift_segment_timestamps(seg, seg_start)
                                 all_segments.append(seg)
                             logger.info(f"  [{ri+1}/{len(regions)}] {seg_start:.1f}s-{seg_end:.1f}s: {seg_text[:60]}...")
                         except Exception as e:

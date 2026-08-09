@@ -17,6 +17,97 @@ elif IS_LINUX: LIB_NAMES = ["libwhisper.so"]
 elif IS_MACOS: LIB_NAMES = ["libwhisper.dylib"]
 else: LIB_NAMES = ["libwhisper.so"]
 
+# Languages where whitespace is NOT a reliable word delimiter — keep token-level words.
+NO_SPACE_LANGUAGES = {"zh", "ja", "th", "lo", "my", "yue"}
+
+
+def decode_merged_token_text(text: str) -> str:
+    """Re-encode lossless (surrogateescape) token text and decode as full UTF-8.
+
+    Whisper emits BPE piece bytes. When a multibyte character is split across
+    token boundaries we must keep the raw bytes lossless until all pieces of a
+    word are assembled, otherwise `errors="replace"` destroys the bytes for good.
+    """
+    raw = text.encode("utf-8", errors="surrogateescape")
+    return raw.decode("utf-8", errors="replace")
+
+
+def merge_tokens_to_words(tokens: list, language: str = None) -> list:
+    """Merge Whisper BPE/subword token pieces into whole-word entries.
+
+    For whitespace-delimited languages a token piece only starts a new word when
+    it carries a leading space (or the whisper BPE markers ▁ / Ġ). Pieces that
+    belong to the same word are concatenated, preserving the first token's start
+    and the last token's end, with an averaged probability.
+    """
+    clean_tokens = []
+    for token in tokens:
+        raw_text = token.get("text", "")
+        stripped = raw_text.strip()
+        if not stripped:
+            continue
+        if raw_text.lstrip().startswith(("[", "<")):
+            continue
+        clean_tokens.append(token)
+
+    # Preserve token-level behaviour for languages that don't use spaces.
+    if language in NO_SPACE_LANGUAGES:
+        return [
+            {
+                "word": token["text"].strip(),
+                "start": token.get("start", 0),
+                "end": token.get("end", token.get("start", 0)),
+                "probability": token.get("probability", 0),
+            }
+            for token in clean_tokens
+        ]
+
+    words = []
+    current_text = ""
+    current_start = None
+    current_end = None
+    probabilities = []
+
+    def flush():
+        nonlocal current_text, current_start, current_end, probabilities
+        text = decode_merged_token_text(current_text.strip())
+        if text:
+            words.append({
+                "word": text,
+                "start": current_start,
+                "end": current_end,
+                "probability": (
+                    sum(probabilities) / len(probabilities)
+                    if probabilities else 0
+                ),
+            })
+        current_text = ""
+        current_start = None
+        current_end = None
+        probabilities = []
+
+    for token in clean_tokens:
+        raw_text = token["text"]
+        starts_word = (
+            raw_text[:1].isspace()
+            or raw_text.startswith("▁")
+            or raw_text.startswith("Ġ")
+        )
+        piece = raw_text.lstrip().lstrip("▁Ġ")
+
+        if starts_word and current_text:
+            flush()
+
+        if current_start is None:
+            current_start = token.get("start", 0)
+        current_text += piece
+        current_end = token.get("end", current_start)
+        probabilities.append(token.get("probability", 0))
+
+    flush()
+    return words
+
+
 class WhisperAhead(ctypes.Structure):
     """whisper_ahead: {n_head, n_layer}"""
     _fields_ = [("n_head", ctypes.c_int), ("n_layer", ctypes.c_int)]
@@ -465,14 +556,18 @@ class WhisperCPP:
             n_tok = self._lib.whisper_full_n_tokens(self._ctx, i)
             tokens, words = [], []
             for j in range(n_tok):
-                tt = (self._lib.whisper_full_get_token_text(self._ctx, i, j) or b"").decode(errors="replace")
+                # Keep raw bytes lossless until merged — split UTF-8 sequences
+                # across BPE pieces must survive (surrogateescape).
+                token_bytes = (self._lib.whisper_full_get_token_text(self._ctx, i, j) or b"")
+                tt = token_bytes.decode("utf-8", errors="surrogateescape")
                 tp = float(self._lib.whisper_full_get_token_p(self._ctx, i, j))
                 tt0 = self._lib.whisper_full_get_token_t0(self._ctx, i, j) / 100.0
                 tt1 = self._lib.whisper_full_get_token_t1(self._ctx, i, j) / 100.0
                 tid = self._lib.whisper_full_get_token_id(self._ctx, i, j)
                 tokens.append({"id": tid, "text": tt, "probability": tp, "start": tt0, "end": tt1})
-                if tt.strip() and not tt.startswith("[") and not tt.startswith("<"):
-                    words.append({"word": tt.strip(), "start": tt0, "end": tt1, "probability": tp})
+            # Merge BPE pieces into whole words (fixes Arabic subword fragments
+            # emitted as separate words) — uses detected_lang for no-space langs.
+            words = merge_tokens_to_words(tokens, language=detected_lang)
             segments.append({"start": t0, "end": t1, "text": text, "tokens": tokens, "words": words, "speaker_turn_next": st, "no_speech_prob": nsp})
             full_text.append(text)
         vad_segs = []
